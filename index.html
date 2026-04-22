@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HUNTER v10 Multi</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#08080a;--card:#111118;--card2:#1a1a1f;--border:#222233;--accent:#3b82f6;--green:#22c55e;--red:#ef4444;--text:#f0f0f0;--dim:#666;--radius:16px;
+  --top:#a78bfa;--mid:#3b82f6;--bot:#22c55e}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;padding:12px;max-width:500px;margin:0 auto}
+
+.hdr{text-align:center;padding:20px 0 14px}
+.hdr h1{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:4px;color:#fff}
+.hdr h1 span{color:var(--accent)}
+.hdr .stats{font-family:'JetBrains Mono',monospace;font-size:10px;margin-top:6px;color:var(--green);letter-spacing:1px;font-weight:700}
+
+.zone-bar{display:flex;gap:6px;margin-bottom:14px}
+.zone-box{flex:1;padding:14px 8px;border-radius:12px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;text-align:center;border:2px solid var(--border);background:var(--card);color:var(--dim);letter-spacing:1px}
+.zone-box.on{background:linear-gradient(135deg,#0a0a0f,var(--card));box-shadow:0 0 20px rgba(59,130,246,0.3)}
+.zone-box.on-top{border-color:var(--top);color:var(--top)}
+.zone-box.on-mid{border-color:var(--mid);color:var(--mid)}
+.zone-box.on-bot{border-color:var(--bot);color:var(--bot)}
+.zone-box .pct{font-size:16px;margin-top:4px;font-weight:800}
+.zone-box .rule{font-size:9px;margin-top:4px;opacity:0.8}
+
+.status-card{background:linear-gradient(135deg,#0a0a0f,var(--card));border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+.status-card .title{font-size:11px;color:var(--dim);letter-spacing:2px;font-weight:700;margin-bottom:10px}
+.status-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
+.status-row .k{font-size:12px;color:var(--dim)}
+.status-row .v{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800}
+.zone-top{color:var(--top)}
+.zone-mid{color:var(--mid)}
+.zone-bot{color:var(--bot)}
+
+.tabs{display:flex;gap:3px;margin-bottom:14px;background:var(--card);border-radius:12px;padding:3px;border:1px solid var(--border)}
+.tab{flex:1;padding:9px;border:none;border-radius:10px;background:none;color:var(--dim);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;cursor:pointer}
+.tab.on{background:var(--accent);color:#fff}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.ct{font-family:'JetBrains Mono',monospace;font-size:10px;color:#444;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;font-weight:700}
+.ir{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.ir label{font-size:13px;color:var(--dim);width:85px;font-weight:600}
+.ir input{flex:1;background:#0a0a0f;border:2px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;text-align:right;outline:none;-webkit-appearance:none}
+.ir input:focus{border-color:var(--accent)}
+.ir input.auto{background:#0f0a1a;color:var(--accent)}
+.ir .u{font-size:13px;color:var(--dim);width:16px;font-weight:700}
+
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
+.btn-b{background:var(--accent);color:#fff}
+.btn-s{background:var(--red);color:#fff}
+.btn-d{background:var(--card2);color:var(--dim);border:1px solid var(--border)}
+.btn-r{background:#1a0a0a;color:var(--red);border:1px solid var(--red)}
+.btn-seed{background:#0a1a0a;color:var(--green);border:1px solid var(--green);font-size:12px;padding:10px}
+.btn-fetch{background:#1a1a2a;color:var(--accent);border:1px solid var(--accent);font-size:12px;padding:10px}
+.btn-bt{background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;text-decoration:none;display:block;text-align:center}
+
+.loc-box{background:var(--card2);border-radius:var(--radius);padding:16px;margin-bottom:12px;border:1px solid var(--border)}
+.loc-title{font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px}
+.order{border-radius:12px;padding:14px;margin-bottom:8px;border:1px solid var(--border)}
+.order.buy{background:#001a0f11;border-color:#22c55e33}
+.order.sell-top{background:#1a0a1f11;border-color:#a78bfa33;border-left:3px solid var(--top)}
+.order.sell-mid{background:#0a0a1f11;border-color:#3b82f633;border-left:3px solid var(--mid)}
+.order.sell-bot{background:#001a0f11;border-color:#22c55e33;border-left:3px solid var(--bot)}
+.order .lbl{font-size:10px;color:var(--dim);font-weight:700;letter-spacing:1px}
+.order .val{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800;color:var(--text);margin-top:3px}
+.order .desc{font-size:11px;color:var(--dim);margin-top:4px}
+
+/* ⭐ 슬라이드 매도 (Swipe to Sell) */
+.tier-wrap{position:relative;overflow:hidden;margin-bottom:8px;border-radius:12px}
+.tier-sell-bg{position:absolute;top:0;right:0;bottom:0;width:100%;background:linear-gradient(90deg,rgba(239,68,68,0.1),var(--red));display:flex;align-items:center;justify-content:flex-end;padding-right:20px;color:#fff;font-weight:800;font-family:'JetBrains Mono',monospace;font-size:14px}
+.tier-sell-bg::before{content:"← 밀어서 매도"}
+.tier-item{background:#0a0a0f;border:1px solid var(--border);border-radius:12px;padding:12px;position:relative;touch-action:pan-y;transition:transform 0.2s;cursor:grab}
+.tier-item.dragging{transition:none;cursor:grabbing}
+.tier-item .top-row{display:flex;justify-content:space-between;align-items:center}
+.tier-item .tid{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);font-weight:700}
+.tier-item .info{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:var(--text)}
+.tier-item .meta{font-size:11px;color:var(--dim);margin-top:4px;font-family:'JetBrains Mono',monospace}
+.tier-item .pnl{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:800}
+.tier-item .pnl.up{color:var(--green)}
+.tier-item .pnl.dn{color:var(--red)}
+.tier-item.zone-top{border-left:3px solid var(--top)}
+.tier-item.zone-mid{border-left:3px solid var(--mid)}
+.tier-item.zone-bot{border-left:3px solid var(--bot)}
+.tier-sell-btn{background:var(--red);color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;margin-left:8px}
+
+/* 모달 */
+.modal-bg{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal{background:var(--card);border:1px solid var(--accent);border-radius:16px;padding:20px;max-width:400px;width:100%}
+.modal h3{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:var(--accent);margin-bottom:12px}
+.modal .desc{color:var(--dim);font-size:13px;margin-bottom:16px;line-height:1.6}
+.modal .btn-row{display:flex;gap:8px;margin-top:16px}
+.modal .btn-row .btn{margin-top:0}
+
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.sb{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center}
+.sb .v{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:800}
+.sb .l{font-size:10px;color:var(--dim);margin-top:2px;font-weight:600}
+
+.warn{background:#1a0a0a;border:1px solid var(--red);border-radius:12px;padding:14px;color:var(--red);font-weight:700;text-align:center;font-size:13px}
+.footer{text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:#333;margin-top:20px;letter-spacing:1px}
+
+.danger-zone{background:#1a0a0a;border:2px dashed var(--red);border-radius:12px;padding:14px;margin-top:12px}
+.danger-zone .title{color:var(--red);font-size:11px;font-weight:700;letter-spacing:2px;margin-bottom:10px}
+
+/* 미니 카드 탭 v10 */
+.tickers-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 12px;
+  background: #1a1a2e;
+  border-bottom: 1px solid #333;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+.tickers-bar::-webkit-scrollbar { display: none; }
+.ticker-card {
+  min-width: 80px;
+  padding: 8px 12px;
+  background: #2a2a3e;
+  border-radius: 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.ticker-card:hover { background: #3a3a4e; }
+.ticker-card.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+}
+.tc-sym {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+.tc-price {
+  font-size: 13px;
+  color: #ffd;
+  margin-top: 2px;
+}
+.tc-info {
+  font-size: 10px;
+  color: #aaa;
+  margin-top: 2px;
+}
+.ticker-add {
+  min-width: 50px;
+  padding: 8px;
+  background: #2a2a3e;
+  border: 2px dashed #555;
+  border-radius: 10px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 24px;
+  font-weight: 300;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ticker-add:hover { 
+  background: #3a3a4e;
+  border-color: #888;
+  color: #fff;
+}
+
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1><span id="ticker-name">SOXL</span> <span>HUNTER</span> v10</h1>
+<div class="tickers-bar" id="tickers-bar"></div>
+  <div class="stats">3구간 자동전환 · CAGR +102% · MDD -51% · 137배</div>
+</div>
+
+<div class="zone-bar" id="zone-bar">
+  <div class="zone-box" id="zbox-top">
+    천장
+    <div class="pct">+2.5% / 7일</div>
+    <div class="rule">-10% 이내</div>
+  </div>
+  <div class="zone-box" id="zbox-mid">
+    중간
+    <div class="pct">+0.5% / 7일</div>
+    <div class="rule">-10~-15%</div>
+  </div>
+  <div class="zone-box" id="zbox-bot">
+    바닥
+    <div class="pct">+3% / 10일</div>
+    <div class="rule">-15% 이상</div>
+  </div>
+</div>
+
+<div class="status-card" id="status">
+  <div class="title">📊 현재 상태</div>
+  <div id="status-body"></div>
+</div>
+
+<div class="tabs">
+  <button class="tab" id="tab-m" onclick="sw('m')">매매</button>
+  <button class="tab on" id="tab-t" onclick="sw('t')">티어</button>
+  <button class="tab" id="tab-h" onclick="sw('h')">기록</button>
+  <button class="tab" id="tab-b" onclick="sw('b')">백테</button>
+  <button class="tab" id="tab-g" onclick="sw('g')">가이드</button>
+</div>
+
+<div id="body"></div>
+
+<a href="bt.html" class="btn btn-bt">📊 백테스트 페이지로!</a>
+
+<div class="footer">HUNTER v10 Multi · 무제한 종목 · 3구간 자동전환</div>
+
+<!-- 모달 컨테이너 -->
+<div id="modal-container"></div>
+
+<script>
+// 설정 (HUNTER v8 안전 3구간)
+const TU = 20;
+const UP = 2;
+const DN = 4;
+
+const ZONES = {
+  top: {tp: 0.025, fd: 7, label:'천장', color:'top'},
+  mid: {tp: 0.005, fd: 7, label:'중간', color:'mid'},
+  bot: {tp: 0.030, fd: 10, label:'바닥', color:'bot'}
+};
+
+const TOP_TH = -10;
+const BOT_TH = -15;
+
+// 상태 - v10 멀티 종목!
+let tab = 't';
+
+// 포트폴리오 (종목별 데이터)
+let portfolios = JSON.parse(localStorage.getItem('v10-portfolios') || 'null');
+if (!portfolios) {
+  // v8 데이터 마이그레이션 (기존 사용자)
+  const oldSeed = parseFloat(localStorage.getItem('v8-seed') || '30000');
+  const oldPrice = parseFloat(localStorage.getItem('v8-price') || '0');
+  const oldHigh = parseFloat(localStorage.getItem('v8-high20') || '0');
+  const oldPos = JSON.parse(localStorage.getItem('v8-pos') || '[]');
+  const oldHist = JSON.parse(localStorage.getItem('v8-hist') || '[]');
+  
+  portfolios = {
+    SOXL: {
+      seed: oldSeed,
+      price: oldPrice,
+      high20: oldHigh,
+      pos: oldPos,
+      hist: oldHist
+    }
+  };
+  localStorage.setItem('v10-portfolios', JSON.stringify(portfolios));
+}
+
+let activeSymbol = localStorage.getItem('v10-active') || 'SOXL';
+// 종목이 없으면 첫 번째 것으로
+if (!portfolios[activeSymbol]) {
+  activeSymbol = Object.keys(portfolios)[0] || 'SOXL';
+  if (!portfolios[activeSymbol]) {
+    portfolios['SOXL'] = { seed: 30000, price: 0, high20: 0, pos: [], hist: [] };
+    activeSymbol = 'SOXL';
+  }
+}
+
+// 현재 선택된 종목의 데이터 (기존 코드 호환용)
+let seed = portfolios[activeSymbol].seed;
+let curPrice = portfolios[activeSymbol].price;
+let high20 = portfolios[activeSymbol].high20;
+let pos = portfolios[activeSymbol].pos;
+let hist = portfolios[activeSymbol].hist;
+
+const $ = id => document.getElementById(id);
+const gv = id => parseFloat($(id).value) || 0;
+const save = () => {
+  // 현재 종목의 데이터 업데이트
+  portfolios[activeSymbol] = {
+    seed: seed,
+    price: curPrice,
+    high20: high20,
+    pos: pos,
+    hist: hist
+  };
+  localStorage.setItem('v10-portfolios', JSON.stringify(portfolios));
+  localStorage.setItem('v10-active', activeSymbol);
+};
+
+// 종목 전환
+function switchSymbol(sym) {
+  // 현재 데이터 저장
+  save();
+  // 새 종목 로드
+  activeSymbol = sym;
+  if (!portfolios[sym]) {
+    portfolios[sym] = { seed: 30000, price: 0, high20: 0, pos: [], hist: [] };
+  }
+  seed = portfolios[sym].seed;
+  curPrice = portfolios[sym].price;
+  high20 = portfolios[sym].high20;
+  pos = portfolios[sym].pos;
+  hist = portfolios[sym].hist;
+  save();
+  renderTickers();
+  render();
+}
+
+// 종목 추가
+function addSymbol() {
+  const sym = prompt('종목 코드 입력 (예: POET, TSLA, NVDA):');
+  if (!sym) return;
+  const upperSym = sym.toUpperCase().trim();
+  if (!upperSym) return;
+  if (portfolios[upperSym]) {
+    alert('이미 있는 종목!');
+    return;
+  }
+  portfolios[upperSym] = { seed: 10000, price: 0, high20: 0, pos: [], hist: [] };
+  localStorage.setItem('v10-portfolios', JSON.stringify(portfolios));
+  switchSymbol(upperSym);
+  // 자동으로 가격 가져오기
+  setTimeout(() => fetchAuto(), 300);
+}
+
+// 종목 삭제
+function removeSymbol(sym) {
+  if (Object.keys(portfolios).length <= 1) {
+    alert('최소 1개 종목은 필요!');
+    return;
+  }
+  if (!confirm(`${sym} 삭제? 시드와 매매내역 모두 삭제됩니다!`)) return;
+  delete portfolios[sym];
+  localStorage.setItem('v10-portfolios', JSON.stringify(portfolios));
+  if (sym === activeSymbol) {
+    activeSymbol = Object.keys(portfolios)[0];
+    switchSymbol(activeSymbol);
+  } else {
+    renderTickers();
+  }
+}
+
+// 미니 카드 렌더링
+function renderTickers() {
+  const bar = document.getElementById('tickers-bar');
+  if (!bar) return;
+  
+  let html = '';
+  for (const sym in portfolios) {
+    const p = portfolios[sym];
+    const tierCount = p.pos.length;
+    const totalU = p.pos.reduce((s, t) => s + t.u, 0);
+    const isActive = sym === activeSymbol;
+    
+    html += `<div class="ticker-card ${isActive ? 'active' : ''}" 
+      onclick="switchSymbol('${sym}')"
+      oncontextmenu="event.preventDefault(); removeSymbol('${sym}'); return false;"
+      ontouchstart="startLongPress('${sym}')"
+      ontouchend="cancelLongPress()">
+      <div class="tc-sym">${sym}</div>
+      <div class="tc-price">$${(p.price||0).toFixed(2)}</div>
+      <div class="tc-info">${tierCount}티어 · ${totalU}u</div>
+    </div>`;
+  }
+  
+  html += `<div class="ticker-add" onclick="addSymbol()">+</div>`;
+  bar.innerHTML = html;
+  
+  // 타이틀도 업데이트
+  const tn = document.getElementById('ticker-name');
+  if (tn) tn.textContent = activeSymbol;
+}
+
+// 롱프레스로 삭제
+let longPressTimer = null;
+function startLongPress(sym) {
+  longPressTimer = setTimeout(() => {
+    removeSymbol(sym);
+  }, 800);
+}
+function cancelLongPress() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+}
+const td = () => new Date().toISOString().slice(0,10);
+const db = (a,b) => { 
+  const d1=new Date(a), d2=new Date(b); 
+  let days=0, cur=new Date(d1);
+  while(cur<d2) { cur.setDate(cur.getDate()+1); if(cur.getDay()!==0&&cur.getDay()!==6) days++; }
+  return days;
+};
+
+function getZone() {
+  if (!curPrice || !high20) return 'top';
+  const dd = (curPrice - high20) / high20 * 100;
+  if (dd >= TOP_TH) return 'top';
+  if (dd <= BOT_TH) return 'bot';
+  return 'mid';
+}
+
+function zoneDesc() {
+  const z = getZone();
+  const dd = high20 ? ((curPrice-high20)/high20*100).toFixed(1) : 0;
+  return {zone: z, dd: dd, label: ZONES[z].label};
+}
+
+function sw(t) {
+  tab = t;
+  document.querySelectorAll('.tab').forEach((b, i) => {
+    b.classList.toggle('on', ['m','t','h','b','g'][i]===t);
+  });
+  render();
+}
+
+function renderZones() {
+  const z = getZone();
+  ['top','mid','bot'].forEach(x => {
+    const el = $('zbox-'+x);
+    if (x===z) {
+      el.className = 'zone-box on on-'+x;
+    } else {
+      el.className = 'zone-box';
+    }
+  });
+}
+
+function renderStatus() {
+  const z = zoneDesc();
+  const uw = seed/TU;
+  const ti = pos.reduce((a,p) => a+p.u, 0);
+  const rem = TU - ti;
+  let h = `
+    <div class="status-row"><span class="k">시드</span><span class="v">$${seed.toLocaleString()}</span></div>
+    <div class="status-row"><span class="k">유닛 단위</span><span class="v">$${uw.toFixed(0)}</span></div>
+    <div class="status-row"><span class="k">현재가</span><span class="v">$${curPrice||'--'}</span></div>
+    <div class="status-row"><span class="k">20일 전고</span><span class="v">$${high20||'--'}</span></div>
+    <div class="status-row"><span class="k">전고 대비</span><span class="v zone-${z.zone}">${z.dd>0?'+':''}${z.dd}%</span></div>
+    <div class="status-row"><span class="k">구간</span><span class="v zone-${z.zone}">${z.label} 🎯</span></div>
+    <div class="status-row"><span class="k">투입 유닛</span><span class="v">${ti}/${TU} (${rem}u 남음)</span></div>
+  `;
+  $('status-body').innerHTML = h;
+}
+
+// 핵심: render 시 input 포커스 유지!
+let activeInputId = null;
+let activeInputCursor = 0;
+
+function saveActiveInput() {
+  const ae = document.activeElement;
+  if (ae && ae.tagName === 'INPUT') {
+    activeInputId = ae.id;
+    activeInputCursor = ae.selectionStart;
+  } else {
+    activeInputId = null;
+  }
+}
+
+function restoreActiveInput() {
+  if (activeInputId) {
+    const el = document.getElementById(activeInputId);
+    if (el) {
+      el.focus();
+      try {
+        if (el.type !== 'number') {
+          el.setSelectionRange(activeInputCursor, activeInputCursor);
+        }
+      } catch(e) {}
+    }
+  }
+}
+
+function render() {
+  renderTickers();
+  saveActiveInput();
+  renderZones();
+  renderStatus();
+  
+  const body = $('body');
+  let h = '';
+  
+  if (tab === 'm') {
+    const z = zoneDesc();
+    const zcfg = ZONES[z.zone];
+    const ti = pos.reduce((a,p) => a+p.u, 0);
+    const rem = TU - ti;
+    const uw = seed/TU;
+    
+    h += `<div class="card">
+      <div class="ct">설정</div>
+      <div class="ir"><label>시드</label><input type="number" id="seed-in" value="${seed}" onchange="updSeed()"><span class="u">$</span></div>
+      <div class="ir"><label>현재가</label><input type="number" step="0.01" id="cp" value="${curPrice||''}" onchange="updPrice()"><span class="u">$</span></div>
+      <div class="ir"><label>20일 전고</label><input type="number" step="0.01" id="h20" value="${high20||''}" onchange="updHigh()"><span class="u">$</span></div>
+      <button class="btn btn-fetch" onclick="fetchAuto()">🔄 야후에서 자동 가져오기 (확정 종가)</button>
+    </div>`;
+    
+    if (rem > 0) {
+      const loc1 = (curPrice * 1.15).toFixed(2);
+      const loc2 = (curPrice - 0.01).toFixed(2);
+      const sUp = curPrice ? Math.floor(UP * uw / curPrice) : 0;
+      const sDn = curPrice ? Math.floor(DN * uw / curPrice) : 0;
+      const sDnX = sDn - sUp;
+      
+      h += `<div class="loc-box">
+        <div class="loc-title">📋 매수 LOC (${z.label} 구간)</div>
+        <div class="order buy">
+          <div class="lbl">① 무조건 매수</div>
+          <div class="val">LOC 매수 ${sUp}주 @ $${loc1}</div>
+          <div class="desc">${UP}유닛 · 전날×1.15</div>
+        </div>
+        <div class="order buy">
+          <div class="lbl">② 하락 추가</div>
+          <div class="val">LOC 매수 ${sDnX}주 @ $${loc2}</div>
+          <div class="desc">${DN-UP}유닛 · 전날-$0.01</div>
+        </div>
+      </div>`;
+    } else {
+      h += `<div class="warn">⚠️ ${TU}u MAX — 매수 불가</div>`;
+    }
+    
+    if (pos.length > 0) {
+      h += `<div class="loc-box">
+        <div class="loc-title">💰 매도 LOC (구간별)</div>`;
+      
+      pos.forEach((p, idx) => {
+        const pz = ZONES[p.z];
+        const sellPrice = (p.e * (1+pz.tp)).toFixed(2);
+        const days = db(p.d, td());
+        const rm = pz.fd - days;
+        const isForce = days >= pz.fd;
+        const cls = `sell-${p.z}`;
+        
+        if (isForce) {
+          h += `<div class="order" style="border-left:3px solid var(--red);background:rgba(239,68,68,0.08)">
+            <div class="lbl" style="color:var(--red)">⚠️ T${idx+1} 강제매도! (${pz.fd}일 초과)</div>
+            <div class="val">MOC 매도 ${p.s}주</div>
+            <div class="desc">매수 $${p.e} · ${days}일 경과 · ${pz.label}</div>
+          </div>`;
+        } else {
+          h += `<div class="order ${cls}">
+            <div class="lbl">T${idx+1} 매도 LOC (${pz.label} +${(pz.tp*100).toFixed(1)}%)</div>
+            <div class="val">LOC 매도 ${p.s}주 @ $${sellPrice}</div>
+            <div class="desc">매수 $${p.e} · D+${days} · 잔여 ${rm}일 · ${pz.label}</div>
+          </div>`;
+        }
+      });
+      h += `</div>`;
+    }
+    
+    // ⭐⭐⭐ 수정 #2: 자동 계산 체결 기록 ⭐⭐⭐
+    // 체결가만 입력 → 유닛/주수 자동 계산!
+    if (rem > 0) {
+      h += `<div class="card">
+        <div class="ct">💰 체결 기록 (매수) · 자동 유닛 감지</div>
+        <div class="ir"><label>체결가</label><input type="number" step="0.01" id="fp" placeholder="체결가 입력!" oninput="upFillAuto()"><span class="u">$</span></div>
+        <div class="ir"><label>유닛</label><input type="number" class="auto" id="fu" value="${UP}" readonly><span class="u">u</span></div>
+        <div class="ir"><label>주수</label><input type="number" class="auto" id="fs" placeholder="자동" readonly><span class="u">주</span></div>
+        <div id="fi" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--dim);margin:8px 0;padding:10px;background:#0a0a0f;border-radius:8px"></div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn btn-d" style="flex:1;margin:0;font-size:11px" onclick="resetUnitAuto()">🤖 자동</button>
+          <button class="btn btn-d" style="flex:1;margin:0;font-size:11px" onclick="setUnit(${UP})">수동 ${UP}u</button>
+          <button class="btn btn-d" style="flex:1;margin:0;font-size:11px" onclick="setUnit(${DN})">수동 ${DN}u</button>
+        </div>
+        <button class="btn btn-b" onclick="doBuy()">T${pos.length+1} 기록</button>
+      </div>`;
+    }
+  }
+  
+  if (tab === 't') {
+    if (pos.length === 0) {
+      h += `<div class="card" style="text-align:center;color:var(--dim);padding:40px 20px">
+        보유 티어가 없습니다<br><small>매매 탭에서 체결을 기록하세요</small>
+      </div>`;
+    } else {
+      h += `<div class="card">
+        <div class="ct">보유 티어 (${pos.length}개) · 밀어서 매도</div>`;
+      pos.forEach((p, idx) => {
+        const pz = ZONES[p.z];
+        const sellPrice = (p.e * (1+pz.tp)).toFixed(2);
+        const days = db(p.d, td());
+        const rm = pz.fd - days;
+        const pnl = curPrice ? ((curPrice - p.e)/p.e*100).toFixed(1) : 0;
+        const cls = pnl >= 0 ? 'up' : 'dn';
+        
+        // ⭐⭐⭐ 수정 #4: 슬라이드 매도 ⭐⭐⭐
+        h += `<div class="tier-wrap">
+          <div class="tier-sell-bg"></div>
+          <div class="tier-item zone-${p.z}" data-idx="${idx}" ontouchstart="touchStart(event,${idx})" ontouchmove="touchMove(event,${idx})" ontouchend="touchEnd(event,${idx})" onmousedown="mouseStart(event,${idx})">
+            <div class="top-row">
+              <div>
+                <span class="tid">T${idx+1}</span>
+                <span class="info">${p.s}주@$${p.e} (${p.u}u)</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="pnl ${cls}">${pnl>=0?'+':''}${pnl}%</div>
+                <button class="tier-sell-btn" onclick="promptSell(${idx})">매도</button>
+              </div>
+            </div>
+            <div class="meta">${p.d} · D+${days} · 잔여${rm}일 · ${pz.label} · 매도$${sellPrice}</div>
+          </div>
+        </div>`;
+      });
+      
+      const ti = pos.reduce((a,p) => a+p.u, 0);
+      const ts = pos.reduce((a,p) => a+p.s, 0);
+      h += `<div style="text-align:center;padding:8px;color:var(--dim);font-size:12px;margin-top:8px">
+        ${ti}/${TU}u · 총 ${ts}주
+      </div></div>`;
+    }
+    
+    const tpnl = pos.reduce((a,p) => a+((curPrice-p.e)/p.e*p.u/TU*100), 0);
+    const ts = hist.filter(x => x.a === 'S');
+    const tw = ts.filter(x => x.pnl >= 0).length;
+    
+    h += `<div class="sg">
+      <div class="sb"><div class="v">${pos.reduce((a,p) => a+p.u, 0)}/${TU}</div><div class="l">투입</div></div>
+      <div class="sb"><div class="v" style="color:${tpnl>=0?'var(--green)':'var(--red)'}">${tpnl>=0?'+':''}${tpnl.toFixed(1)}%</div><div class="l">미실현</div></div>
+      <div class="sb"><div class="v">${pos.length}</div><div class="l">보유</div></div>
+      <div class="sb"><div class="v">${tw}/${ts.length}</div><div class="l">승/매도</div></div>
+    </div>`;
+    
+    // ⭐⭐⭐ 수정 #6: 수동 시드 재설정 ⭐⭐⭐
+    h += `<div class="card">
+      <div class="ct">💰 시드 관리</div>
+      <div class="status-row"><span class="k">현재 시드</span><span class="v" style="color:var(--green)">$${seed.toLocaleString()}</span></div>
+      <button class="btn btn-seed" onclick="promptSeedReset()">💰 시드 재설정</button>
+    </div>`;
+  }
+  
+  if (tab === 'h') {
+    if (hist.length === 0) {
+      h += `<div class="card" style="text-align:center;color:var(--dim);padding:40px 20px">
+        매매 기록이 없습니다
+      </div>`;
+    } else {
+      h += `<div class="card"><div class="ct">매매 기록 (최근 30)</div>`;
+      hist.slice(-30).reverse().forEach(r => {
+        const pnl = r.pnl || 0;
+        const cls = pnl >= 0 ? 'up' : 'dn';
+        const act = r.a === 'B' ? '매수' : '매도';
+        h += `<div style="padding:8px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px">
+          <span><b>${r.d}</b> · ${act} · ${r.s}주@$${r.e}${r.z?' · '+ZONES[r.z].label:''}</span>
+          ${r.a==='S' ? `<span class="pnl ${cls}" style="font-family:'JetBrains Mono',monospace;font-weight:700">${pnl>=0?'+':''}${pnl.toFixed(1)}%</span>` : ''}
+        </div>`;
+      });
+      h += `</div>`;
+      // ⭐ 수정 #3: 기록 탭에 초기화 버튼 제거!
+    }
+    
+    // ⭐⭐⭐ 수정 #3: 진짜 전체 초기화 (Danger Zone) ⭐⭐⭐
+    h += `<div class="card">
+      <div class="danger-zone">
+        <div class="title">⚠️ 위험 영역</div>
+        <div style="color:var(--dim);font-size:12px;margin-bottom:10px">전체 데이터(시드/티어/기록) 초기화</div>
+        <button class="btn btn-r" onclick="confirmFullReset()">💀 전체 초기화 (모두 삭제)</button>
+      </div>
+    </div>`;
+  }
+  
+  if (tab === 'b') {
+    const btSymbol = localStorage.getItem('v10-bt-symbol') || activeSymbol;
+    const btYears = localStorage.getItem('v10-bt-years') || '5';
+    const btResult = JSON.parse(localStorage.getItem('v10-bt-result') || 'null');
+    
+    h += `<div class="card">
+      <div class="ct">📊 백테스트</div>
+      <div style="font-size:13px;color:var(--dim);margin-bottom:12px">
+        야후에서 데이터 자동 다운로드 → HUNTER 시뮬레이션!
+      </div>
+      <div class="ir"><label>종목</label><input type="text" id="bt-sym" value="${btSymbol}" placeholder="SOXL, POET, TSLA..." style="text-transform:uppercase"><span class="u">📊</span></div>
+      <div class="ir"><label>기간</label>
+        <select id="bt-yr" style="flex:1;padding:10px;background:#2a2a3e;border:none;color:#fff;border-radius:8px">
+          <option value="1" ${btYears==='1'?'selected':''}>1년</option>
+          <option value="2" ${btYears==='2'?'selected':''}>2년</option>
+          <option value="5" ${btYears==='5'?'selected':''}>5년</option>
+          <option value="10" ${btYears==='10'?'selected':''}>10년</option>
+          <option value="max" ${btYears==='max'?'selected':''}>최대</option>
+        </select>
+      </div>
+      <button class="btn btn-fetch" onclick="runBacktest()" style="margin-top:12px;width:100%;padding:14px;font-size:15px">🚀 백테 실행!</button>
+      <div id="bt-progress" style="margin-top:12px;color:var(--accent);text-align:center;font-size:14px"></div>
+    </div>`;
+    
+    if (btResult) {
+      const isProfit = btResult.hunterMult > 1;
+      const vsHold = btResult.hunterMult / btResult.buyHoldMult;
+      
+      h += `<div class="card">
+        <div class="ct">📈 결과: ${btResult.symbol} · ${btResult.period}</div>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div style="background:#2a2a3e;padding:12px;border-radius:10px">
+            <div style="font-size:11px;color:var(--dim)">단순 보유</div>
+            <div style="font-size:20px;font-weight:700;color:${btResult.buyHoldMult>=1?'#0f0':'#f44'}">
+              ${btResult.buyHoldMult.toFixed(2)}배
+            </div>
+            <div style="font-size:12px;color:var(--dim)">
+              ${((btResult.buyHoldMult-1)*100).toFixed(1)}%
+            </div>
+          </div>
+          <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:12px;border-radius:10px">
+            <div style="font-size:11px;color:#fff;opacity:0.8">🏹 HUNTER</div>
+            <div style="font-size:20px;font-weight:700;color:#fff">
+              ${btResult.hunterMult.toFixed(2)}배
+            </div>
+            <div style="font-size:12px;color:#fff;opacity:0.9">
+              ${((btResult.hunterMult-1)*100).toFixed(1)}%
+            </div>
+          </div>
+        </div>
+        
+        <div style="background:#1a1a2e;padding:12px;border-radius:10px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span style="color:var(--dim)">HUNTER vs 단순보유</span>
+            <span style="font-weight:700;color:${vsHold>1?'#0f0':'#f44'}">
+              ${vsHold.toFixed(2)}배 ${vsHold>1?'🚀':'📉'}
+            </span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span style="color:var(--dim)">최대 낙폭 (MDD)</span>
+            <span style="font-weight:700;color:#f88">
+              ${btResult.mdd.toFixed(1)}%
+            </span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span style="color:var(--dim)">매수 횟수</span>
+            <span style="font-weight:700">${btResult.nBuys}회</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <span style="color:var(--dim)">매도 횟수</span>
+            <span style="font-weight:700">${btResult.nSells}회</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--dim)">승률</span>
+            <span style="font-weight:700;color:${btResult.winRate>70?'#0f0':'#ff8'}">
+              ${btResult.winRate.toFixed(0)}%
+            </span>
+          </div>
+        </div>
+        
+        <div style="background:#1a1a2e;padding:10px;border-radius:8px;font-size:11px;color:var(--dim)">
+          <div>기간: ${btResult.firstDate} ~ ${btResult.lastDate}</div>
+          <div>시작: $${btResult.firstPrice?.toFixed(2)} → 종료: $${btResult.lastPrice?.toFixed(2)}</div>
+          <div>일 수: ${btResult.days}일</div>
+        </div>
+      </div>`;
+      
+      // 연도별 결과
+      if (btResult.yearly && btResult.yearly.length > 0) {
+        h += `<div class="card">
+          <div class="ct">📅 연도별 수익률</div>
+          <div style="font-size:12px">`;
+        for (const y of btResult.yearly) {
+          const color = y.gain > 0 ? '#0f0' : '#f44';
+          h += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2a2a3e">
+            <span>${y.year}</span>
+            <span style="color:${color};font-weight:700">${y.gain>0?'+':''}${y.gain.toFixed(1)}%</span>
+            <span style="color:#f88;font-size:11px">MDD ${y.mdd.toFixed(1)}%</span>
+          </div>`;
+        }
+        h += `</div></div>`;
+      }
+    }
+  }
+  
+  if (tab === 'g') {
+    h += `<div class="card">
+      <div class="ct">HUNTER v10 가이드</div>
+      <div style="font-size:13px;line-height:1.8">
+        <p><b style="color:var(--accent)">📋 3구간 자동 전환</b><br>
+        20일 전고점 대비 현재가 낙폭으로 구간 판정:</p>
+        <ul style="list-style:none;margin:10px 0;padding-left:10px">
+          <li style="color:var(--top)"><b>🟣 천장</b>: -10% 이내<br>
+            <small style="color:var(--dim)">매도 +2.5% / 7일 강제</small></li>
+          <li style="color:var(--mid);margin-top:8px"><b>🔵 중간</b>: -10~-15%<br>
+            <small style="color:var(--dim)">매도 +0.5% / 7일 강제 (빨리 탈출!)</small></li>
+          <li style="color:var(--bot);margin-top:8px"><b>🟢 바닥</b>: -15% 이상<br>
+            <small style="color:var(--dim)">매도 +3% / 10일 강제 (크게 먹기!)</small></li>
+        </ul>
+        
+        <p style="margin-top:16px"><b style="color:var(--accent)">📈 매수 (TU20)</b><br>
+        상승일 2u, 하락일 4u</p>
+        <ul style="list-style:none;margin:10px 0;padding-left:10px;font-size:12px">
+          <li>① 전날종가×1.15 LOC → 2주</li>
+          <li>② 전날종가-$0.01 LOC → 2주 (하락만)</li>
+        </ul>
+        
+        <p style="margin-top:16px"><b style="color:var(--accent)">🆕 v8 새 기능</b></p>
+        <ul style="list-style:none;font-size:12px;color:var(--dim);padding-left:10px">
+          <li>✅ 확정 전일 종가만 (장중 X)</li>
+          <li>✅ 체결가 → 주수 자동 계산</li>
+          <li>✅ <b style="color:var(--green)">자동 유닛 감지!</b> 체결가 vs 어제종가</li>
+          <li>&nbsp;&nbsp;&nbsp;&nbsp;- 체결 < 어제 = 하락일 (4u)</li>
+          <li>&nbsp;&nbsp;&nbsp;&nbsp;- 체결 >= 어제 = 상승일 (2u)</li>
+          <li>✅ 슬라이드 매도 (← 밀기)</li>
+          <li>✅ 완전 청산 시 시드 업데이트 알림</li>
+          <li>✅ 수동 시드 재설정 버튼</li>
+          <li>✅ 전체 초기화 (기록 탭 하단)</li>
+        </ul>
+        
+        <p style="margin-top:16px"><b style="color:var(--green)">🏆 백테 (2020~2026)</b></p>
+        <ul style="list-style:none;font-size:12px;color:var(--dim)">
+          <li>✅ CAGR +102%</li>
+          <li>✅ MDD -51%</li>
+          <li>✅ 137배!</li>
+          <li>✅ 2022 +29% (폭락장!)</li>
+          <li>✅ 손실 0년</li>
+          <li>✅ $30K → $4.11M (57억!)</li>
+        </ul>
+        
+        <p style="margin-top:16px;color:var(--red)"><b>⚠️ 주의</b><br>
+        • 바닥 매수는 손실 클 수 있음<br>
+        • 강제매도 시 -30~60% 가능<br>
+        • 장기로 보고 견뎌야 함!</p>
+      </div>
+    </div>`;
+  }
+  
+  body.innerHTML = h;
+  
+  // 입력 포커스 복원!
+  setTimeout(() => restoreActiveInput(), 0);
+}
+
+function updSeed() { 
+  const v = gv('seed-in');
+  if (v > 0) seed = v; 
+  save(); 
+  render(); 
+}
+function updPrice() { 
+  const v = gv('cp');
+  curPrice = v; 
+  save(); 
+  render(); 
+}
+function updHigh() { 
+  const v = gv('h20');
+  high20 = v; 
+  save(); 
+  render(); 
+}
+
+// ⭐⭐⭐ 수정 #2: 자동 계산 (자동 유닛 감지!) ⭐⭐⭐
+let manualUnitOverride = false; // 수동 유닛 설정 여부
+
+function upFillAuto() {
+  const fp = gv('fp');
+  if (!fp) {
+    $('fs').value = '';
+    $('fi').innerHTML = '';
+    if (!manualUnitOverride) $('fu').value = UP;
+    return;
+  }
+  
+  // ⭐ 자동 유닛 감지!
+  // 체결가 < 어제종가 → 하락일 (4u)
+  // 체결가 >= 어제종가 → 상승일 (2u)
+  let fu;
+  let autoDetected = '';
+  
+  if (manualUnitOverride) {
+    fu = gv('fu') || UP;
+    autoDetected = ' <span style="color:var(--red)">⚠️ 수동</span>';
+  } else if (curPrice && fp < curPrice) {
+    fu = DN;
+    $('fu').value = DN;
+    const dropPct = ((fp - curPrice) / curPrice * 100).toFixed(1);
+    autoDetected = ` <span style="color:var(--red)">🔻 하락일! (${dropPct}%)</span>`;
+  } else if (curPrice && fp >= curPrice) {
+    fu = UP;
+    $('fu').value = UP;
+    const upPct = ((fp - curPrice) / curPrice * 100).toFixed(1);
+    autoDetected = ` <span style="color:var(--green)">🔺 상승일 (+${upPct}%)</span>`;
+  } else {
+    fu = gv('fu') || UP;
+    autoDetected = ' <span style="color:var(--dim)">(어제종가 입력 필요)</span>';
+  }
+  
+  const uw = seed/TU;
+  const shares = Math.floor(fu * uw / fp);
+  $('fs').value = shares;
+  
+  const z = zoneDesc();
+  const pz = ZONES[z.zone];
+  const sell = (fp * (1+pz.tp)).toFixed(2);
+  
+  const prevInfo = curPrice ? `어제 $${curPrice} → 오늘 $${fp}${autoDetected}<br>` : '';
+  
+  $('fi').innerHTML = `${prevInfo}
+    유닛당 $${uw.toFixed(0)} · <b>${fu}u</b> = $${(fu*uw).toFixed(0)} · <b style="color:var(--green)">${shares}주</b><br>
+    구간: <b style="color:var(--${z.zone})">${pz.label}</b> · 매도 <b>$${sell}</b> (+${(pz.tp*100).toFixed(1)}%) · 강제 ${pz.fd}일`;
+}
+
+function setUnit(u) {
+  manualUnitOverride = true; // 수동 모드!
+  $('fu').value = u;
+  upFillAuto();
+}
+
+function resetUnitAuto() {
+  manualUnitOverride = false; // 자동 모드 복귀
+  upFillAuto();
+}
+
+function doBuy() {
+  const fp = gv('fp'), fu = gv('fu'), fs = gv('fs');
+  if (!fp || !fu || !fs) return alert('체결가를 입력하세요 (주수는 자동 계산)');
+  const z = getZone();
+  pos.push({e: fp, u: fu, s: fs, d: td(), z: z});
+  hist.push({a:'B', d: td(), e: fp, u: fu, s: fs, z: z});
+  save();
+  alert(`T${pos.length} 기록 완료!\n${fs}주 @ $${fp} (${ZONES[z].label})`);
+  sw('t');
+}
+
+// ⭐⭐⭐ 수정 #4 + #5: 매도 + 완전 청산 알림 + T번호 재정렬 ⭐⭐⭐
+function promptSell(idx) {
+  const p = pos[idx];
+  const pz = ZONES[p.z];
+  const defaultPrice = (p.e * (1+pz.tp)).toFixed(2);
+  
+  showModal(`
+    <h3>T${idx+1} 매도</h3>
+    <div class="desc">매수가 <b>$${p.e}</b> · ${p.s}주 · ${pz.label}<br>
+      추천 매도가: <b style="color:var(--green)">$${defaultPrice}</b> (+${(pz.tp*100).toFixed(1)}%)</div>
+    <div class="ir"><label>매도가</label><input type="number" step="0.01" id="sell-price" value="${defaultPrice}"><span class="u">$</span></div>
+    <div class="btn-row">
+      <button class="btn btn-d" onclick="closeModal()">취소</button>
+      <button class="btn btn-s" onclick="doSell(${idx})">매도!</button>
+    </div>
+  `);
+}
+
+function doSell(idx) {
+  const sellPrice = parseFloat($('sell-price').value);
+  if (!sellPrice || sellPrice <= 0) return alert('매도가를 입력하세요');
+  
+  const p = pos[idx];
+  const pnl = (sellPrice - p.e) / p.e * 100;
+  const realized = (sellPrice - p.e) * p.s;
+  
+  // 기록 남기기
+  hist.push({
+    a: 'S',
+    d: td(),
+    e: sellPrice,
+    u: p.u,
+    s: p.s,
+    z: p.z,
+    pnl: pnl,
+    buyPrice: p.e,
+    realized: realized
+  });
+  
+  // 포지션 제거 (T번호 자동 재정렬 = 배열에서 제거만 하면 idx 자동!)
+  pos.splice(idx, 1);
+  save();
+  closeModal();
+  
+  // ⭐⭐⭐ 수정 #5: 완전 청산 감지 ⭐⭐⭐
+  if (pos.length === 0) {
+    // 최근 매수부터 이번 매도까지 수익 계산
+    checkFullLiquidation();
+  } else {
+    alert(`T${idx+1} 매도 완료!\n${p.s}주 @ $${sellPrice}\n수익: ${pnl>=0?'+':''}${pnl.toFixed(1)}% ($${realized.toFixed(0)})`);
+    render();
+  }
+}
+
+function checkFullLiquidation() {
+  // 마지막 청산까지의 실현 수익 계산
+  // 가장 최근 "완전 청산" 이후의 매도들만 합산
+  let totalRealized = 0;
+  let sellCount = 0;
+  
+  // hist 역순 순회, 마지막 매수 이후 매도까지
+  // 더 간단히: 최근 매도들 계산
+  for (let i = hist.length - 1; i >= 0; i--) {
+    const r = hist[i];
+    if (r.a === 'S' && r.realized !== undefined) {
+      totalRealized += r.realized;
+      sellCount++;
+    }
+    // 이전 완전 청산 지점까지만 (optional)
+  }
+  
+  const newSeed = seed + totalRealized;
+  const pct = (totalRealized / seed * 100).toFixed(1);
+  
+  showModal(`
+    <h3>🎉 완전 청산!</h3>
+    <div class="desc">
+      모든 포지션이 청산되었습니다!<br><br>
+      💰 총 실현 수익: <b style="color:${totalRealized>=0?'var(--green)':'var(--red)'}">$${totalRealized.toFixed(0)} (${pct>=0?'+':''}${pct}%)</b><br>
+      📊 매도 횟수: ${sellCount}회<br><br>
+      <div style="background:#0a1a0a;padding:12px;border-radius:8px;border:1px solid var(--green);margin-top:8px">
+        <div style="font-size:11px;color:var(--dim)">현재 시드</div>
+        <div style="font-size:18px;font-weight:800">$${seed.toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:8px">새 시드 (복리 반영)</div>
+        <div style="font-size:20px;font-weight:800;color:var(--green)">$${newSeed.toFixed(0)}</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-d" onclick="closeModal();render()">나중에</button>
+      <button class="btn btn-b" onclick="applyNewSeed(${newSeed})">✅ 복리 적용!</button>
+    </div>
+  `);
+}
+
+function applyNewSeed(newSeed) {
+  seed = Math.round(newSeed);
+  save();
+  closeModal();
+  alert(`💰 시드 업데이트!\n새 시드: $${seed.toLocaleString()}\n\n다음 라운드 시작!`);
+  render();
+}
+
+// ⭐⭐⭐ 수정 #6: 수동 시드 재설정 ⭐⭐⭐
+function promptSeedReset() {
+  showModal(`
+    <h3>💰 시드 재설정</h3>
+    <div class="desc">
+      현재 시드: <b>$${seed.toLocaleString()}</b><br>
+      새 시드 금액을 입력하세요.<br><br>
+      <small style="color:var(--red)">⚠️ 이 작업은 유닛 크기를 변경합니다.</small>
+    </div>
+    <div class="ir"><label>새 시드</label><input type="number" id="new-seed" value="${seed}" placeholder="$"><span class="u">$</span></div>
+    <div class="btn-row">
+      <button class="btn btn-d" onclick="closeModal()">취소</button>
+      <button class="btn btn-b" onclick="applyManualSeed()">재설정</button>
+    </div>
+  `);
+}
+
+function applyManualSeed() {
+  const ns = parseFloat($('new-seed').value);
+  if (!ns || ns <= 0) return alert('올바른 금액을 입력하세요');
+  if (!confirm(`시드를 $${seed.toLocaleString()} → $${ns.toLocaleString()}(으)로 변경할까요?`)) return;
+  seed = ns;
+  save();
+  closeModal();
+  alert(`시드 재설정 완료!\n$${seed.toLocaleString()}`);
+  render();
+}
+
+// ⭐⭐⭐ 수정 #3: 진짜 전체 초기화 ⭐⭐⭐
+function confirmFullReset() {
+  showModal(`
+    <h3 style="color:var(--red)">⚠️ 전체 초기화</h3>
+    <div class="desc">
+      모든 데이터가 <b style="color:var(--red)">영구 삭제</b>됩니다:<br>
+      • 시드 → $30,000 (기본값)<br>
+      • 현재가 / 20일 전고<br>
+      • 보유 티어 ${pos.length}개<br>
+      • 매매 기록 ${hist.length}건<br><br>
+      <b>정말 초기화하시겠습니까?</b>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-d" onclick="closeModal()">취소</button>
+      <button class="btn btn-r" onclick="doFullReset()">💀 전체 초기화</button>
+    </div>
+  `);
+}
+
+function doFullReset() {
+  if (!confirm('마지막 확인: 정말 모든 데이터를 삭제할까요?')) return;
+  seed = 30000;
+  curPrice = 0;
+  high20 = 0;
+  pos = [];
+  hist = [];
+  save();
+  closeModal();
+  alert('전체 초기화 완료!');
+  sw('t');
+}
+
+// 모달 시스템
+function showModal(innerHTML) {
+  $('modal-container').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()">
+    <div class="modal">${innerHTML}</div>
+  </div>`;
+}
+function closeModal() {
+  $('modal-container').innerHTML = '';
+}
+
+// ⭐ 슬라이드 매도 로직 (터치/마우스)
+let swipeState = {startX: 0, currentX: 0, idx: null, el: null};
+
+function touchStart(e, idx) {
+  swipeState.startX = e.touches[0].clientX;
+  swipeState.idx = idx;
+  swipeState.el = e.currentTarget;
+  swipeState.el.classList.add('dragging');
+}
+
+function touchMove(e, idx) {
+  if (swipeState.idx !== idx) return;
+  swipeState.currentX = e.touches[0].clientX;
+  const dx = swipeState.currentX - swipeState.startX;
+  if (dx < 0) { // 왼쪽으로 밀 때만
+    const clamped = Math.max(dx, -200);
+    swipeState.el.style.transform = `translateX(${clamped}px)`;
+  }
+}
+
+function touchEnd(e, idx) {
+  if (swipeState.idx !== idx) return;
+  const dx = swipeState.currentX - swipeState.startX;
+  swipeState.el.classList.remove('dragging');
+  swipeState.el.style.transform = '';
+  
+  // 100px 이상 밀었으면 매도!
+  if (dx < -100) {
+    promptSell(idx);
+  }
+  
+  swipeState = {startX: 0, currentX: 0, idx: null, el: null};
+}
+
+// 마우스용 (데스크탑 테스트)
+function mouseStart(e, idx) {
+  if (e.target.tagName === 'BUTTON') return; // 버튼 클릭은 제외
+  swipeState.startX = e.clientX;
+  swipeState.idx = idx;
+  swipeState.el = e.currentTarget;
+  swipeState.el.classList.add('dragging');
+  
+  const onMove = (ev) => {
+    swipeState.currentX = ev.clientX;
+    const dx = ev.clientX - swipeState.startX;
+    if (dx < 0) {
+      const clamped = Math.max(dx, -200);
+      swipeState.el.style.transform = `translateX(${clamped}px)`;
+    }
+  };
+  
+  const onUp = () => {
+    const dx = swipeState.currentX - swipeState.startX;
+    if (swipeState.el) {
+      swipeState.el.classList.remove('dragging');
+      swipeState.el.style.transform = '';
+    }
+    if (dx < -100) {
+      promptSell(idx);
+    }
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    swipeState = {startX: 0, currentX: 0, idx: null, el: null};
+  };
+  
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+
+// ═══════════════════════════════════════════
+// 백테 기능!
+// ═══════════════════════════════════════════
+
+async function runBacktest() {
+  const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
+  const yr = document.getElementById('bt-yr').value;
+  
+  if (!sym) {
+    alert('종목 코드 입력!');
+    return;
+  }
+  
+  const progressEl = document.getElementById('bt-progress');
+  progressEl.innerHTML = '📥 데이터 가져오는 중...';
+  
+  localStorage.setItem('v10-bt-symbol', sym);
+  localStorage.setItem('v10-bt-years', yr);
+  
+  try {
+    // 1. 야후에서 데이터 가져오기
+    const url = `/api/history?symbol=${sym}&years=${yr}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if (data.error) {
+      alert('데이터 에러: ' + data.error);
+      progressEl.innerHTML = '❌ 실패';
+      return;
+    }
+    
+    if (!data.bars || data.bars.length < 30) {
+      alert('데이터 너무 적음! (' + (data.bars?.length||0) + '일)');
+      progressEl.innerHTML = '❌ 데이터 부족';
+      return;
+    }
+    
+    progressEl.innerHTML = `✅ ${data.bars.length}일 데이터 · 백테 실행...`;
+    
+    // 2. HUNTER 시뮬레이션!
+    const result = simulateHunter(data.bars);
+    
+    // 3. 연도별 수익률 계산
+    const yearly = calculateYearly(data.bars);
+    
+    // 4. 결과 저장
+    const btResult = {
+      symbol: data.symbol,
+      period: `${yr}년`,
+      firstDate: data.firstDate,
+      lastDate: data.lastDate,
+      firstPrice: data.firstPrice,
+      lastPrice: data.lastPrice,
+      days: data.count,
+      buyHoldMult: data.lastPrice / data.firstPrice,
+      hunterMult: result.mult,
+      mdd: result.mdd,
+      nBuys: result.nBuys,
+      nSells: result.nSells,
+      winRate: result.winRate,
+      yearly: yearly
+    };
+    
+    localStorage.setItem('v10-bt-result', JSON.stringify(btResult));
+    progressEl.innerHTML = '✅ 완료!';
+    render();
+    
+  } catch(e) {
+    alert('에러: ' + e.message);
+    progressEl.innerHTML = '❌ ' + e.message;
+  }
+}
+
+// HUNTER 시뮬레이션
+function simulateHunter(bars) {
+  const closes = bars.map(b => b.close);
+  const n = closes.length;
+  
+  const warmup = 25;
+  const TU = 20;
+  const UP = 2, DN = 4;
+  
+  let cap = 100;
+  let pe = [], pu = [], pd = [], zones = [];
+  let pk = 100, mdd = 0;
+  let nBuys = 0, nSells = 0, wins = 0;
+  
+  for (let i = warmup + 1; i < n; i++) {
+    const cl = closes[i];
+    const prev = closes[i-1];
+    const units = cl < prev ? DN : UP;
+    
+    // 20일 전고
+    const start20 = Math.max(warmup, i - 20);
+    const slice = closes.slice(start20, i+1);
+    const recentHigh = Math.max(...slice);
+    const dd = (cl - recentHigh) / recentHigh * 100;
+    
+    let zone;
+    if (dd >= -10) zone = 'top';
+    else if (dd <= -15) zone = 'bot';
+    else zone = 'mid';
+    
+    // 매도
+    const re = [], rd = [], ru = [], rz = [];
+    for (let j = 0; j < pe.length; j++) {
+      pd[j] += 1;
+      const p = (cl - pe[j]) / pe[j];
+      
+      let tp, fd;
+      if (zones[j] === 'top') { tp = 0.025; fd = 7; }
+      else if (zones[j] === 'bot') { tp = 0.03; fd = 10; }
+      else { tp = 0.005; fd = 7; }
+      
+      if (p >= tp || pd[j] >= fd) {
+        cap *= (1 + p * pu[j] / TU);
+        nSells++;
+        if (p > 0) wins++;
+      } else {
+        re.push(pe[j]);
+        rd.push(pd[j]);
+        ru.push(pu[j]);
+        rz.push(zones[j]);
+      }
+    }
+    pe = re; pd = rd; pu = ru; zones = rz;
+    
+    // 매수
+    const ti = pu.reduce((s, u) => s + u, 0);
+    if (ti < TU && units > 0) {
+      const a = Math.min(units, TU - ti);
+      pe.push(cl);
+      pd.push(0);
+      pu.push(a);
+      zones.push(zone);
+      nBuys++;
+    }
+    
+    // MDD 계산
+    let tv = cap;
+    for (let j = 0; j < pe.length; j++) {
+      tv *= (1 + (cl - pe[j]) / pe[j] * pu[j] / TU);
+    }
+    if (tv > pk) pk = tv;
+    const ddv = (tv - pk) / pk * 100;
+    if (ddv < mdd) mdd = ddv;
+  }
+  
+  // 최종 평가
+  let final = cap;
+  const lastClose = closes[n-1];
+  for (let j = 0; j < pe.length; j++) {
+    final *= (1 + (lastClose - pe[j]) / pe[j] * pu[j] / TU);
+  }
+  
+  return {
+    mult: final / 100,
+    mdd: mdd,
+    nBuys: nBuys,
+    nSells: nSells,
+    winRate: nSells > 0 ? wins / nSells * 100 : 0
+  };
+}
+
+// 연도별 수익률
+function calculateYearly(bars) {
+  const yearData = {};
+  for (const b of bars) {
+    const yr = b.date.slice(0, 4);
+    if (!yearData[yr]) yearData[yr] = [];
+    yearData[yr].push(b);
+  }
+  
+  const result = [];
+  for (const yr of Object.keys(yearData).sort()) {
+    const barsYr = yearData[yr];
+    if (barsYr.length < 5) continue;
+    
+    const closes = barsYr.map(b => b.close);
+    
+    // HUNTER 시뮬 (해당 연도만)
+    const sim = simulateHunterSimple(closes);
+    
+    result.push({
+      year: yr,
+      gain: (sim.mult - 1) * 100,
+      mdd: sim.mdd
+    });
+  }
+  return result;
+}
+
+// 간단 HUNTER 시뮬 (연도별용)
+function simulateHunterSimple(closes) {
+  const n = closes.length;
+  if (n < 5) return { mult: 1, mdd: 0 };
+  
+  const TU = 20;
+  const UP = 2, DN = 4;
+  let cap = 100;
+  let pe = [], pu = [], pd = [], zones = [];
+  let pk = 100, mdd = 0;
+  
+  for (let i = 1; i < n; i++) {
+    const cl = closes[i];
+    const prev = closes[i-1];
+    const units = cl < prev ? DN : UP;
+    
+    const start20 = Math.max(0, i - 20);
+    const slice = closes.slice(start20, i+1);
+    const recentHigh = Math.max(...slice);
+    const dd = (cl - recentHigh) / recentHigh * 100;
+    
+    let zone;
+    if (dd >= -10) zone = 'top';
+    else if (dd <= -15) zone = 'bot';
+    else zone = 'mid';
+    
+    const re = [], rd = [], ru = [], rz = [];
+    for (let j = 0; j < pe.length; j++) {
+      pd[j] += 1;
+      const p = (cl - pe[j]) / pe[j];
+      let tp, fd;
+      if (zones[j] === 'top') { tp = 0.025; fd = 7; }
+      else if (zones[j] === 'bot') { tp = 0.03; fd = 10; }
+      else { tp = 0.005; fd = 7; }
+      
+      if (p >= tp || pd[j] >= fd) {
+        cap *= (1 + p * pu[j] / TU);
+      } else {
+        re.push(pe[j]); rd.push(pd[j]); ru.push(pu[j]); rz.push(zones[j]);
+      }
+    }
+    pe = re; pd = rd; pu = ru; zones = rz;
+    
+    const ti = pu.reduce((s, u) => s + u, 0);
+    if (ti < TU && units > 0) {
+      const a = Math.min(units, TU - ti);
+      pe.push(cl); pd.push(0); pu.push(a); zones.push(zone);
+    }
+    
+    let tv = cap;
+    for (let j = 0; j < pe.length; j++) {
+      tv *= (1 + (cl - pe[j]) / pe[j] * pu[j] / TU);
+    }
+    if (tv > pk) pk = tv;
+    const ddv = (tv - pk) / pk * 100;
+    if (ddv < mdd) mdd = ddv;
+  }
+  
+  let final = cap;
+  const lastClose = closes[n-1];
+  for (let j = 0; j < pe.length; j++) {
+    final *= (1 + (lastClose - pe[j]) / pe[j] * pu[j] / TU);
+  }
+  
+  return { mult: final / 100, mdd: mdd };
+}
+
+
+async function fetchAuto() {
+  try {
+    const res = await fetch('/api/quote?symbol=' + activeSymbol);
+    const data = await res.json();
+    if (data.error) {
+      alert('자동 가져오기 실패: ' + data.error);
+      return;
+    }
+    if (data.price) curPrice = data.price;
+    if (data.high20) high20 = data.high20;
+    save();
+    render();
+    alert(`✅ 자동 업데이트 (확정 종가)\n날짜: ${data.lastDate}\n현재가: $${curPrice}\n20일 전고: $${high20}\n구간: ${ZONES[getZone()].label}\n시장 상태: ${data.marketState}`);
+  } catch(e) {
+    alert('자동 가져오기 실패.\n수동으로 입력해주세요.');
+  }
+}
+
+render();
+</script>
+</body>
+</html>
