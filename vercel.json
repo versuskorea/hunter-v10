@@ -1,1 +1,8 @@
+이것만 복사해서 붙여넣기:
 
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" }
+  ]
+}
