@@ -1,9 +1,10 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
+
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HUNTER Backtest</title>
+<title>HUNTER 백테 & 변동성</title>
 <style>
 :root {
   --bg: #0f0f1e;
@@ -17,239 +18,213 @@
   --yellow: #ff8;
   --dim: #888;
   --text: #fff;
-  --top: #a855f7;
-  --mid: #3b82f6;
-  --bot: #10b981;
 }
 
-* { margin:0; padding:0; box-sizing:border-box; }
+- { margin:0; padding:0; box-sizing:border-box; }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  padding: 16px;
-  padding-bottom: 80px;
-  max-width: 600px;
-  margin: 0 auto;
-  min-height: 100vh;
+background: var(–bg);
+color: var(–text);
+font-family: -apple-system, BlinkMacSystemFont, ‘Segoe UI’, Roboto, sans-serif;
+padding: 16px;
+padding-bottom: 80px;
+max-width: 600px;
+margin: 0 auto;
 }
 
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 20px;
 }
 
 h1 {
-  font-size: 22px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+font-size: 22px;
+font-weight: 700;
 }
 
 h1 span {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+background: linear-gradient(135deg, var(–accent), var(–accent2));
+-webkit-background-clip: text;
+-webkit-text-fill-color: transparent;
+background-clip: text;
 }
 
 .back-btn {
-  background: var(--card);
-  color: var(--text);
-  padding: 8px 14px;
-  border-radius: 10px;
-  text-decoration: none;
-  font-size: 13px;
-  border: 1px solid #333;
-  transition: all 0.2s;
-}
-.back-btn:hover {
-  background: var(--card-hover);
-  border-color: var(--accent);
+background: var(–card);
+color: var(–text);
+padding: 8px 14px;
+border-radius: 10px;
+text-decoration: none;
+font-size: 13px;
+border: 1px solid #333;
 }
 
 .card {
-  background: var(--card);
-  border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 14px;
+background: var(–card);
+border-radius: 14px;
+padding: 16px;
+margin-bottom: 14px;
 }
 
 .ct {
-  font-weight: 700;
-  font-size: 15px;
-  margin-bottom: 12px;
-  color: var(--accent);
+font-weight: 700;
+font-size: 15px;
+margin-bottom: 12px;
+color: var(–accent);
 }
 
 .ir {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-  background: var(--card-hover);
-  padding: 10px 14px;
-  border-radius: 10px;
+display: flex;
+align-items: center;
+gap: 10px;
+margin-bottom: 10px;
+background: var(–card-hover);
+padding: 10px 14px;
+border-radius: 10px;
 }
 
 .ir label {
-  font-size: 13px;
-  color: var(--dim);
-  min-width: 50px;
+font-size: 13px;
+color: var(–dim);
+min-width: 50px;
 }
 
 .ir input, .ir select {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text);
-  font-size: 15px;
-  outline: none;
+flex: 1;
+background: transparent;
+border: none;
+color: var(–text);
+font-size: 15px;
+outline: none;
 }
 
-.ir .u {
-  color: var(--dim);
-  font-size: 13px;
-}
+.ir .u { color: var(–dim); font-size: 13px; }
 
 .btn {
-  width: 100%;
-  padding: 14px;
-  border: none;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-top: 10px;
+width: 100%;
+padding: 14px;
+border: none;
+border-radius: 12px;
+font-size: 15px;
+font-weight: 700;
+cursor: pointer;
+transition: all 0.2s;
+margin-top: 10px;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+background: linear-gradient(135deg, var(–accent), var(–accent2));
+color: white;
+box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
-.btn-primary:hover { opacity: 0.9; }
-.btn-primary:active { transform: scale(0.98); }
+
+.btn-analyze {
+background: linear-gradient(135deg, #f093fb, #f5576c);
+color: white;
+}
 
 .progress {
-  text-align: center;
-  margin-top: 14px;
-  color: var(--accent);
-  font-size: 14px;
-  min-height: 20px;
+text-align: center;
+margin-top: 14px;
+color: var(–accent);
+font-size: 14px;
+min-height: 20px;
 }
 
 .result-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 14px;
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 10px;
+margin-bottom: 14px;
 }
 
 .result-box {
-  padding: 14px;
-  border-radius: 12px;
-  text-align: center;
+padding: 14px;
+border-radius: 12px;
+text-align: center;
 }
 
-.result-box.hold {
-  background: var(--card-hover);
-}
+.result-box.hold { background: var(–card-hover); }
+.result-box.hunter { background: linear-gradient(135deg, var(–accent), var(–accent2)); }
 
-.result-box.hunter {
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-}
-
-.rb-label {
-  font-size: 11px;
-  opacity: 0.7;
-  margin-bottom: 4px;
-}
-
-.rb-value {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 2px;
-}
-
-.rb-pct {
-  font-size: 13px;
-  opacity: 0.85;
-}
+.rb-label { font-size: 11px; opacity: 0.7; margin-bottom: 4px; }
+.rb-value { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+.rb-pct { font-size: 13px; opacity: 0.85; }
 
 .metric-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--card-hover);
-  font-size: 13px;
+display: flex;
+justify-content: space-between;
+padding: 8px 0;
+border-bottom: 1px solid var(–card-hover);
+font-size: 13px;
 }
 
 .metric-row:last-child { border-bottom: none; }
-
-.metric-label { color: var(--dim); }
+.metric-label { color: var(–dim); }
 .metric-value { font-weight: 700; }
 
-.year-row {
-  display: grid;
-  grid-template-columns: 60px 1fr 1fr;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--card-hover);
-  font-size: 12px;
-  align-items: center;
-}
-
-.year-label {
-  font-weight: 700;
-  color: var(--dim);
-}
-
-.period-info {
-  background: var(--card-hover);
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 11px;
-  color: var(--dim);
-  line-height: 1.7;
-}
-
 .quick-sym {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
+display: flex;
+flex-wrap: wrap;
+gap: 6px;
+margin-top: 8px;
 }
 
 .quick-sym button {
-  background: var(--card-hover);
-  color: var(--text);
-  border: 1px solid #333;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.quick-sym button:hover {
-  background: var(--accent);
-  border-color: var(--accent);
+background: var(–card-hover);
+color: var(–text);
+border: 1px solid #333;
+padding: 6px 12px;
+border-radius: 8px;
+font-size: 12px;
+cursor: pointer;
 }
 
 .tip {
-  background: var(--card-hover);
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 12px;
-  color: var(--dim);
-  line-height: 1.6;
-  margin-bottom: 14px;
+background: var(–card-hover);
+padding: 10px 14px;
+border-radius: 10px;
+font-size: 12px;
+color: var(–dim);
+line-height: 1.6;
+margin-bottom: 14px;
 }
+
+.vol-result {
+background: linear-gradient(135deg, #1a2a4e, #2a1a4e);
+padding: 16px;
+border-radius: 12px;
+margin-bottom: 14px;
+}
+
+.vol-main {
+text-align: center;
+padding: 10px 0;
+}
+
+.vol-num {
+font-size: 36px;
+font-weight: 800;
+color: var(–yellow);
+}
+
+.vol-cat {
+font-size: 14px;
+color: var(–text);
+margin-top: 4px;
+}
+
+.param-row {
+display: flex;
+justify-content: space-between;
+padding: 6px 0;
+font-size: 13px;
+}
+
+.param-label { color: var(–dim); }
+.param-value { color: #ffd; font-weight: 700; }
 
 </style>
 </head>
@@ -261,8 +236,8 @@ h1 span {
 </div>
 
 <div class="tip">
-  💡 야후 파이낸스에서 자동 다운로드 → HUNTER 시뮬레이션!<br>
-  원하는 종목과 기간 선택 후 [백테 실행]!
+  💡 야후에서 자동 데이터 → 변동성 계산 → HUNTER 파라미터 자동!<br>
+  [📊 변동성 분석] → [🚀 백테 실행!] 순서로!
 </div>
 
 <div class="card">
@@ -280,8 +255,8 @@ h1 span {
     <label>종료</label>
     <input type="date" id="bt-end" style="flex:1">
   </div>
-  
-  <div class="quick-sym" style="margin-top:8px">
+
+  <div class="quick-sym">
     <button onclick="setRange(1)">1년</button>
     <button onclick="setRange(2)">2년</button>
     <button onclick="setRange(3)">3년</button>
@@ -289,8 +264,8 @@ h1 span {
     <button onclick="setRange(10)">10년</button>
     <button onclick="setRange(20)">최대</button>
   </div>
-  
-  <div class="quick-sym">
+
+  <div class="quick-sym" style="margin-top:12px">
     <button onclick="setSym('SOXL')">SOXL</button>
     <button onclick="setSym('TQQQ')">TQQQ</button>
     <button onclick="setSym('POET')">POET</button>
@@ -298,12 +273,19 @@ h1 span {
     <button onclick="setSym('NVDA')">NVDA</button>
     <button onclick="setSym('AMD')">AMD</button>
     <button onclick="setSym('AAPL')">AAPL</button>
+    <button onclick="setSym('MSFT')">MSFT</button>
+    <button onclick="setSym('GOOGL')">GOOGL</button>
+    <button onclick="setSym('SPY')">SPY</button>
+    <button onclick="setSym('QQQ')">QQQ</button>
   </div>
-  
-  <button class="btn btn-primary" onclick="runBacktest()">🚀 백테 실행!</button>
+
+<button class="btn btn-analyze" onclick="analyzeVolatility()">📊 변동성 분석 & 자동 설정!</button>
+<button class="btn btn-primary" onclick="runBacktest()">🚀 백테 실행!</button>
+
   <div class="progress" id="bt-progress"></div>
 </div>
 
+<div id="vol-panel"></div>
 <div id="result"></div>
 
 <script>
@@ -311,42 +293,195 @@ function setSym(s) {
   document.getElementById('bt-sym').value = s;
 }
 
-// 기간 빠른 선택
 function setRange(years) {
   const end = new Date();
   const start = new Date();
-  
   if (years === 20) {
-    // 최대 (2015년부터)
     start.setFullYear(2015, 0, 1);
   } else {
     start.setFullYear(end.getFullYear() - years);
   }
-  
   const fmt = d => d.toISOString().slice(0, 10);
   document.getElementById('bt-start').value = fmt(start);
   document.getElementById('bt-end').value = fmt(end);
 }
 
-// 초기값 설정 (5년)
 window.addEventListener('DOMContentLoaded', () => {
   setRange(5);
 });
 
+// 변동성 계산 & 파라미터 자동 설정!
+async function analyzeVolatility() {
+  const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
+  if (!sym) { alert('종목 입력!'); return; }
+  
+  const progressEl = document.getElementById('bt-progress');
+  const volEl = document.getElementById('vol-panel');
+  progressEl.innerHTML = '📊 1년 데이터 다운로드...';
+  volEl.innerHTML = '';
+  
+  try {
+    // 최근 1년 데이터
+    const end = new Date();
+    const start = new Date();
+    start.setFullYear(end.getFullYear() - 1);
+    const fmt = d => d.toISOString().slice(0, 10);
+    
+    const url = `/api/history?symbol=${sym}&start=${fmt(start)}&end=${fmt(end)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if (data.error) {
+      progressEl.innerHTML = '❌ ' + data.error;
+      return;
+    }
+    
+    if (!data.bars || data.bars.length < 30) {
+      progressEl.innerHTML = '❌ 데이터 부족';
+      return;
+    }
+    
+    // 변동성 계산!
+    const closes = data.bars.map(b => b.close);
+    const returns = [];
+    for (let i = 1; i < closes.length; i++) {
+      returns.push((closes[i] - closes[i-1]) / closes[i-1] * 100);
+    }
+    
+    const mean = returns.reduce((a,b) => a+b, 0) / returns.length;
+    const variance = returns.reduce((s,r) => s + Math.pow(r-mean, 2), 0) / returns.length;
+    const vol = Math.sqrt(variance);
+    
+    // 파라미터 자동 계산!
+    const params = calcParams(vol);
+    const category = categorize(vol);
+    
+    // 화면 표시
+    let html = `<div class="vol-result">
+      <div class="ct" style="color:#ffd">🎯 ${sym} 변동성 분석</div>
+      
+      <div class="vol-main">
+        <div class="vol-num">${vol.toFixed(2)}%</div>
+        <div class="vol-cat">${category.emoji} ${category.name}</div>
+      </div>
+      
+      <div style="background:rgba(0,0,0,0.3);padding:12px;border-radius:10px;margin-top:10px">
+        <div style="font-weight:700;margin-bottom:8px;color:#ffd">💡 추천 HUNTER 설정:</div>
+        
+        <div class="param-row">
+          <span class="param-label">유닛</span>
+          <span class="param-value">2u / 4u / TU20 (공통)</span>
+        </div>
+        <div class="param-row">
+          <span class="param-label">매도 목표 (천/중/바)</span>
+          <span class="param-value">+${(params.top_p*100).toFixed(1)}% / +${(params.mid_p*100).toFixed(1)}% / +${(params.bot_p*100).toFixed(1)}%</span>
+        </div>
+        <div class="param-row">
+          <span class="param-label">강제 기간</span>
+          <span class="param-value">${params.top_d}일 / ${params.mid_d}일 / ${params.bot_d}일</span>
+        </div>
+        <div class="param-row">
+          <span class="param-label">Lookback</span>
+          <span class="param-value">${params.lookback}일</span>
+        </div>
+        <div class="param-row">
+          <span class="param-label">예상 매매 빈도</span>
+          <span class="param-value">${category.frequency}</span>
+        </div>
+      </div>
+      
+      <div style="background:rgba(255,255,100,0.1);padding:10px;border-radius:8px;margin-top:10px;font-size:12px;line-height:1.6">
+        <b>💡 ${category.recommendation}</b>
+      </div>
+    </div>`;
+    
+    volEl.innerHTML = html;
+    progressEl.innerHTML = '✅ 분석 완료! [🚀 백테 실행] 클릭!';
+    
+    // 파라미터 저장 (백테에서 사용)
+    window.autoParams = params;
+    
+  } catch(e) {
+    progressEl.innerHTML = '❌ ' + e.message;
+  }
+}
+
+function categorize(vol) {
+  if (vol < 1.0) return {
+    emoji: '🟢',
+    name: '안정주 (배당주 등)',
+    frequency: '년 2~3회',
+    recommendation: '변동성 너무 낮음! HUNTER 효과 적음. 단순 보유 추천!'
+  };
+  if (vol < 1.5) return {
+    emoji: '🔵',
+    name: '지수 ETF (SPY, QQQ 등)',
+    frequency: '년 3~5회',
+    recommendation: 'Ultra Long HUNTER. 느린 스윙. 년 3~5회 매매!'
+  };
+  if (vol < 2.5) return {
+    emoji: '🟣',
+    name: '안정 성장주 (AAPL, MSFT 등)',
+    frequency: '년 5~10회',
+    recommendation: 'Long HUNTER. 월 1~2회 매매. 마음 편함!'
+  };
+  if (vol < 4.0) return {
+    emoji: '🟠',
+    name: '변동 개별주 (TSLA, NVDA)',
+    frequency: '년 15~25회',
+    recommendation: 'Mid HUNTER. 주 1회 매매. 중기 스윙!'
+  };
+  if (vol < 6.0) return {
+    emoji: '🔴',
+    name: '고변동 ETF (TQQQ 등)',
+    frequency: '년 30~50회',
+    recommendation: 'Short-Mid HUNTER. 매매 빈번!'
+  };
+  return {
+    emoji: '🚨',
+    name: '극변동 (SOXL, POET)',
+    frequency: '매일!',
+    recommendation: '기본 HUNTER! 검증된 시스템! 자동화 필수!'
+  };
+}
+
+function calcParams(vol) {
+  // 매도 %: 변동성 × 배율
+  const top_p = vol * 0.5 / 100;
+  const mid_p = vol * 0.3 / 100;
+  const bot_p = vol * 0.8 / 100;
+  
+  // 기간 (변동성 반비례)
+  let top_d, mid_d, bot_d, lookback;
+  
+  if (vol >= 5) {
+    top_d = 7; mid_d = 7; bot_d = 10;
+    lookback = 20;
+  } else if (vol >= 3) {
+    top_d = 15; mid_d = 15; bot_d = 22;
+    lookback = 40;
+  } else if (vol >= 2) {
+    top_d = 30; mid_d = 30; bot_d = 45;
+    lookback = 60;
+  } else if (vol >= 1.5) {
+    top_d = 55; mid_d = 55; bot_d = 82;
+    lookback = 100;
+  } else {
+    top_d = 90; mid_d = 90; bot_d = 120;
+    lookback = 100;
+  }
+  
+  return { top_p, mid_p, bot_p, top_d, mid_d, bot_d, lookback };
+}
+
+// 백테 실행 (변동성 자동 파라미터 적용!)
 async function runBacktest() {
   const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
   const startDate = document.getElementById('bt-start').value;
   const endDate = document.getElementById('bt-end').value;
   
-  if (!startDate || !endDate) {
-    alert('시작일, 종료일 선택!');
-    return;
-  }
-  
-  if (!sym) {
-    alert('종목 코드 입력!');
-    return;
-  }
+  if (!sym) { alert('종목 입력!'); return; }
+  if (!startDate || !endDate) { alert('날짜 선택!'); return; }
   
   const progressEl = document.getElementById('bt-progress');
   const resultEl = document.getElementById('result');
@@ -363,14 +498,31 @@ async function runBacktest() {
     }
     
     if (!data.bars || data.bars.length < 30) {
-      progressEl.innerHTML = '❌ 데이터 부족: ' + (data.bars?.length || 0) + '일';
+      progressEl.innerHTML = '❌ 데이터 부족';
       return;
     }
     
     progressEl.innerHTML = `✅ ${data.bars.length}일 · 시뮬레이션 중...`;
     
-    const result = simulateHunter(data.bars);
-    const yearly = calculateYearly(data.bars);
+    // 자동 파라미터 있으면 사용, 없으면 기본!
+    let params = window.autoParams;
+    let paramSource = '자동';
+    if (!params) {
+      // 변동성 먼저 계산
+      const closes1y = data.bars.slice(-252).map(b => b.close);
+      const rets = [];
+      for (let i = 1; i < closes1y.length; i++) {
+        rets.push((closes1y[i] - closes1y[i-1]) / closes1y[i-1] * 100);
+      }
+      const mean = rets.reduce((a,b) => a+b, 0) / rets.length;
+      const vr = rets.reduce((s,r) => s + Math.pow(r-mean, 2), 0) / rets.length;
+      const vol = Math.sqrt(vr);
+      params = calcParams(vol);
+      paramSource = '자동(계산)';
+    }
+    
+    // 시뮬!
+    const result = simulateHunter(data.bars, params);
     
     const buyHoldMult = data.lastPrice / data.firstPrice;
     const vsHold = result.mult / buyHoldMult;
@@ -395,15 +547,13 @@ async function runBacktest() {
       
       <div class="metric-row">
         <span class="metric-label">HUNTER 추가 수익</span>
-        <span class="metric-value" style="color:${vsHold>1?'#0f0':'#f44'};font-size:16px;font-weight:800">
-          +${((result.mult - buyHoldMult) * 100).toFixed(1)}%p ${vsHold>1?'🚀':'📉'}
+        <span class="metric-value" style="color:${vsHold>1?'#0f0':'#f44'};font-size:16px">
+          ${vsHold>1?'+':''}${((result.mult - buyHoldMult) * 100).toFixed(1)}%p ${vsHold>1?'🚀':'📉'}
         </span>
       </div>
       <div class="metric-row">
         <span class="metric-label">HUNTER vs 단순보유 배율</span>
-        <span class="metric-value" style="color:${vsHold>1?'#0f0':'#f44'}">
-          ${vsHold.toFixed(2)}배
-        </span>
+        <span class="metric-value" style="color:${vsHold>1?'#0f0':'#f44'}">${vsHold.toFixed(2)}배</span>
       </div>
       <div class="metric-row">
         <span class="metric-label">최대 낙폭 (MDD)</span>
@@ -415,34 +565,20 @@ async function runBacktest() {
       </div>
       <div class="metric-row">
         <span class="metric-label">승률</span>
-        <span class="metric-value" style="color:${result.winRate>70?'#0f0':'#ff8'}">
-          ${result.winRate.toFixed(0)}%
-        </span>
+        <span class="metric-value" style="color:${result.winRate>70?'#0f0':'#ff8'}">${result.winRate.toFixed(0)}%</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">사용 파라미터</span>
+        <span class="metric-value">${paramSource}</span>
       </div>
     </div>
     
-    <div class="card">
-      <div class="ct">📅 기간 정보</div>
-      <div class="period-info">
-        ${data.firstDate} ~ ${data.lastDate}<br>
-        시작 $${data.firstPrice?.toFixed(2)} → 종료 $${data.lastPrice?.toFixed(2)}<br>
-        총 ${data.count}일
-      </div>
+    <div class="card" style="font-size:12px;color:var(--dim);line-height:1.7">
+      <b style="color:#ffd">⚙️ 사용된 HUNTER 파라미터:</b><br>
+      매도: +${(params.top_p*100).toFixed(1)}% / +${(params.mid_p*100).toFixed(1)}% / +${(params.bot_p*100).toFixed(1)}% (천/중/바)<br>
+      기간: ${params.top_d} / ${params.mid_d} / ${params.bot_d}일<br>
+      Lookback: ${params.lookback}일 · 유닛: 2u/4u/TU20
     </div>`;
-    
-    if (yearly.length > 0) {
-      html += `<div class="card">
-        <div class="ct">📊 연도별 수익률</div>`;
-      for (const y of yearly) {
-        const color = y.gain > 0 ? '#0f0' : '#f44';
-        html += `<div class="year-row">
-          <div class="year-label">${y.year}</div>
-          <div style="color:${color};font-weight:700">${y.gain>0?'+':''}${y.gain.toFixed(1)}%</div>
-          <div style="color:#f88;font-size:11px;text-align:right">MDD ${y.mdd.toFixed(1)}%</div>
-        </div>`;
-      }
-      html += '</div>';
-    }
     
     resultEl.innerHTML = html;
     progressEl.innerHTML = '✅ 완료!';
@@ -452,12 +588,12 @@ async function runBacktest() {
   }
 }
 
-function simulateHunter(bars) {
+// HUNTER 시뮬레이션 (파라미터 받아서!)
+function simulateHunter(bars, params) {
   const closes = bars.map(b => b.close);
   const n = closes.length;
-  const warmup = 25;
+  const warmup = Math.max(params.lookback + 5, 25);
   const TU = 20;
-  const UP = 2, DN = 4;
   
   let cap = 100;
   let pe = [], pu = [], pd = [], zones = [];
@@ -467,11 +603,10 @@ function simulateHunter(bars) {
   for (let i = warmup + 1; i < n; i++) {
     const cl = closes[i];
     const prev = closes[i-1];
-    const units = cl < prev ? DN : UP;
+    const units = cl < prev ? 4 : 2;
     
-    const start20 = Math.max(warmup, i - 20);
-    const slice = closes.slice(start20, i+1);
-    const recentHigh = Math.max(...slice);
+    const start = Math.max(warmup, i - params.lookback);
+    const recentHigh = Math.max(...closes.slice(start, i+1));
     const dd = (cl - recentHigh) / recentHigh * 100;
     
     let zone;
@@ -483,10 +618,11 @@ function simulateHunter(bars) {
     for (let j = 0; j < pe.length; j++) {
       pd[j] += 1;
       const p = (cl - pe[j]) / pe[j];
+      
       let tp, fd;
-      if (zones[j] === 'top') { tp = 0.025; fd = 7; }
-      else if (zones[j] === 'bot') { tp = 0.03; fd = 10; }
-      else { tp = 0.005; fd = 7; }
+      if (zones[j] === 'top') { tp = params.top_p; fd = params.top_d; }
+      else if (zones[j] === 'bot') { tp = params.bot_p; fd = params.bot_d; }
+      else { tp = params.mid_p; fd = params.mid_d; }
       
       if (p >= tp || pd[j] >= fd) {
         cap *= (1 + p * pu[j] / TU);
@@ -527,91 +663,6 @@ function simulateHunter(bars) {
     nSells: nSells,
     winRate: nSells > 0 ? wins / nSells * 100 : 0
   };
-}
-
-function calculateYearly(bars) {
-  const yearData = {};
-  for (const b of bars) {
-    const yr = b.date.slice(0, 4);
-    if (!yearData[yr]) yearData[yr] = [];
-    yearData[yr].push(b);
-  }
-  
-  const result = [];
-  for (const yr of Object.keys(yearData).sort()) {
-    const barsYr = yearData[yr];
-    if (barsYr.length < 5) continue;
-    const closes = barsYr.map(b => b.close);
-    const sim = simulateHunterSimple(closes);
-    result.push({ year: yr, gain: (sim.mult - 1) * 100, mdd: sim.mdd });
-  }
-  return result;
-}
-
-function simulateHunterSimple(closes) {
-  const n = closes.length;
-  if (n < 5) return { mult: 1, mdd: 0 };
-  
-  const TU = 20;
-  const UP = 2, DN = 4;
-  let cap = 100;
-  let pe = [], pu = [], pd = [], zones = [];
-  let pk = 100, mdd = 0;
-  
-  for (let i = 1; i < n; i++) {
-    const cl = closes[i];
-    const prev = closes[i-1];
-    const units = cl < prev ? DN : UP;
-    
-    const start20 = Math.max(0, i - 20);
-    const slice = closes.slice(start20, i+1);
-    const recentHigh = Math.max(...slice);
-    const dd = (cl - recentHigh) / recentHigh * 100;
-    
-    let zone;
-    if (dd >= -10) zone = 'top';
-    else if (dd <= -15) zone = 'bot';
-    else zone = 'mid';
-    
-    const re = [], rd = [], ru = [], rz = [];
-    for (let j = 0; j < pe.length; j++) {
-      pd[j] += 1;
-      const p = (cl - pe[j]) / pe[j];
-      let tp, fd;
-      if (zones[j] === 'top') { tp = 0.025; fd = 7; }
-      else if (zones[j] === 'bot') { tp = 0.03; fd = 10; }
-      else { tp = 0.005; fd = 7; }
-      
-      if (p >= tp || pd[j] >= fd) {
-        cap *= (1 + p * pu[j] / TU);
-      } else {
-        re.push(pe[j]); rd.push(pd[j]); ru.push(pu[j]); rz.push(zones[j]);
-      }
-    }
-    pe = re; pd = rd; pu = ru; zones = rz;
-    
-    const ti = pu.reduce((s, u) => s + u, 0);
-    if (ti < TU && units > 0) {
-      const a = Math.min(units, TU - ti);
-      pe.push(cl); pd.push(0); pu.push(a); zones.push(zone);
-    }
-    
-    let tv = cap;
-    for (let j = 0; j < pe.length; j++) {
-      tv *= (1 + (cl - pe[j]) / pe[j] * pu[j] / TU);
-    }
-    if (tv > pk) pk = tv;
-    const ddv = (tv - pk) / pk * 100;
-    if (ddv < mdd) mdd = ddv;
-  }
-  
-  let final = cap;
-  const lastClose = closes[n-1];
-  for (let j = 0; j < pe.length; j++) {
-    final *= (1 + (lastClose - pe[j]) / pe[j] * pu[j] / TU);
-  }
-  
-  return { mult: final / 100, mdd: mdd };
 }
 </script>
 
