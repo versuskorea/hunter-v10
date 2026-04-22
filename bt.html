@@ -382,21 +382,27 @@ async function runBacktest() {
         <div class="result-box hold">
           <div class="rb-label">📌 단순 보유</div>
           <div class="rb-value" style="color:${buyHoldMult>=1?'#0f0':'#f44'}">
-            ${buyHoldMult.toFixed(2)}배
+            ${buyHoldMult>=1?'+':''}${((buyHoldMult-1)*100).toFixed(1)}%
           </div>
-          <div class="rb-pct">${((buyHoldMult-1)*100).toFixed(1)}%</div>
+          <div class="rb-pct">${buyHoldMult.toFixed(2)}배</div>
         </div>
         <div class="result-box hunter">
           <div class="rb-label">🏹 HUNTER</div>
-          <div class="rb-value">${result.mult.toFixed(2)}배</div>
-          <div class="rb-pct">${((result.mult-1)*100).toFixed(1)}%</div>
+          <div class="rb-value">+${((result.mult-1)*100).toFixed(1)}%</div>
+          <div class="rb-pct">${result.mult.toFixed(2)}배</div>
         </div>
       </div>
       
       <div class="metric-row">
-        <span class="metric-label">HUNTER vs 단순보유</span>
+        <span class="metric-label">HUNTER 추가 수익</span>
+        <span class="metric-value" style="color:${vsHold>1?'#0f0':'#f44'};font-size:16px;font-weight:800">
+          +${((result.mult - buyHoldMult) * 100).toFixed(1)}%p ${vsHold>1?'🚀':'📉'}
+        </span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">HUNTER vs 단순보유 배율</span>
         <span class="metric-value" style="color:${vsHold>1?'#0f0':'#f44'}">
-          ${vsHold.toFixed(2)}배 ${vsHold>1?'🚀':'📉'}
+          ${vsHold.toFixed(2)}배
         </span>
       </div>
       <div class="metric-row">
