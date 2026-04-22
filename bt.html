@@ -6,30 +6,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HUNTER 백테 & 변동성</title>
 <style>
-:root {
-  --bg: #0f0f1e;
-  --card: #1a1a2e;
-  --card-hover: #2a2a3e;
-  --accent: #667eea;
-  --accent2: #764ba2;
-  --green: #0f0;
-  --red: #f44;
-  --orange: #ff8800;
-  --yellow: #ff8;
-  --dim: #888;
-  --text: #fff;
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+background: #0f0f1e !important;
+background-color: #0f0f1e !important;
+color: #ffffff !important;
+color-scheme: dark !important;
 }
 
-- { margin:0; padding:0; box-sizing:border-box; }
-
 body {
-background: var(–bg);
-color: var(–text);
+background: #0f0f1e !important;
 font-family: -apple-system, BlinkMacSystemFont, ‘Segoe UI’, Roboto, sans-serif;
 padding: 16px;
 padding-bottom: 80px;
 max-width: 600px;
 margin: 0 auto;
+min-height: 100vh;
 }
 
 .header {
@@ -42,18 +35,19 @@ margin-bottom: 20px;
 h1 {
 font-size: 22px;
 font-weight: 700;
+color: #fff !important;
 }
 
-h1 span {
-background: linear-gradient(135deg, var(–accent), var(–accent2));
+h1 .grad {
+background: linear-gradient(135deg, #667eea, #764ba2);
 -webkit-background-clip: text;
 -webkit-text-fill-color: transparent;
 background-clip: text;
 }
 
 .back-btn {
-background: var(–card);
-color: var(–text);
+background: #1a1a2e !important;
+color: #fff !important;
 padding: 8px 14px;
 border-radius: 10px;
 text-decoration: none;
@@ -62,17 +56,18 @@ border: 1px solid #333;
 }
 
 .card {
-background: var(–card);
+background: #1a1a2e !important;
 border-radius: 14px;
 padding: 16px;
 margin-bottom: 14px;
+color: #fff !important;
 }
 
 .ct {
 font-weight: 700;
 font-size: 15px;
 margin-bottom: 12px;
-color: var(–accent);
+color: #667eea !important;
 }
 
 .ir {
@@ -80,27 +75,32 @@ display: flex;
 align-items: center;
 gap: 10px;
 margin-bottom: 10px;
-background: var(–card-hover);
+background: #2a2a3e !important;
 padding: 10px 14px;
 border-radius: 10px;
 }
 
 .ir label {
 font-size: 13px;
-color: var(–dim);
+color: #aaa !important;
 min-width: 50px;
 }
 
 .ir input, .ir select {
 flex: 1;
-background: transparent;
+background: transparent !important;
 border: none;
-color: var(–text);
+color: #fff !important;
 font-size: 15px;
 outline: none;
 }
 
-.ir .u { color: var(–dim); font-size: 13px; }
+.ir input::-webkit-calendar-picker-indicator {
+filter: invert(1);
+opacity: 0.7;
+}
+
+.ir .u { color: #888 !important; font-size: 13px; }
 
 .btn {
 width: 100%;
@@ -112,23 +112,24 @@ font-weight: 700;
 cursor: pointer;
 transition: all 0.2s;
 margin-top: 10px;
+color: #fff !important;
 }
 
 .btn-primary {
-background: linear-gradient(135deg, var(–accent), var(–accent2));
-color: white;
+background: linear-gradient(135deg, #667eea, #764ba2) !important;
+color: white !important;
 box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .btn-analyze {
-background: linear-gradient(135deg, #f093fb, #f5576c);
-color: white;
+background: linear-gradient(135deg, #f093fb, #f5576c) !important;
+color: white !important;
 }
 
 .progress {
 text-align: center;
 margin-top: 14px;
-color: var(–accent);
+color: #667eea !important;
 font-size: 14px;
 min-height: 20px;
 }
@@ -146,24 +147,32 @@ border-radius: 12px;
 text-align: center;
 }
 
-.result-box.hold { background: var(–card-hover); }
-.result-box.hunter { background: linear-gradient(135deg, var(–accent), var(–accent2)); }
+.result-box.hold {
+background: #2a2a3e !important;
+color: #fff !important;
+}
 
-.rb-label { font-size: 11px; opacity: 0.7; margin-bottom: 4px; }
-.rb-value { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
-.rb-pct { font-size: 13px; opacity: 0.85; }
+.result-box.hunter {
+background: linear-gradient(135deg, #667eea, #764ba2) !important;
+color: #fff !important;
+}
+
+.rb-label { font-size: 11px; opacity: 0.7; margin-bottom: 4px; color: #fff !important; }
+.rb-value { font-size: 22px; font-weight: 700; margin-bottom: 2px; color: #fff !important; }
+.rb-pct { font-size: 13px; opacity: 0.85; color: #fff !important; }
 
 .metric-row {
 display: flex;
 justify-content: space-between;
 padding: 8px 0;
-border-bottom: 1px solid var(–card-hover);
+border-bottom: 1px solid #2a2a3e;
 font-size: 13px;
+color: #fff !important;
 }
 
 .metric-row:last-child { border-bottom: none; }
-.metric-label { color: var(–dim); }
-.metric-value { font-weight: 700; }
+.metric-label { color: #aaa !important; }
+.metric-value { font-weight: 700; color: #fff !important; }
 
 .quick-sym {
 display: flex;
@@ -173,8 +182,8 @@ margin-top: 8px;
 }
 
 .quick-sym button {
-background: var(–card-hover);
-color: var(–text);
+background: #2a2a3e !important;
+color: #fff !important;
 border: 1px solid #333;
 padding: 6px 12px;
 border-radius: 8px;
@@ -183,37 +192,39 @@ cursor: pointer;
 }
 
 .tip {
-background: var(–card-hover);
-padding: 10px 14px;
+background: #1a1a2e !important;
+padding: 12px 14px;
 border-radius: 10px;
-font-size: 12px;
-color: var(–dim);
+font-size: 13px;
+color: #bbb !important;
 line-height: 1.6;
 margin-bottom: 14px;
+border: 1px solid #2a2a3e;
 }
 
 .vol-result {
-background: linear-gradient(135deg, #1a2a4e, #2a1a4e);
+background: linear-gradient(135deg, #1a2a4e, #2a1a4e) !important;
 padding: 16px;
-border-radius: 12px;
+border-radius: 14px;
 margin-bottom: 14px;
+color: #fff !important;
 }
 
 .vol-main {
 text-align: center;
-padding: 10px 0;
+padding: 12px 0;
 }
 
 .vol-num {
-font-size: 36px;
+font-size: 40px;
 font-weight: 800;
-color: var(–yellow);
+color: #ffdd44 !important;
 }
 
 .vol-cat {
-font-size: 14px;
-color: var(–text);
-margin-top: 4px;
+font-size: 15px;
+color: #fff !important;
+margin-top: 6px;
 }
 
 .param-row {
@@ -221,17 +232,25 @@ display: flex;
 justify-content: space-between;
 padding: 6px 0;
 font-size: 13px;
+color: #fff !important;
 }
 
-.param-label { color: var(–dim); }
-.param-value { color: #ffd; font-weight: 700; }
+.param-label { color: #bbb !important; }
+.param-value { color: #ffdd88 !important; font-weight: 700; }
 
+@media (prefers-color-scheme: light) {
+html, body {
+background: #0f0f1e !important;
+color: #fff !important;
+}
+}
 </style>
+
 </head>
 <body>
 
 <div class="header">
-  <h1>📊 <span>HUNTER</span> 백테</h1>
+  <h1>📊 <span class="grad">HUNTER</span> 백테</h1>
   <a href="/" class="back-btn">← 돌아가기</a>
 </div>
 
@@ -281,6 +300,7 @@ font-size: 13px;
 
 <button class="btn btn-analyze" onclick="analyzeVolatility()">📊 변동성 분석 & 자동 설정!</button>
 <button class="btn btn-primary" onclick="runBacktest()">🚀 백테 실행!</button>
+<button class="btn" onclick="runBacktestBasic()" style="background:linear-gradient(135deg,#00c853,#00897b) !important;color:white !important;">🏹 기본 HUNTER로 백테! (SOXL용)</button>
 
   <div class="progress" id="bt-progress"></div>
 </div>
@@ -586,6 +606,21 @@ async function runBacktest() {
   } catch(e) {
     progressEl.innerHTML = '❌ ' + e.message;
   }
+}
+
+// 기본 HUNTER로 백테 (자동 파라미터 무시!)
+async function runBacktestBasic() {
+  // 기본 SOXL HUNTER 파라미터로 덮어쓰기
+  window.autoParams = {
+    top_p: 0.025,
+    mid_p: 0.005,
+    bot_p: 0.03,
+    top_d: 7,
+    mid_d: 7,
+    bot_d: 10,
+    lookback: 20
+  };
+  runBacktest();
 }
 
 // HUNTER 시뮬레이션 (파라미터 받아서!)
