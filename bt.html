@@ -273,14 +273,21 @@ h1 span {
     <span class="u">📊</span>
   </div>
   <div class="ir">
-    <label>기간</label>
-    <select id="bt-yr">
-      <option value="1">1년</option>
-      <option value="2">2년</option>
-      <option value="5" selected>5년</option>
-      <option value="10">10년</option>
-      <option value="max">최대</option>
-    </select>
+    <label>시작</label>
+    <input type="date" id="bt-start" style="flex:1">
+  </div>
+  <div class="ir">
+    <label>종료</label>
+    <input type="date" id="bt-end" style="flex:1">
+  </div>
+  
+  <div class="quick-sym" style="margin-top:8px">
+    <button onclick="setRange(1)">1년</button>
+    <button onclick="setRange(2)">2년</button>
+    <button onclick="setRange(3)">3년</button>
+    <button onclick="setRange(5)">5년</button>
+    <button onclick="setRange(10)">10년</button>
+    <button onclick="setRange(20)">최대</button>
   </div>
   
   <div class="quick-sym">
@@ -304,9 +311,37 @@ function setSym(s) {
   document.getElementById('bt-sym').value = s;
 }
 
+// 기간 빠른 선택
+function setRange(years) {
+  const end = new Date();
+  const start = new Date();
+  
+  if (years === 20) {
+    // 최대 (2015년부터)
+    start.setFullYear(2015, 0, 1);
+  } else {
+    start.setFullYear(end.getFullYear() - years);
+  }
+  
+  const fmt = d => d.toISOString().slice(0, 10);
+  document.getElementById('bt-start').value = fmt(start);
+  document.getElementById('bt-end').value = fmt(end);
+}
+
+// 초기값 설정 (5년)
+window.addEventListener('DOMContentLoaded', () => {
+  setRange(5);
+});
+
 async function runBacktest() {
   const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
-  const yr = document.getElementById('bt-yr').value;
+  const startDate = document.getElementById('bt-start').value;
+  const endDate = document.getElementById('bt-end').value;
+  
+  if (!startDate || !endDate) {
+    alert('시작일, 종료일 선택!');
+    return;
+  }
   
   if (!sym) {
     alert('종목 코드 입력!');
@@ -319,7 +354,7 @@ async function runBacktest() {
   resultEl.innerHTML = '';
   
   try {
-    const res = await fetch(`/api/history?symbol=${sym}&years=${yr}`);
+    const res = await fetch(`/api/history?symbol=${sym}&start=${startDate}&end=${endDate}`);
     const data = await res.json();
     
     if (data.error) {
@@ -341,7 +376,7 @@ async function runBacktest() {
     const vsHold = result.mult / buyHoldMult;
     
     let html = `<div class="card">
-      <div class="ct">📈 ${data.symbol} · ${yr}년</div>
+      <div class="ct">📈 ${data.symbol} · ${startDate} ~ ${endDate}</div>
       
       <div class="result-grid">
         <div class="result-box hold">
