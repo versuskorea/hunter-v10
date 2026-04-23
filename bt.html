@@ -1,160 +1,159 @@
- <!DOCTYPE html>
-
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HUNTER 백테 & 변동성</title>
+<title>HUNTER 백테 & 변동성 (수정판)</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 
 html, body {
-background: #0f0f1e !important;
-background-color: #0f0f1e !important;
-color: #ffffff !important;
-color-scheme: dark !important;
+  background: #0f0f1e !important;
+  background-color: #0f0f1e !important;
+  color: #ffffff !important;
+  color-scheme: dark !important;
 }
 
 body {
-background: #0f0f1e !important;
-font-family: -apple-system, BlinkMacSystemFont, ‘Segoe UI’, Roboto, sans-serif;
-padding: 16px;
-padding-bottom: 80px;
-max-width: 600px;
-margin: 0 auto;
-min-height: 100vh;
+  background: #0f0f1e !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  padding: 16px;
+  padding-bottom: 80px;
+  max-width: 600px;
+  margin: 0 auto;
+  min-height: 100vh;
 }
 
 .header {
-display: flex;
-align-items: center;
-justify-content: space-between;
-margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
 
 h1 {
-font-size: 22px;
-font-weight: 700;
-color: #fff !important;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff !important;
 }
 
 h1 .grad {
-background: linear-gradient(135deg, #667eea, #764ba2);
--webkit-background-clip: text;
--webkit-text-fill-color: transparent;
-background-clip: text;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .back-btn {
-background: #1a1a2e !important;
-color: #fff !important;
-padding: 8px 14px;
-border-radius: 10px;
-text-decoration: none;
-font-size: 13px;
-border: 1px solid #333;
+  background: #1a1a2e !important;
+  color: #fff !important;
+  padding: 8px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 13px;
+  border: 1px solid #333;
 }
 
 .card {
-background: #1a1a2e !important;
-border-radius: 14px;
-padding: 16px;
-margin-bottom: 14px;
-color: #fff !important;
+  background: #1a1a2e !important;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  color: #fff !important;
 }
 
 .ct {
-font-weight: 700;
-font-size: 15px;
-margin-bottom: 12px;
-color: #667eea !important;
+  font-weight: 700;
+  font-size: 15px;
+  margin-bottom: 12px;
+  color: #667eea !important;
 }
 
 .ir {
-display: flex;
-align-items: center;
-gap: 10px;
-margin-bottom: 10px;
-background: #2a2a3e !important;
-padding: 10px 14px;
-border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  background: #2a2a3e !important;
+  padding: 10px 14px;
+  border-radius: 10px;
 }
 
 .ir label {
-font-size: 13px;
-color: #aaa !important;
-min-width: 50px;
+  font-size: 13px;
+  color: #aaa !important;
+  min-width: 50px;
 }
 
 .ir input, .ir select {
-flex: 1;
-background: transparent !important;
-border: none;
-color: #fff !important;
-font-size: 15px;
-outline: none;
+  flex: 1;
+  background: transparent !important;
+  border: none;
+  color: #fff !important;
+  font-size: 15px;
+  outline: none;
 }
 
 .ir input::-webkit-calendar-picker-indicator {
-filter: invert(1);
-opacity: 0.7;
+  filter: invert(1);
+  opacity: 0.7;
 }
 
 .ir .u { color: #888 !important; font-size: 13px; }
 
 .btn {
-width: 100%;
-padding: 14px;
-border: none;
-border-radius: 12px;
-font-size: 15px;
-font-weight: 700;
-cursor: pointer;
-transition: all 0.2s;
-margin-top: 10px;
-color: #fff !important;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 10px;
+  color: #fff !important;
 }
 
 .btn-primary {
-background: linear-gradient(135deg, #667eea, #764ba2) !important;
-color: white !important;
-box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, #667eea, #764ba2) !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .btn-analyze {
-background: linear-gradient(135deg, #f093fb, #f5576c) !important;
-color: white !important;
+  background: linear-gradient(135deg, #f093fb, #f5576c) !important;
+  color: white !important;
 }
 
 .progress {
-text-align: center;
-margin-top: 14px;
-color: #667eea !important;
-font-size: 14px;
-min-height: 20px;
+  text-align: center;
+  margin-top: 14px;
+  color: #667eea !important;
+  font-size: 14px;
+  min-height: 20px;
 }
 
 .result-grid {
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: 10px;
-margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .result-box {
-padding: 14px;
-border-radius: 12px;
-text-align: center;
+  padding: 14px;
+  border-radius: 12px;
+  text-align: center;
 }
 
 .result-box.hold {
-background: #2a2a3e !important;
-color: #fff !important;
+  background: #2a2a3e !important;
+  color: #fff !important;
 }
 
 .result-box.hunter {
-background: linear-gradient(135deg, #667eea, #764ba2) !important;
-color: #fff !important;
+  background: linear-gradient(135deg, #667eea, #764ba2) !important;
+  color: #fff !important;
 }
 
 .rb-label { font-size: 11px; opacity: 0.7; margin-bottom: 4px; color: #fff !important; }
@@ -162,12 +161,12 @@ color: #fff !important;
 .rb-pct { font-size: 13px; opacity: 0.85; color: #fff !important; }
 
 .metric-row {
-display: flex;
-justify-content: space-between;
-padding: 8px 0;
-border-bottom: 1px solid #2a2a3e;
-font-size: 13px;
-color: #fff !important;
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #2a2a3e;
+  font-size: 13px;
+  color: #fff !important;
 }
 
 .metric-row:last-child { border-bottom: none; }
@@ -175,95 +174,118 @@ color: #fff !important;
 .metric-value { font-weight: 700; color: #fff !important; }
 
 .quick-sym {
-display: flex;
-flex-wrap: wrap;
-gap: 6px;
-margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .quick-sym button {
-background: #2a2a3e !important;
-color: #fff !important;
-border: 1px solid #333;
-padding: 6px 12px;
-border-radius: 8px;
-font-size: 12px;
-cursor: pointer;
+  background: #2a2a3e !important;
+  color: #fff !important;
+  border: 1px solid #333;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .tip {
-background: #1a1a2e !important;
-padding: 12px 14px;
-border-radius: 10px;
-font-size: 13px;
-color: #bbb !important;
-line-height: 1.6;
-margin-bottom: 14px;
-border: 1px solid #2a2a3e;
+  background: #1a1a2e !important;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #bbb !important;
+  line-height: 1.6;
+  margin-bottom: 14px;
+  border: 1px solid #2a2a3e;
+}
+
+.fix-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #00c853, #00897b);
+  color: #fff !important;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
 }
 
 .vol-result {
-background: linear-gradient(135deg, #1a2a4e, #2a1a4e) !important;
-padding: 16px;
-border-radius: 14px;
-margin-bottom: 14px;
-color: #fff !important;
+  background: linear-gradient(135deg, #1a2a4e, #2a1a4e) !important;
+  padding: 16px;
+  border-radius: 14px;
+  margin-bottom: 14px;
+  color: #fff !important;
 }
 
 .vol-main {
-text-align: center;
-padding: 12px 0;
+  text-align: center;
+  padding: 12px 0;
 }
 
 .vol-num {
-font-size: 40px;
-font-weight: 800;
-color: #ffdd44 !important;
+  font-size: 40px;
+  font-weight: 800;
+  color: #ffdd44 !important;
 }
 
 .vol-cat {
-font-size: 15px;
-color: #fff !important;
-margin-top: 6px;
+  font-size: 15px;
+  color: #fff !important;
+  margin-top: 6px;
 }
 
 .param-row {
-display: flex;
-justify-content: space-between;
-padding: 6px 0;
-font-size: 13px;
-color: #fff !important;
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 13px;
+  color: #fff !important;
 }
 
 .param-label { color: #bbb !important; }
 .param-value { color: #ffdd88 !important; font-weight: 700; }
 
-@media (prefers-color-scheme: light) {
-html, body {
-background: #0f0f1e !important;
-color: #fff !important;
+.warmup-info {
+  background: rgba(0, 200, 83, 0.1);
+  border: 1px solid rgba(0, 200, 83, 0.3);
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: #8fe8b0 !important;
+  line-height: 1.6;
 }
+
+@media (prefers-color-scheme: light) {
+  html, body {
+    background: #0f0f1e !important;
+    color: #fff !important;
+  }
 }
 </style>
-
 </head>
 <body>
 
 <div class="header">
-  <h1>📊 <span class="grad">HUNTER</span> 백테</h1>
+  <h1>📊 <span class="grad">HUNTER</span> 백테<span class="fix-badge">FIXED</span></h1>
   <a href="/" class="back-btn">← 돌아가기</a>
 </div>
 
 <div class="tip">
-  💡 야후에서 자동 데이터 → 변동성 계산 → HUNTER 파라미터 자동!<br>
-  [📊 변동성 분석] → [🚀 백테 실행!] 순서로!
+  💡 <b>수정사항:</b> warmup 데이터를 별도로 받아서 <b>사용자 지정 시작일부터 정확히</b> 거래가 시작됩니다!<br>
+  기존 버전: "3/1~4/23" 입력 시 실제 거래는 4/8부터 (25일 warmup 소모)<br>
+  <b>수정 버전: "3/1~4/23" 입력 시 실제 거래는 3/1부터 (warmup은 숨은 데이터로 처리)</b>
 </div>
 
 <div class="card">
   <div class="ct">🎯 백테 설정</div>
   <div class="ir">
     <label>종목</label>
-    <input type="text" id="bt-sym" value="SOXL" placeholder="SOXL, POET, TSLA..." style="text-transform:uppercase">
+    <input type="text" id="bt-sym" value="UCO" placeholder="SOXL, POET, TSLA..." style="text-transform:uppercase">
     <span class="u">📊</span>
   </div>
   <div class="ir">
@@ -276,6 +298,7 @@ color: #fff !important;
   </div>
 
   <div class="quick-sym">
+    <button onclick="setRange('ytd')">YTD</button>
     <button onclick="setRange(1)">1년</button>
     <button onclick="setRange(2)">2년</button>
     <button onclick="setRange(3)">3년</button>
@@ -288,6 +311,8 @@ color: #fff !important;
     <button onclick="setSym('SOXL')">SOXL</button>
     <button onclick="setSym('TQQQ')">TQQQ</button>
     <button onclick="setSym('POET')">POET</button>
+    <button onclick="setSym('UCO')">UCO</button>
+    <button onclick="setSym('USO')">USO</button>
     <button onclick="setSym('TSLA')">TSLA</button>
     <button onclick="setSym('NVDA')">NVDA</button>
     <button onclick="setSym('AMD')">AMD</button>
@@ -298,9 +323,9 @@ color: #fff !important;
     <button onclick="setSym('QQQ')">QQQ</button>
   </div>
 
-<button class="btn btn-analyze" onclick="analyzeVolatility()">📊 변동성 분석 & 자동 설정!</button>
-<button class="btn btn-primary" onclick="runBacktest()">🚀 백테 실행!</button>
-<button class="btn" onclick="runBacktestBasic()" style="background:linear-gradient(135deg,#00c853,#00897b) !important;color:white !important;">🏹 기본 HUNTER로 백테! (SOXL용)</button>
+  <button class="btn btn-analyze" onclick="analyzeVolatility()">📊 변동성 분석 & 자동 설정!</button>
+  <button class="btn btn-primary" onclick="runBacktest()">🚀 백테 실행!</button>
+  <button class="btn" onclick="runBacktestBasic()" style="background:linear-gradient(135deg,#00c853,#00897b) !important;color:white !important;">🏹 기본 HUNTER로 백테! (SOXL용)</button>
 
   <div class="progress" id="bt-progress"></div>
 </div>
@@ -316,7 +341,9 @@ function setSym(s) {
 function setRange(years) {
   const end = new Date();
   const start = new Date();
-  if (years === 20) {
+  if (years === 'ytd') {
+    start.setMonth(0, 1); // 1월 1일
+  } else if (years === 20) {
     start.setFullYear(2015, 0, 1);
   } else {
     start.setFullYear(end.getFullYear() - years);
@@ -327,10 +354,10 @@ function setRange(years) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  setRange(5);
+  setRange('ytd');
 });
 
-// 변동성 계산 & 파라미터 자동 설정!
+// 변동성 계산 & 파라미터 자동 설정
 async function analyzeVolatility() {
   const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
   if (!sym) { alert('종목 입력!'); return; }
@@ -341,7 +368,6 @@ async function analyzeVolatility() {
   volEl.innerHTML = '';
   
   try {
-    // 최근 1년 데이터
     const end = new Date();
     const start = new Date();
     start.setFullYear(end.getFullYear() - 1);
@@ -351,65 +377,35 @@ async function analyzeVolatility() {
     const res = await fetch(url);
     const data = await res.json();
     
-    if (data.error) {
-      progressEl.innerHTML = '❌ ' + data.error;
-      return;
-    }
+    if (data.error) { progressEl.innerHTML = '❌ ' + data.error; return; }
+    if (!data.bars || data.bars.length < 30) { progressEl.innerHTML = '❌ 데이터 부족'; return; }
     
-    if (!data.bars || data.bars.length < 30) {
-      progressEl.innerHTML = '❌ 데이터 부족';
-      return;
-    }
-    
-    // 변동성 계산!
     const closes = data.bars.map(b => b.close);
     const returns = [];
     for (let i = 1; i < closes.length; i++) {
       returns.push((closes[i] - closes[i-1]) / closes[i-1] * 100);
     }
-    
     const mean = returns.reduce((a,b) => a+b, 0) / returns.length;
     const variance = returns.reduce((s,r) => s + Math.pow(r-mean, 2), 0) / returns.length;
     const vol = Math.sqrt(variance);
     
-    // 파라미터 자동 계산!
     const params = calcParams(vol);
     const category = categorize(vol);
     
-    // 화면 표시
     let html = `<div class="vol-result">
       <div class="ct" style="color:#ffd">🎯 ${sym} 변동성 분석</div>
-      
       <div class="vol-main">
         <div class="vol-num">${vol.toFixed(2)}%</div>
         <div class="vol-cat">${category.emoji} ${category.name}</div>
       </div>
-      
       <div style="background:rgba(0,0,0,0.3);padding:12px;border-radius:10px;margin-top:10px">
         <div style="font-weight:700;margin-bottom:8px;color:#ffd">💡 추천 HUNTER 설정:</div>
-        
-        <div class="param-row">
-          <span class="param-label">유닛</span>
-          <span class="param-value">2u / 4u / TU20 (공통)</span>
-        </div>
-        <div class="param-row">
-          <span class="param-label">매도 목표 (천/중/바)</span>
-          <span class="param-value">+${(params.top_p*100).toFixed(1)}% / +${(params.mid_p*100).toFixed(1)}% / +${(params.bot_p*100).toFixed(1)}%</span>
-        </div>
-        <div class="param-row">
-          <span class="param-label">강제 기간</span>
-          <span class="param-value">${params.top_d}일 / ${params.mid_d}일 / ${params.bot_d}일</span>
-        </div>
-        <div class="param-row">
-          <span class="param-label">Lookback</span>
-          <span class="param-value">${params.lookback}일</span>
-        </div>
-        <div class="param-row">
-          <span class="param-label">예상 매매 빈도</span>
-          <span class="param-value">${category.frequency}</span>
-        </div>
+        <div class="param-row"><span class="param-label">유닛</span><span class="param-value">2u / 4u / TU20 (공통)</span></div>
+        <div class="param-row"><span class="param-label">매도 목표 (천/중/바)</span><span class="param-value">+${(params.top_p*100).toFixed(1)}% / +${(params.mid_p*100).toFixed(1)}% / +${(params.bot_p*100).toFixed(1)}%</span></div>
+        <div class="param-row"><span class="param-label">강제 기간</span><span class="param-value">${params.top_d}일 / ${params.mid_d}일 / ${params.bot_d}일</span></div>
+        <div class="param-row"><span class="param-label">Lookback</span><span class="param-value">${params.lookback}일</span></div>
+        <div class="param-row"><span class="param-label">예상 매매 빈도</span><span class="param-value">${category.frequency}</span></div>
       </div>
-      
       <div style="background:rgba(255,255,100,0.1);padding:10px;border-radius:8px;margin-top:10px;font-size:12px;line-height:1.6">
         <b>💡 ${category.recommendation}</b>
       </div>
@@ -417,8 +413,6 @@ async function analyzeVolatility() {
     
     volEl.innerHTML = html;
     progressEl.innerHTML = '✅ 분석 완료! [🚀 백테 실행] 클릭!';
-    
-    // 파라미터 저장 (백테에서 사용)
     window.autoParams = params;
     
   } catch(e) {
@@ -427,81 +421,37 @@ async function analyzeVolatility() {
 }
 
 function categorize(vol) {
-  if (vol < 1.0) return {
-    emoji: '🟢',
-    name: '안정주 (배당주 등)',
-    frequency: '년 2~3회',
-    recommendation: '변동성 너무 낮음! HUNTER 효과 적음. 단순 보유 추천!'
-  };
-  if (vol < 1.5) return {
-    emoji: '🔵',
-    name: '지수 ETF (SPY, QQQ 등)',
-    frequency: '년 3~5회',
-    recommendation: 'Ultra Long HUNTER. 느린 스윙. 년 3~5회 매매!'
-  };
-  if (vol < 2.5) return {
-    emoji: '🟣',
-    name: '안정 성장주 (AAPL, MSFT 등)',
-    frequency: '년 5~10회',
-    recommendation: 'Long HUNTER. 월 1~2회 매매. 마음 편함!'
-  };
-  if (vol < 4.0) return {
-    emoji: '🟠',
-    name: '변동 개별주 (TSLA, NVDA)',
-    frequency: '년 15~25회',
-    recommendation: 'Mid HUNTER. 주 1회 매매. 중기 스윙!'
-  };
-  if (vol < 6.0) return {
-    emoji: '🔴',
-    name: '고변동 ETF (TQQQ 등)',
-    frequency: '년 30~50회',
-    recommendation: 'Short-Mid HUNTER. 매매 빈번!'
-  };
-  return {
-    emoji: '🚨',
-    name: '극변동 (SOXL, POET)',
-    frequency: '매일!',
-    recommendation: '기본 HUNTER! 검증된 시스템! 자동화 필수!'
-  };
+  if (vol < 1.0) return { emoji: '🟢', name: '안정주 (배당주 등)', frequency: '년 2~3회', recommendation: '변동성 너무 낮음! HUNTER 효과 적음. 단순 보유 추천!' };
+  if (vol < 1.5) return { emoji: '🔵', name: '지수 ETF (SPY, QQQ 등)', frequency: '년 3~5회', recommendation: 'Ultra Long HUNTER. 느린 스윙. 년 3~5회 매매!' };
+  if (vol < 2.5) return { emoji: '🟣', name: '안정 성장주 (AAPL, MSFT 등)', frequency: '년 5~10회', recommendation: 'Long HUNTER. 월 1~2회 매매. 마음 편함!' };
+  if (vol < 4.0) return { emoji: '🟠', name: '변동 개별주 (TSLA, NVDA)', frequency: '년 15~25회', recommendation: 'Mid HUNTER. 주 1회 매매. 중기 스윙!' };
+  if (vol < 6.0) return { emoji: '🔴', name: '고변동 ETF (TQQQ 등)', frequency: '년 30~50회', recommendation: 'Short-Mid HUNTER. 매매 빈번!' };
+  return { emoji: '🚨', name: '극변동 (SOXL, POET)', frequency: '매일!', recommendation: '기본 HUNTER! 검증된 시스템! 자동화 필수!' };
 }
 
 function calcParams(vol) {
-  // 매도 %: 변동성 × 배율
   const top_p = vol * 0.5 / 100;
   const mid_p = vol * 0.3 / 100;
   const bot_p = vol * 0.8 / 100;
   
-  // 기간 (변동성 반비례)
   let top_d, mid_d, bot_d, lookback;
-  
-  if (vol >= 5) {
-    top_d = 7; mid_d = 7; bot_d = 10;
-    lookback = 20;
-  } else if (vol >= 3) {
-    top_d = 15; mid_d = 15; bot_d = 22;
-    lookback = 40;
-  } else if (vol >= 2) {
-    top_d = 30; mid_d = 30; bot_d = 45;
-    lookback = 60;
-  } else if (vol >= 1.5) {
-    top_d = 55; mid_d = 55; bot_d = 82;
-    lookback = 100;
-  } else {
-    top_d = 90; mid_d = 90; bot_d = 120;
-    lookback = 100;
-  }
+  if (vol >= 5) { top_d = 7; mid_d = 7; bot_d = 10; lookback = 20; }
+  else if (vol >= 3) { top_d = 15; mid_d = 15; bot_d = 22; lookback = 40; }
+  else if (vol >= 2) { top_d = 30; mid_d = 30; bot_d = 45; lookback = 60; }
+  else if (vol >= 1.5) { top_d = 55; mid_d = 55; bot_d = 82; lookback = 100; }
+  else { top_d = 90; mid_d = 90; bot_d = 120; lookback = 100; }
   
   return { top_p, mid_p, bot_p, top_d, mid_d, bot_d, lookback };
 }
 
-// 백테 실행 (변동성 자동 파라미터 적용!)
+// 🔧 FIX: 백테 실행 시 warmup용 데이터를 별도로 앞쪽에 더 받아옴
 async function runBacktest() {
   const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
-  const startDate = document.getElementById('bt-start').value;
-  const endDate = document.getElementById('bt-end').value;
+  const userStartDate = document.getElementById('bt-start').value;
+  const userEndDate = document.getElementById('bt-end').value;
   
   if (!sym) { alert('종목 입력!'); return; }
-  if (!startDate || !endDate) { alert('날짜 선택!'); return; }
+  if (!userStartDate || !userEndDate) { alert('날짜 선택!'); return; }
   
   const progressEl = document.getElementById('bt-progress');
   const resultEl = document.getElementById('result');
@@ -509,27 +459,22 @@ async function runBacktest() {
   resultEl.innerHTML = '';
   
   try {
-    const res = await fetch(`/api/history?symbol=${sym}&start=${startDate}&end=${endDate}`);
-    const data = await res.json();
-    
-    if (data.error) {
-      progressEl.innerHTML = '❌ ' + data.error;
-      return;
-    }
-    
-    if (!data.bars || data.bars.length < 30) {
-      progressEl.innerHTML = '❌ 데이터 부족';
-      return;
-    }
-    
-    progressEl.innerHTML = `✅ ${data.bars.length}일 · 시뮬레이션 중...`;
-    
-    // 자동 파라미터 있으면 사용, 없으면 기본!
+    // 🔧 FIX: 파라미터 먼저 결정 (lookback 알아야 warmup 길이 계산 가능)
     let params = window.autoParams;
     let paramSource = '자동';
+    
     if (!params) {
-      // 변동성 먼저 계산
-      const closes1y = data.bars.slice(-252).map(b => b.close);
+      // 변동성 기반 자동 파라미터 먼저 계산 (최근 1년 데이터)
+      const end1y = new Date(userEndDate);
+      const start1y = new Date(end1y);
+      start1y.setFullYear(start1y.getFullYear() - 1);
+      const fmt = d => d.toISOString().slice(0, 10);
+      
+      const volRes = await fetch(`/api/history?symbol=${sym}&start=${fmt(start1y)}&end=${fmt(end1y)}`);
+      const volData = await volRes.json();
+      if (volData.error) { progressEl.innerHTML = '❌ ' + volData.error; return; }
+      
+      const closes1y = volData.bars.map(b => b.close);
       const rets = [];
       for (let i = 1; i < closes1y.length; i++) {
         rets.push((closes1y[i] - closes1y[i-1]) / closes1y[i-1] * 100);
@@ -541,14 +486,58 @@ async function runBacktest() {
       paramSource = '자동(계산)';
     }
     
-    // 시뮬!
-    const result = simulateHunter(data.bars, params);
+    // 🔧 FIX: 사용자 시작일 - warmup 확보용 여유 기간만큼 앞으로 당겨서 데이터 요청
+    // warmup = max(lookback+5, 25) 일이지만, 주말/휴일 고려해 calendar day로 2배 이상 확보
+    const warmupTradingDays = Math.max(params.lookback + 5, 25);
+    const warmupCalendarDays = Math.ceil(warmupTradingDays * 1.6) + 10; // 주말/공휴일 버퍼
     
-    const buyHoldMult = data.lastPrice / data.firstPrice;
+    const fetchStartDate = new Date(userStartDate);
+    fetchStartDate.setDate(fetchStartDate.getDate() - warmupCalendarDays);
+    const fmt = d => d.toISOString().slice(0, 10);
+    const fetchStartStr = fmt(fetchStartDate);
+    
+    progressEl.innerHTML = `📥 데이터 가져오는 중... (warmup ${warmupCalendarDays}일 포함)`;
+    
+    const res = await fetch(`/api/history?symbol=${sym}&start=${fetchStartStr}&end=${userEndDate}`);
+    const data = await res.json();
+    
+    if (data.error) { progressEl.innerHTML = '❌ ' + data.error; return; }
+    if (!data.bars || data.bars.length < 30) { progressEl.innerHTML = '❌ 데이터 부족'; return; }
+    
+    // 🔧 FIX: 사용자 시작일 이상의 첫 인덱스 찾기
+    const userStartTs = new Date(userStartDate).getTime();
+    let userStartIdx = -1;
+    for (let i = 0; i < data.bars.length; i++) {
+      const barTs = new Date(data.bars[i].date).getTime();
+      if (barTs >= userStartTs) {
+        userStartIdx = i;
+        break;
+      }
+    }
+    
+    if (userStartIdx < 0) {
+      progressEl.innerHTML = '❌ 사용자 시작일 데이터 없음';
+      return;
+    }
+    
+    // warmup이 충분한지 확인
+    if (userStartIdx < warmupTradingDays) {
+      progressEl.innerHTML = `⚠️ warmup 부족 (${userStartIdx}일 확보, ${warmupTradingDays}일 필요). 결과 부정확 가능.`;
+    } else {
+      progressEl.innerHTML = `✅ 총 ${data.bars.length}일 (warmup ${userStartIdx}일 + 거래 ${data.bars.length - userStartIdx}일)`;
+    }
+    
+    // 시뮬레이션 실행
+    const result = simulateHunter(data.bars, params, userStartIdx);
+    
+    // B&H는 사용자 지정 시작일 기준으로 계산
+    const userStartPrice = data.bars[userStartIdx].close;
+    const userEndPrice = data.bars[data.bars.length - 1].close;
+    const buyHoldMult = userEndPrice / userStartPrice;
     const vsHold = result.mult / buyHoldMult;
     
     let html = `<div class="card">
-      <div class="ct">📈 ${data.symbol} · ${startDate} ~ ${endDate}</div>
+      <div class="ct">📈 ${data.symbol} · ${userStartDate} ~ ${userEndDate}</div>
       
       <div class="result-grid">
         <div class="result-box hold">
@@ -560,7 +549,9 @@ async function runBacktest() {
         </div>
         <div class="result-box hunter">
           <div class="rb-label">🏹 HUNTER</div>
-          <div class="rb-value">+${((result.mult-1)*100).toFixed(1)}%</div>
+          <div class="rb-value" style="color:${result.mult>=1?'#fff':'#ffd'}">
+            ${result.mult>=1?'+':''}${((result.mult-1)*100).toFixed(1)}%
+          </div>
           <div class="rb-pct">${result.mult.toFixed(2)}배</div>
         </div>
       </div>
@@ -591,9 +582,15 @@ async function runBacktest() {
         <span class="metric-label">사용 파라미터</span>
         <span class="metric-value">${paramSource}</span>
       </div>
+      
+      <div class="warmup-info">
+        🔧 <b>Fixed:</b> 사용자 시작일(${userStartDate})부터 <b>실제 거래 시작</b><br>
+        · warmup 데이터 ${userStartIdx}일 (${data.bars[0].date} 부터)은 과거 고가/DD 계산에만 사용<br>
+        · 실거래 기간 ${data.bars.length - userStartIdx}일 (${data.bars[userStartIdx].date} ~ ${data.bars[data.bars.length-1].date})
+      </div>
     </div>
     
-    <div class="card" style="font-size:12px;color:var(--dim);line-height:1.7">
+    <div class="card" style="font-size:12px;color:#aaa;line-height:1.7">
       <b style="color:#ffd">⚙️ 사용된 HUNTER 파라미터:</b><br>
       매도: +${(params.top_p*100).toFixed(1)}% / +${(params.mid_p*100).toFixed(1)}% / +${(params.bot_p*100).toFixed(1)}% (천/중/바)<br>
       기간: ${params.top_d} / ${params.mid_d} / ${params.bot_d}일<br>
@@ -605,29 +602,30 @@ async function runBacktest() {
     
   } catch(e) {
     progressEl.innerHTML = '❌ ' + e.message;
+    console.error(e);
   }
 }
 
-// 기본 HUNTER로 백테 (자동 파라미터 무시!)
 async function runBacktestBasic() {
-  // 기본 SOXL HUNTER 파라미터로 덮어쓰기
   window.autoParams = {
-    top_p: 0.025,
-    mid_p: 0.005,
-    bot_p: 0.03,
-    top_d: 7,
-    mid_d: 7,
-    bot_d: 10,
-    lookback: 20
+    top_p: 0.025, mid_p: 0.005, bot_p: 0.03,
+    top_d: 7, mid_d: 7, bot_d: 10, lookback: 20
   };
   runBacktest();
+  // runBacktest 끝나면 autoParams 초기화 (다음 실행에 영향 없도록)
+  setTimeout(() => { window.autoParams = null; }, 100);
 }
 
-// HUNTER 시뮬레이션 (파라미터 받아서!)
-function simulateHunter(bars, params) {
+// 🔧 FIX: userStartIdx 파라미터 추가 - 이 인덱스부터 실제 거래 시작
+function simulateHunter(bars, params, userStartIdx) {
   const closes = bars.map(b => b.close);
   const n = closes.length;
-  const warmup = Math.max(params.lookback + 5, 25);
+  
+  // 🔧 FIX: warmup은 userStartIdx로 고정 (사용자가 지정한 시작일부터 거래)
+  // 단, lookback 최소 확보를 위해 userStartIdx가 너무 작으면 lookback 크기로 보정
+  const minWarmup = Math.max(params.lookback + 5, 25);
+  const warmup = Math.max(userStartIdx, minWarmup);
+  
   const TU = 20;
   
   let cap = 100;
@@ -635,12 +633,14 @@ function simulateHunter(bars, params) {
   let pk = 100, mdd = 0;
   let nBuys = 0, nSells = 0, wins = 0;
   
-  for (let i = warmup + 1; i < n; i++) {
+  // 🔧 FIX: userStartIdx부터 거래 시작 (warmup 이후가 아니라)
+  for (let i = warmup; i < n; i++) {
     const cl = closes[i];
     const prev = closes[i-1];
     const units = cl < prev ? 4 : 2;
     
-    const start = Math.max(warmup, i - params.lookback);
+    // 🔧 FIX: lookback 범위는 단순히 i - lookback부터 (warmup 제약 제거)
+    const start = Math.max(0, i - params.lookback);
     const recentHigh = Math.max(...closes.slice(start, i+1));
     const dd = (cl - recentHigh) / recentHigh * 100;
     
@@ -649,6 +649,7 @@ function simulateHunter(bars, params) {
     else if (dd <= -15) zone = 'bot';
     else zone = 'mid';
     
+    // 매도
     const re = [], rd = [], ru = [], rz = [];
     for (let j = 0; j < pe.length; j++) {
       pd[j] += 1;
@@ -669,6 +670,7 @@ function simulateHunter(bars, params) {
     }
     pe = re; pd = rd; pu = ru; zones = rz;
     
+    // 매수
     const ti = pu.reduce((s, u) => s + u, 0);
     if (ti < TU && units > 0) {
       const a = Math.min(units, TU - ti);
@@ -676,6 +678,7 @@ function simulateHunter(bars, params) {
       nBuys++;
     }
     
+    // MDD
     let tv = cap;
     for (let j = 0; j < pe.length; j++) {
       tv *= (1 + (cl - pe[j]) / pe[j] * pu[j] / TU);
@@ -685,6 +688,7 @@ function simulateHunter(bars, params) {
     if (ddv < mdd) mdd = ddv;
   }
   
+  // 최종 평가 (잔여 포지션 mark-to-market)
   let final = cap;
   const lastClose = closes[n-1];
   for (let j = 0; j < pe.length; j++) {
