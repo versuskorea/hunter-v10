@@ -411,12 +411,12 @@ async function runBacktest() {
         <div class="best-worst">
           <div class="bw-card best">
             <div style="color:#0f0;font-weight:700">🌟 최고 사이클</div>
-            <div class="bw-pnl">+${result.bestCycle.pnl.toFixed(2)}%</div>
+            <div class="bw-pnl" style="color:${result.bestCycle.pnl>=0?'#0f0':'#f88'} !important">${result.bestCycle.pnl>=0?'+':''}${result.bestCycle.pnl.toFixed(2)}%</div>
             <div class="bw-date">${result.bestCycle.startDate}<br>→ ${result.bestCycle.endDate}<br>(${result.bestCycle.duration}일)</div>
           </div>
           <div class="bw-card worst">
             <div style="color:#f88;font-weight:700">💀 최악 사이클</div>
-            <div class="bw-pnl">${result.worstCycle.pnl.toFixed(2)}%</div>
+            <div class="bw-pnl" style="color:${result.worstCycle.pnl>=0?'#0f0':'#f88'} !important">${result.worstCycle.pnl>=0?'+':''}${result.worstCycle.pnl.toFixed(2)}%</div>
             <div class="bw-date">${result.worstCycle.startDate}<br>→ ${result.worstCycle.endDate}<br>(${result.worstCycle.duration}일)</div>
           </div>
         </div>` : ''}
