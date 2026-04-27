@@ -59,10 +59,10 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
 .cycle-mini .val { font-size: 14px; font-weight: 700; }
 .cycle-distribution { margin-top: 12px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; }
 .cycle-dist-row { display: flex; align-items: center; font-size: 11px; margin: 4px 0; color: #ddd !important; font-family: monospace; }
-.cycle-dist-row .dist-label { width: 90px; color: #aaa !important; }
-.cycle-dist-row .dist-bar { flex: 1; height: 14px; background: #2a2a3e; border-radius: 4px; margin: 0 8px; position: relative; overflow: hidden; }
-.cycle-dist-row .dist-fill { height: 100%; border-radius: 4px; }
-.cycle-dist-row .dist-cnt { width: 60px; text-align: right; }
+.cycle-dist-row .dist-label { width: 95px; flex-shrink: 0; color: #aaa !important; font-size: 10px; }
+.cycle-dist-row .dist-bar { flex: 1; height: 14px; background: #2a2a3e; border-radius: 4px; margin: 0 8px; position: relative; overflow: hidden; display: block; min-width: 50px; }
+.cycle-dist-row .dist-fill { display: block; height: 100%; border-radius: 4px; min-width: 2px; transition: width 0.5s; }
+.cycle-dist-row .dist-cnt { width: 80px; flex-shrink: 0; text-align: right; font-size: 10px; }
 .def-info { background: rgba(0,0,0,0.25); padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 11px; color: #ccc !important; line-height: 1.7; }
 .def-info b { color: #fbbf24 !important; }
 .best-worst { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
@@ -329,9 +329,9 @@ async function runBacktest() {
       const pct = completed.length > 0 ? cnt / completed.length * 100 : 0;
       const barW = cnt / maxCnt * 100;
       distHtml += `<div class="cycle-dist-row">
-        <span class="dist-label">${d.label}</span>
-        <span class="dist-bar"><span class="dist-fill" style="width:${barW}%;background:${d.color}"></span></span>
-        <span class="dist-cnt">${cnt}회 (${pct.toFixed(1)}%)</span>
+        <div class="dist-label">${d.label}</div>
+        <div class="dist-bar"><div class="dist-fill" style="width:${barW}%;background:${d.color}"></div></div>
+        <div class="dist-cnt">${cnt}회 (${pct.toFixed(1)}%)</div>
       </div>`;
     });
     
