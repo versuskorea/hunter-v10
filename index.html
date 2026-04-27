@@ -1,0 +1,1606 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HUNTER v11 Multi</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#08080a;--card:#111118;--card2:#1a1a1f;--border:#222233;--accent:#3b82f6;--green:#22c55e;--red:#ef4444;--text:#f0f0f0;--dim:#666;--radius:16px;
+  --top:#a78bfa;--mid:#3b82f6;--bot:#22c55e;--vol:#f5576c}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;padding:12px;max-width:500px;margin:0 auto}
+
+.hdr{text-align:center;padding:20px 0 14px}
+.hdr h1{font-family:‘Bebas Neue’,sans-serif;font-size:32px;letter-spacing:4px;color:#fff}
+.hdr h1 span{color:var(–accent)}
+.hdr .stats{font-family:‘JetBrains Mono’,monospace;font-size:10px;margin-top:6px;color:var(–green);letter-spacing:1px;font-weight:700}
+
+/* Zone 박스 - 이전 깔끔 스타일 */
+.zone-bar{display:flex;gap:6px;margin-bottom:14px}
+.zone-box{flex:1;padding:14px 8px;border-radius:14px;font-family:‘JetBrains Mono’,monospace;font-size:11px;font-weight:700;text-align:center;border:2px solid var(–border);background:var(–card);color:var(–dim);letter-spacing:1px;transition:all 0.3s}
+.zone-box.on{background:linear-gradient(135deg,#0a0a0f,var(–card));box-shadow:0 0 25px rgba(59,130,246,0.4)}
+.zone-box.on-top{border-color:var(–top);color:var(–top);box-shadow:0 0 30px rgba(167,139,250,0.5)}
+.zone-box.on-mid{border-color:var(–mid);color:var(–mid);box-shadow:0 0 30px rgba(59,130,246,0.5)}
+.zone-box.on-bot{border-color:var(–bot);color:var(–bot);box-shadow:0 0 30px rgba(34,197,94,0.5)}
+.zone-box .pct{font-size:15px;margin-top:5px;font-weight:800}
+.zone-box.on .pct{font-size:17px}
+.zone-box .rule{font-size:10px;margin-top:5px;opacity:0.8}
+
+/* 상태 카드 - 이전 깔끔 스타일 */
+.status-card{background:linear-gradient(135deg,#0a0a0f,var(–card));border:1px solid var(–border);border-radius:var(–radius);padding:18px;margin-bottom:14px}
+.status-card .title{font-size:11px;color:var(–dim);letter-spacing:2px;font-weight:700;margin-bottom:12px}
+.status-row{display:flex;justify-content:space-between;align-items:center;margin:7px 0}
+.status-row .k{font-size:13px;color:var(–dim)}
+.status-row .v{font-family:‘JetBrains Mono’,monospace;font-size:14px;font-weight:800}
+.zone-top{color:var(–top)}
+.zone-mid{color:var(–mid)}
+.zone-bot{color:var(–bot)}
+
+/* 탭 - 이전 깔끔 + 매매 강조 */
+.tabs{display:flex;gap:3px;margin-bottom:14px;background:var(–card);border-radius:14px;padding:4px;border:1px solid var(–border)}
+.tab{flex:1;padding:11px;border:none;border-radius:11px;background:none;color:var(–dim);font-family:‘DM Sans’,sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s}
+.tab.on{background:var(–accent);color:#fff;box-shadow:0 4px 12px rgba(59,130,246,0.4)}
+
+/* 일반 카드 */
+.card{background:var(–card);border:1px solid var(–border);border-radius:var(–radius);padding:16px;margin-bottom:12px}
+.ct{font-family:‘JetBrains Mono’,monospace;font-size:10px;color:#444;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;font-weight:700}
+
+/* 인풋 - 이전 깔끔 스타일 (큼직) */
+.ir{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.ir label{font-size:13px;color:var(–dim);width:85px;font-weight:600}
+.ir input{flex:1;background:#0a0a0f;border:2px solid var(–border);border-radius:10px;padding:11px 14px;color:var(–text);font-family:‘JetBrains Mono’,monospace;font-size:17px;font-weight:700;text-align:right;outline:none;-webkit-appearance:none}
+.ir input:focus{border-color:var(–accent)}
+.ir input.auto{background:#0f0a1a;color:var(–accent)}
+.ir .u{font-size:13px;color:var(–dim);width:16px;font-weight:700}
+
+/* 버튼 - 이전 깔끔 */
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-family:‘DM Sans’,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;transition:all 0.2s}
+.btn:active{transform:scale(0.97)}
+.btn-b{background:var(–accent);color:#fff}
+.btn-s{background:var(–red);color:#fff}
+.btn-d{background:var(–card2);color:var(–dim);border:1px solid var(–border)}
+.btn-r{background:#1a0a0a;color:var(–red);border:1px solid var(–red)}
+.btn-seed{background:#0a1a0a;color:var(–green);border:1px solid var(–green);font-size:12px;padding:11px}
+.btn-fetch{background:#1a1a2a;color:var(–accent);border:1px solid var(–accent);font-size:12px;padding:11px}
+.btn-vol{background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff;font-size:12px;padding:11px}
+.btn-bt{background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;text-decoration:none;display:block;text-align:center}
+
+/* LOC 박스 */
+.loc-box{background:var(–card2);border-radius:var(–radius);padding:16px;margin-bottom:12px;border:1px solid var(–border)}
+.loc-title{font-size:13px;font-weight:700;color:var(–accent);margin-bottom:12px}
+.order{border-radius:12px;padding:14px;margin-bottom:8px;border:1px solid var(–border)}
+.order.buy{background:#001a0f11;border-color:#22c55e33}
+.order.sell-top{background:#1a0a1f11;border-color:#a78bfa33;border-left:3px solid var(–top)}
+.order.sell-mid{background:#0a0a1f11;border-color:#3b82f633;border-left:3px solid var(–mid)}
+.order.sell-bot{background:#001a0f11;border-color:#22c55e33;border-left:3px solid var(–bot)}
+.order .lbl{font-size:10px;color:var(–dim);font-weight:700;letter-spacing:1px}
+.order .val{font-family:‘JetBrains Mono’,monospace;font-size:18px;font-weight:800;color:var(–text);margin-top:3px}
+.order .desc{font-size:11px;color:var(–dim);margin-top:4px}
+
+/* 티어 카드 */
+.tier-wrap{position:relative;overflow:hidden;margin-bottom:8px;border-radius:12px}
+.tier-sell-bg{position:absolute;top:0;right:0;bottom:0;width:100%;background:linear-gradient(90deg,rgba(239,68,68,0.1),var(–red));display:flex;align-items:center;justify-content:flex-end;padding-right:20px;color:#fff;font-weight:800;font-family:‘JetBrains Mono’,monospace;font-size:14px}
+.tier-sell-bg::before{content:“← 밀어서 매도”}
+.tier-item{background:#0a0a0f;border:1px solid var(–border);border-radius:12px;padding:12px;position:relative;touch-action:pan-y;transition:transform 0.2s;cursor:grab}
+.tier-item.dragging{transition:none;cursor:grabbing}
+.tier-item .top-row{display:flex;justify-content:space-between;align-items:center}
+.tier-item .tid{font-family:‘JetBrains Mono’,monospace;font-size:11px;color:var(–accent);font-weight:700}
+.tier-item .info{font-family:‘JetBrains Mono’,monospace;font-size:14px;font-weight:700;color:var(–text)}
+.tier-item .meta{font-size:11px;color:var(–dim);margin-top:4px;font-family:‘JetBrains Mono’,monospace}
+.tier-item .pnl{font-family:‘JetBrains Mono’,monospace;font-size:15px;font-weight:800}
+.tier-item .pnl.up{color:var(–green)}
+.tier-item .pnl.dn{color:var(–red)}
+.tier-item.zone-top{border-left:3px solid var(–top)}
+.tier-item.zone-mid{border-left:3px solid var(–mid)}
+.tier-item.zone-bot{border-left:3px solid var(–bot)}
+.tier-sell-btn{background:var(–red);color:#fff;border:none;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;margin-left:8px}
+
+/* 모달 */
+.modal-bg{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.modal{background:var(–card);border:1px solid var(–accent);border-radius:16px;padding:20px;max-width:400px;width:100%;max-height:85vh;overflow-y:auto}
+.modal h3{font-family:‘Bebas Neue’,sans-serif;font-size:22px;letter-spacing:2px;color:var(–accent);margin-bottom:12px}
+.modal .desc{color:var(–dim);font-size:13px;margin-bottom:16px;line-height:1.6}
+.modal .btn-row{display:flex;gap:8px;margin-top:16px}
+.modal .btn-row .btn{margin-top:0}
+
+/* 통계 그리드 */
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.sb{background:var(–card2);border:1px solid var(–border);border-radius:10px;padding:10px;text-align:center}
+.sb .v{font-family:‘JetBrains Mono’,monospace;font-size:15px;font-weight:800}
+.sb .l{font-size:10px;color:var(–dim);margin-top:2px;font-weight:600}
+
+.warn{background:#1a0a0a;border:1px solid var(–red);border-radius:12px;padding:14px;color:var(–red);font-weight:700;text-align:center;font-size:13px}
+.footer{text-align:center;font-family:‘JetBrains Mono’,monospace;font-size:10px;color:#333;margin-top:20px;letter-spacing:1px}
+
+.danger-zone{background:#1a0a0a;border:2px dashed var(–red);border-radius:12px;padding:14px;margin-top:12px}
+.danger-zone .title{color:var(–red);font-size:11px;font-weight:700;letter-spacing:2px;margin-bottom:10px}
+
+/* 종목 카드 (티커 바) - 깔끔하게 */
+.tickers-bar {
+display: flex;
+gap: 8px;
+overflow-x: auto;
+padding: 8px 12px;
+background: var(–card2);
+border: 1px solid var(–border);
+border-radius:12px;
+scroll-behavior: smooth;
+-webkit-overflow-scrolling: touch;
+margin-bottom:14px;
+}
+.tickers-bar::-webkit-scrollbar { display: none; }
+.ticker-card {
+min-width: 85px;
+padding: 10px 12px;
+background: #2a2a3e;
+border-radius: 10px;
+text-align: center;
+cursor: pointer;
+transition: all 0.2s;
+flex-shrink: 0;
+user-select: none;
+-webkit-user-select: none;
+position: relative;
+}
+.ticker-card:hover { background: #3a3a4e; }
+.ticker-card.active {
+background: linear-gradient(135deg, #667eea, #764ba2);
+box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+}
+.tc-sym {
+font-weight: 700;
+font-size: 14px;
+color: #fff;
+}
+.tc-price {
+font-size: 13px;
+color: #ffd;
+margin-top: 2px;
+font-family:‘JetBrains Mono’,monospace;
+}
+.tc-info {
+font-size: 10px;
+color: #aaa;
+margin-top: 2px;
+}
+.tc-vol {
+position: absolute;
+top: 2px;
+right: 4px;
+font-size: 9px;
+background: var(–vol);
+color: #fff;
+padding: 1px 4px;
+border-radius: 4px;
+font-weight: 700;
+font-family: ‘JetBrains Mono’,monospace;
+}
+.tc-del {
+position: absolute;
+top: 2px;
+left: 4px;
+width: 16px;
+height: 16px;
+background: rgba(239,68,68,0.85);
+color: #fff;
+border: none;
+border-radius: 50%;
+font-size: 11px;
+font-weight: 700;
+cursor: pointer;
+display: flex;
+align-items: center;
+justify-content: center;
+padding: 0;
+line-height: 1;
+opacity: 0;
+transition: opacity 0.2s;
+}
+.ticker-card:hover .tc-del,
+.ticker-card.active .tc-del {
+opacity: 1;
+}
+.ticker-add {
+min-width: 50px;
+padding: 8px;
+background: #2a2a3e;
+border: 2px dashed #555;
+border-radius: 10px;
+text-align: center;
+cursor: pointer;
+font-size: 24px;
+font-weight: 300;
+color: #888;
+display: flex;
+align-items: center;
+justify-content: center;
+flex-shrink: 0;
+}
+.ticker-add:hover {
+background: #3a3a4e;
+border-color: #888;
+color: #fff;
+}
+
+/* 변동성 체크 바 - 절제된 스타일 */
+.vol-check-bar {
+display: flex;
+align-items: center;
+gap: 8px;
+background: var(–card);
+border: 1px solid var(–border);
+border-radius: 12px;
+padding: 10px 12px;
+margin-bottom: 14px;
+}
+.vol-check-info {
+flex: 1;
+font-family: ‘JetBrains Mono’,monospace;
+font-size: 11px;
+color: var(–dim);
+line-height: 1.5;
+}
+.vol-check-info b {
+color: var(–vol);
+font-size: 13px;
+}
+.vol-check-info .mini {
+color: #888;
+font-size: 10px;
+}
+.btn-vol-check {
+background: linear-gradient(135deg,#f093fb,#f5576c);
+color: #fff;
+border: none;
+border-radius: 10px;
+padding: 10px 14px;
+font-size: 12px;
+font-weight: 700;
+cursor: pointer;
+font-family: ‘DM Sans’,sans-serif;
+white-space: nowrap;
+transition:all 0.2s;
+}
+.btn-vol-check:active {
+transform: scale(0.96);
+}
+</style>
+
+</head>
+<body>
+<div class="hdr">
+  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:6px">
+    <a href="/bt.html" style="background:#1a1a2e;color:#f97316;padding:6px 12px;border-radius:8px;text-decoration:none;font-size:11px;font-weight:700;border:1px solid #333">📊 백테 →</a>
+  </div>
+  <h1><span id="ticker-name">SOXL</span> <span>HUNTER</span> v11</h1>
+<div class="tickers-bar" id="tickers-bar"></div>
+  <div class="stats">가져오기 시 변동성 자동 측정 · 종목별 자동 파라미터</div>
+</div>
+
+<div class="zone-bar" id="zone-bar">
+  <div class="zone-box" id="zbox-top">
+    천장
+    <div class="pct" id="zp-top">+2.5% / 7일</div>
+    <div class="rule">-10% 이내</div>
+  </div>
+  <div class="zone-box" id="zbox-mid">
+    중간
+    <div class="pct" id="zp-mid">+0.5% / 7일</div>
+    <div class="rule">-10~-15%</div>
+  </div>
+  <div class="zone-box" id="zbox-bot">
+    바닥
+    <div class="pct" id="zp-bot">+3% / 10일</div>
+    <div class="rule">-15% 이상</div>
+  </div>
+</div>
+
+<div class="status-card" id="status">
+  <div class="title">📊 현재 상태</div>
+  <div id="status-body"></div>
+</div>
+
+<div class="tabs">
+  <button class="tab" id="tab-m" onclick="sw('m')">매매</button>
+  <button class="tab on" id="tab-t" onclick="sw('t')">티어</button>
+  <button class="tab" id="tab-h" onclick="sw('h')">기록</button>
+  <button class="tab" id="tab-g" onclick="sw('g')">가이드</button>
+</div>
+
+<div class="vol-check-bar" id="vol-check-bar"></div>
+
+<div id="body"></div>
+
+<a href="/bt.html" class="btn btn-bt">📊 백테스트 페이지로!</a>
+
+<div class="footer">HUNTER v11 Multi · 변동성 자동 튜닝 · 종목별 파라미터</div>
+
+<div id="modal-container"></div>
+
+<script>
+// 🛡️ 전역 에러 핸들러 - 에러 발생 시 디버깅용
+window.addEventListener('error', function(e) {
+  console.error('[HUNTER v11 전역 에러]', e.error || e.message, e.filename, e.lineno);
+  const body = document.getElementById('body');
+  if (body && !body.dataset.errored) {
+    body.dataset.errored = '1';
+    body.innerHTML = `<div style="background:#1a0a0a;border:1px solid #ef4444;border-radius:12px;padding:16px;color:#fff;font-family:monospace;font-size:12px;line-height:1.6">
+      <b style="color:#ef4444">⚠️ 오류 발생</b><br><br>
+      메시지: ${e.message || '알 수 없음'}<br>
+      위치: ${(e.filename||'').split('/').pop()}:${e.lineno || '?'}<br><br>
+      <b>복구 방법:</b><br>
+      1. 상단 "← SOXL 홈" 눌러서 홈으로<br>
+      2. 그래도 안되면 아래 버튼으로 데이터 리셋<br><br>
+      <button onclick="if(confirm('모든 데이터 초기화?')){localStorage.removeItem('v11-portfolios');localStorage.removeItem('v11-active');location.reload();}" style="background:#ef4444;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:700;cursor:pointer">💀 전체 데이터 초기화</button>
+    </div>`;
+  }
+});
+
+// ========== 전역 설정 ==========
+const TU = 20;
+const UP = 2;
+const DN = 4;
+const TOP_TH = -10;
+const BOT_TH = -15;
+
+// ========== 기본 파라미터 (SOXL용) ==========
+const DEFAULT_PARAMS = {
+  top_p: 0.025, mid_p: 0.005, bot_p: 0.03,
+  top_d: 7, mid_d: 7, bot_d: 10,
+  lookback: 20
+};
+
+// ========== 변동성 기반 자동 파라미터 계산 ==========
+function calcAutoParams(vol) {
+  // 매도 목표: 변동성 × 배수
+  const top_p = vol * 0.5 / 100;
+  const mid_p = vol * 0.3 / 100;
+  const bot_p = vol * 0.8 / 100;
+  
+  // 강제청산 기간 (백테 최적화 - 사이클 평균의 2~3배)
+  // 이전 값은 너무 길어서 자본 회전율 낮음
+  // SOXL 5년 백테: 18/18/27일이 최적 (CAGR +97% vs 기존 +73%)
+  let top_d, mid_d, bot_d, lookback;
+  if (vol >= 5) { top_d = 7; mid_d = 7; bot_d = 10; lookback = 20; }       // 검증된 끝판왕
+  else if (vol >= 3) { top_d = 10; mid_d = 10; bot_d = 14; lookback = 30; } // 기존 15/15/22 → 단축
+  else if (vol >= 2) { top_d = 14; mid_d = 14; bot_d = 20; lookback = 40; } // 기존 30/30/45 → 절반
+  else if (vol >= 1.5) { top_d = 18; mid_d = 18; bot_d = 27; lookback = 50; } // 기존 55/55/82 → 1/3 ⭐
+  else { top_d = 25; mid_d = 25; bot_d = 40; lookback = 60; }              // 기존 90/90/120 → 대폭 축소
+  
+  return { top_p, mid_p, bot_p, top_d, mid_d, bot_d, lookback };
+}
+
+function categorizeVol(vol) {
+  if (vol < 1.0) return { emoji: '🟢', name: '안정주', freq: '년 2~3회', fit: '❌ 단순보유 추천' };
+  if (vol < 1.5) return { emoji: '🔵', name: '지수 ETF', freq: '년 3~5회', fit: '❌ 단순보유 추천' };
+  if (vol < 2.5) return { emoji: '🟣', name: '안정 성장주', freq: '년 5~10회', fit: '⚠️ 미묘 (단순보유 우위)' };
+  if (vol < 4.0) return { emoji: '🟠', name: '변동 개별주', freq: '년 15~25회', fit: '✅ HUNTER 우위' };
+  if (vol < 6.0) return { emoji: '🔴', name: '고변동 ETF', freq: '년 30~50회', fit: '⭐ HUNTER 강력 추천' };
+  return { emoji: '🚨', name: '극변동', freq: '매일!', fit: '⭐⭐ HUNTER 끝판왕' };
+}
+
+// ========== 활성 파라미터 구하기 ==========
+// 우선순위: 1) 수동 파라미터 (있으면) 2) 자동 측정 (5% 미만) 3) 기본 파라미터
+function getActiveParams(p) {
+  // 수동 모드: 사용자가 직접 설정한 변동성으로 파라미터 계산
+  if (p.manualParams && p.manualParams.vol !== undefined) {
+    const v = p.manualParams.vol;
+    if (v >= 5.0) return {...DEFAULT_PARAMS};
+    return calcAutoParams(v);
+  }
+  // 자동 모드: 측정된 변동성 사용
+  if (p.vol && p.vol < 5.0) return calcAutoParams(p.vol);
+  return {...DEFAULT_PARAMS};
+}
+
+// ========== 변동성 모드 전환 ==========
+function setVolMode(mode) {
+  const p = curPort();
+  if (mode === 'auto') {
+    delete p.manualParams;
+  } else {
+    // 수동 모드 진입: 현재 측정값 또는 5%로 시작
+    p.manualParams = { vol: p.vol || 5.0 };
+  }
+  save();
+  render();
+}
+
+function setManualVol(v) {
+  const p = curPort();
+  if (!p.manualParams) p.manualParams = {};
+  p.manualParams.vol = v;
+  save();
+  render();
+}
+
+function updManualVol() {
+  const p = curPort();
+  const el = $('manual-vol');
+  if (!el) return;
+  const v = parseFloat(el.value);
+  if (isNaN(v) || v <= 0) return;
+  if (!p.manualParams) p.manualParams = {};
+  p.manualParams.vol = v;
+  save();
+  
+  // 화면 업데이트 (재렌더링 없이)
+  const params = getActiveParams(p);
+  const cat = categorizeVol(v);
+  const info = $('manual-info');
+  if (info) {
+    info.innerHTML = `
+      ${cat.emoji} ${cat.name}<br>
+      매도: <b style="color:var(--top)">+${(params.top_p*100).toFixed(2)}%</b> / <b style="color:var(--mid)">+${(params.mid_p*100).toFixed(2)}%</b> / <b style="color:var(--bot)">+${(params.bot_p*100).toFixed(2)}%</b><br>
+      강제: ${params.top_d}/${params.mid_d}/${params.bot_d}일 · Lookback ${params.lookback}일
+    `;
+  }
+}
+
+// ========== 상태 ==========
+let tab = 't';
+
+// 포트폴리오 마이그레이션
+let portfolios = JSON.parse(localStorage.getItem('v11-portfolios') || 'null');
+if (!portfolios) {
+  // v10 데이터 있으면 마이그레이션
+  const v10 = JSON.parse(localStorage.getItem('v10-portfolios') || 'null');
+  if (v10) {
+    portfolios = {};
+    for (const sym in v10) {
+      portfolios[sym] = {
+        ...v10[sym],
+        vol: null,
+        volDate: null
+      };
+    }
+  } else {
+    // v8에서 마이그레이션
+    const oldSeed = parseFloat(localStorage.getItem('v8-seed') || '30000');
+    const oldPrice = parseFloat(localStorage.getItem('v8-price') || '0');
+    const oldHigh = parseFloat(localStorage.getItem('v8-high20') || '0');
+    const oldPos = JSON.parse(localStorage.getItem('v8-pos') || '[]');
+    const oldHist = JSON.parse(localStorage.getItem('v8-hist') || '[]');
+    
+    portfolios = {
+      SOXL: {
+        seed: oldSeed, price: oldPrice, high20: oldHigh,
+        pos: oldPos, hist: oldHist,
+        vol: null, volDate: null
+      }
+    };
+  }
+  localStorage.setItem('v11-portfolios', JSON.stringify(portfolios));
+}
+
+let activeSymbol = localStorage.getItem('v11-active') || 'SOXL';
+if (!portfolios[activeSymbol]) {
+  activeSymbol = Object.keys(portfolios)[0] || 'SOXL';
+  if (!portfolios[activeSymbol]) {
+    portfolios['SOXL'] = { seed: 30000, price: 0, high20: 0, pos: [], hist: [], vol: null, volDate: null };
+    activeSymbol = 'SOXL';
+  }
+}
+
+// 🛡️ 데이터 무결성 검증/정리 (v8→v11 마이그레이션 대응)
+function sanitizePortfolio(p) {
+  if (!p) return { seed: 10000, price: 0, high20: 0, pos: [], hist: [], vol: null, volDate: null };
+  
+  // 기본 필드 보정
+  p.seed = Number(p.seed) || 10000;
+  p.price = Number(p.price) || 0;
+  p.high20 = Number(p.high20) || 0;
+  p.pos = Array.isArray(p.pos) ? p.pos : [];
+  p.hist = Array.isArray(p.hist) ? p.hist : [];
+  p.vol = p.vol ? Number(p.vol) : null;
+  p.volDate = p.volDate || null;
+  
+  // pos 각 레코드 검증
+  p.pos = p.pos.filter(item => item && typeof item === 'object').map(item => ({
+    e: Number(item.e) || 0,
+    u: Number(item.u) || 2,
+    s: Number(item.s) || 0,
+    d: typeof item.d === 'string' && item.d ? item.d : new Date().toISOString().slice(0,10),
+    z: (item.z === 'top' || item.z === 'mid' || item.z === 'bot') ? item.z : 'top'
+  }));
+  
+  // hist 각 레코드 검증
+  p.hist = p.hist.filter(item => item && typeof item === 'object').map(item => {
+    const clean = {
+      a: item.a === 'S' ? 'S' : 'B',
+      d: typeof item.d === 'string' && item.d ? item.d : new Date().toISOString().slice(0,10),
+      e: Number(item.e) || 0,
+      u: Number(item.u) || 2,
+      s: Number(item.s) || 0,
+      z: (item.z === 'top' || item.z === 'mid' || item.z === 'bot') ? item.z : undefined
+    };
+    if (item.pnl !== undefined) clean.pnl = Number(item.pnl);
+    if (item.realized !== undefined) clean.realized = Number(item.realized);
+    if (item.buyPrice !== undefined) clean.buyPrice = Number(item.buyPrice);
+    return clean;
+  });
+  
+  return p;
+}
+
+// 모든 포트폴리오 정리
+for (const sym in portfolios) {
+  portfolios[sym] = sanitizePortfolio(portfolios[sym]);
+}
+localStorage.setItem('v11-portfolios', JSON.stringify(portfolios));
+
+// 현재 종목 참조 (매번 portfolios에서 가져옴)
+function curPort() { return portfolios[activeSymbol]; }
+function curParams() { return getActiveParams(curPort()); }
+
+const $ = id => document.getElementById(id);
+const gv = id => parseFloat($(id).value) || 0;
+
+const save = () => {
+  localStorage.setItem('v11-portfolios', JSON.stringify(portfolios));
+  localStorage.setItem('v11-active', activeSymbol);
+};
+
+function switchSymbol(sym) {
+  save();
+  activeSymbol = sym;
+  if (!portfolios[sym]) {
+    portfolios[sym] = { seed: 10000, price: 0, high20: 0, pos: [], hist: [], vol: null, volDate: null };
+  }
+  save();
+  renderTickers();
+  render();
+}
+
+function addSymbol() {
+  const sym = prompt('종목 코드 입력 (예: POET, TSLA, NVDA):');
+  if (!sym) return;
+  const upperSym = sym.toUpperCase().trim();
+  if (!upperSym) return;
+  if (portfolios[upperSym]) { alert('이미 있는 종목!'); return; }
+  portfolios[upperSym] = { seed: 10000, price: 0, high20: 0, pos: [], hist: [], vol: null, volDate: null };
+  save();
+  switchSymbol(upperSym);
+  // 자동으로 가져오기 (변동성도 같이 측정됨)
+  setTimeout(() => fetchAuto(), 300);
+}
+
+function removeSymbol(sym) {
+  if (Object.keys(portfolios).length <= 1) { alert('최소 1개 종목은 필요!'); return; }
+  if (!confirm(`${sym} 삭제? 시드와 매매내역 모두 삭제됩니다!`)) return;
+  delete portfolios[sym];
+  save();
+  if (sym === activeSymbol) {
+    activeSymbol = Object.keys(portfolios)[0];
+    switchSymbol(activeSymbol);
+  } else {
+    renderTickers();
+  }
+}
+
+function renderTickers() {
+  const bar = $('tickers-bar');
+  if (!bar) return;
+  
+  const symCount = Object.keys(portfolios).length;
+  
+  let html = '';
+  for (const sym in portfolios) {
+    const p = portfolios[sym];
+    const tierCount = p.pos.length;
+    const totalU = p.pos.reduce((s, t) => s + t.u, 0);
+    const isActive = sym === activeSymbol;
+    const volBadge = p.vol ? `<div class="tc-vol">${p.vol.toFixed(1)}%</div>` : '';
+    // 종목이 2개 이상일 때만 X 버튼 표시 (최소 1개 유지)
+    const delBtn = symCount > 1 ? `<button class="tc-del" onclick="event.stopPropagation();removeSymbol('${sym}')" title="${sym} 삭제">×</button>` : '';
+    
+    html += `<div class="ticker-card ${isActive ? 'active' : ''}" 
+      onclick="switchSymbol('${sym}')">
+      ${delBtn}
+      ${volBadge}
+      <div class="tc-sym">${sym}</div>
+      <div class="tc-price">$${(p.price||0).toFixed(2)}</div>
+      <div class="tc-info">${tierCount}티어 · ${totalU}u</div>
+    </div>`;
+  }
+  
+  html += `<div class="ticker-add" onclick="addSymbol()">+</div>`;
+  bar.innerHTML = html;
+  
+  const tn = $('ticker-name');
+  if (tn) tn.textContent = activeSymbol;
+}
+
+const td = () => new Date().toISOString().slice(0,10);
+const db = (a,b) => { 
+  try {
+    if (!a || !b) return 0;
+    const d1=new Date(a), d2=new Date(b); 
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return 0;
+    let days=0, cur=new Date(d1);
+    while(cur<d2) { cur.setDate(cur.getDate()+1); if(cur.getDay()!==0&&cur.getDay()!==6) days++; }
+    return days;
+  } catch(e) {
+    console.warn('db() error:', e, 'a=', a, 'b=', b);
+    return 0;
+  }
+};
+
+function getZone() {
+  const p = curPort();
+  if (!p.price || !p.high20) return 'top';
+  const dd = (p.price - p.high20) / p.high20 * 100;
+  if (dd >= TOP_TH) return 'top';
+  if (dd <= BOT_TH) return 'bot';
+  return 'mid';
+}
+
+function zoneDesc() {
+  const z = getZone();
+  const p = curPort();
+  const dd = p.high20 ? ((p.price - p.high20)/p.high20*100).toFixed(1) : 0;
+  const labels = { top: '천장', mid: '중간', bot: '바닥' };
+  return { zone: z, dd: dd, label: labels[z] };
+}
+
+function sw(t) {
+  tab = t;
+  document.querySelectorAll('.tab').forEach((b, i) => {
+    b.classList.toggle('on', ['m','t','h','g'][i]===t);
+  });
+  render();
+}
+
+function renderZones() {
+  const z = getZone();
+  const params = curParams();
+  
+  // Zone 박스 파라미터 업데이트
+  $('zp-top').textContent = `+${(params.top_p*100).toFixed(2)}% / ${params.top_d}일`;
+  $('zp-mid').textContent = `+${(params.mid_p*100).toFixed(2)}% / ${params.mid_d}일`;
+  $('zp-bot').textContent = `+${(params.bot_p*100).toFixed(2)}% / ${params.bot_d}일`;
+  
+  ['top','mid','bot'].forEach(x => {
+    const el = $('zbox-'+x);
+    el.className = (x === z) ? 'zone-box on on-'+x : 'zone-box';
+  });
+}
+
+// 탭 아래 변동성 체크 바
+function renderVolCheckBar() {
+  const bar = $('vol-check-bar');
+  if (!bar) return;
+  const p = curPort();
+  const params = curParams();
+  
+  let infoHtml = '';
+  
+  // 수동 모드 표시
+  if (p.manualParams && p.manualParams.vol !== undefined) {
+    const v = p.manualParams.vol;
+    const cat = categorizeVol(v);
+    infoHtml = `
+      <b style="color:var(--accent)">✋ 수동 ${v.toFixed(1)}%</b> ${cat.emoji} ${cat.name}<br>
+      <span class="mini">매도 +${(params.top_p*100).toFixed(2)}/${(params.mid_p*100).toFixed(2)}/${(params.bot_p*100).toFixed(2)}% · 강제 ${params.top_d}/${params.mid_d}/${params.bot_d}일 · 사용자 설정</span>
+    `;
+  } else if (p.vol) {
+    const cat = categorizeVol(p.vol);
+    const appliedLabel = p.vol >= 5.0 ? '기본 파라미터' : '자동 파라미터';
+    infoHtml = `
+      <b>${p.vol.toFixed(2)}%</b> ${cat.emoji} ${cat.name}<br>
+      <span class="mini">매도 +${(params.top_p*100).toFixed(2)}/${(params.mid_p*100).toFixed(2)}/${(params.bot_p*100).toFixed(2)}% · 강제 ${params.top_d}/${params.mid_d}/${params.bot_d}일 · ${appliedLabel}${p.volDate?' · '+p.volDate:''}</span>
+    `;
+  } else {
+    infoHtml = `
+      <b style="color:var(--dim)">변동성 미측정</b><br>
+      <span class="mini">체크 버튼 누르면 야후에서 1년 데이터로 변동성 계산 후 파라미터/매매점 자동 설정</span>
+    `;
+  }
+  
+  bar.innerHTML = `
+    <div class="vol-check-info">${infoHtml}</div>
+    <button class="btn-vol-check" onclick="checkVolatility()">📊 변동성 체크</button>
+  `;
+}
+
+function renderStatus() {
+  const z = zoneDesc();
+  const p = curPort();
+  const seedNum = Number(p.seed) || 0;
+  const uw = seedNum/TU;
+  const ti = p.pos.reduce((a,pp) => a+(Number(pp.u)||0), 0);
+  const rem = TU - ti;
+  
+  let volDisplay = '--';
+  let paramSource = '기본(SOXL용)';
+  if (p.vol) {
+    const cat = categorizeVol(p.vol);
+    volDisplay = `${p.vol.toFixed(2)}% ${cat.emoji}`;
+    paramSource = p.vol >= 5.0 ? `기본 (${cat.name})` : `자동 (${cat.name})`;
+  }
+  
+  let h = `
+    <div class="status-row"><span class="k">시드</span><span class="v">$${seedNum.toLocaleString()}</span></div>
+    <div class="status-row"><span class="k">유닛 단위</span><span class="v">$${uw.toFixed(0)}</span></div>
+    <div class="status-row"><span class="k">현재가</span><span class="v">$${p.price||'--'}</span></div>
+    <div class="status-row"><span class="k">20일 전고</span><span class="v">$${p.high20||'--'}</span></div>
+    <div class="status-row"><span class="k">전고 대비</span><span class="v zone-${z.zone}">${z.dd>0?'+':''}${z.dd}%</span></div>
+    <div class="status-row"><span class="k">구간</span><span class="v zone-${z.zone}">${z.label} 🎯</span></div>
+    <div class="status-row"><span class="k">변동성</span><span class="v" style="color:var(--vol)">${volDisplay}</span></div>
+    <div class="status-row"><span class="k">파라미터</span><span class="v" style="color:var(--accent)">${paramSource}</span></div>
+    <div class="status-row"><span class="k">투입 유닛</span><span class="v">${ti}/${TU} (${rem}u 남음)</span></div>
+  `;
+  $('status-body').innerHTML = h;
+}
+
+let activeInputId = null;
+let activeInputCursor = 0;
+function saveActiveInput() {
+  const ae = document.activeElement;
+  if (ae && ae.tagName === 'INPUT') {
+    activeInputId = ae.id;
+    activeInputCursor = ae.selectionStart;
+  } else activeInputId = null;
+}
+function restoreActiveInput() {
+  if (activeInputId) {
+    const el = $(activeInputId);
+    if (el) {
+      el.focus();
+      try { if (el.type !== 'number') el.setSelectionRange(activeInputCursor, activeInputCursor); } catch(e) {}
+    }
+  }
+}
+
+function render() {
+  try {
+    renderTickers();
+  } catch(e) { console.warn('renderTickers 실패:', e); }
+  try {
+    saveActiveInput();
+  } catch(e) { console.warn('saveActiveInput 실패:', e); }
+  try {
+    renderZones();
+  } catch(e) { console.warn('renderZones 실패:', e); }
+  try {
+    renderStatus();
+  } catch(e) { console.warn('renderStatus 실패:', e); }
+  try {
+    renderVolCheckBar();
+  } catch(e) { console.warn('renderVolCheckBar 실패:', e); }
+  
+  const body = $('body');
+  const p = curPort();
+  const params = curParams();
+  const ZONES = {
+    top: {tp: params.top_p, fd: params.top_d, label:'천장', color:'top'},
+    mid: {tp: params.mid_p, fd: params.mid_d, label:'중간', color:'mid'},
+    bot: {tp: params.bot_p, fd: params.bot_d, label:'바닥', color:'bot'}
+  };
+  
+  let h = '';
+  
+  if (tab === 'm') {
+    const z = zoneDesc();
+    const ti = p.pos.reduce((a,pp) => a+pp.u, 0);
+    const rem = TU - ti;
+    const uw = p.seed/TU;
+    
+    h += `<div class="card">
+      <div class="ct">설정</div>
+      <div class="ir"><label>시드</label><input type="number" id="seed-in" value="${p.seed}" onchange="updSeed()"><span class="u">$</span></div>
+      <div class="ir"><label>현재가</label><input type="number" step="0.01" id="cp" value="${p.price||''}" onchange="updPrice()"><span class="u">$</span></div>
+      <div class="ir"><label>20일 전고</label><input type="number" step="0.01" id="h20" value="${p.high20||''}" onchange="updHigh()"><span class="u">$</span></div>
+      <button class="btn btn-fetch" onclick="fetchAuto()">🔄 야후에서 가격 가져오기</button>
+    </div>`;
+    
+    // 🆕 수동 변동성/파라미터 설정 카드
+    const curVol = p.vol || 5.0;
+    const isManualMode = p.manualParams ? true : false;
+    const curManualVol = p.manualParams ? p.manualParams.vol : curVol;
+    
+    h += `<div class="card" style="border:1px solid rgba(245,87,108,0.3)">
+      <div class="ct" style="color:var(--vol)">⚙️ 변동성/파라미터 설정</div>
+      
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button class="btn btn-d" id="mode-auto" style="flex:1;margin:0;font-size:11px;padding:10px${!isManualMode?';background:var(--vol);color:#fff;border-color:var(--vol)':''}" onclick="setVolMode('auto')">🤖 자동 (측정값)</button>
+        <button class="btn btn-d" id="mode-manual" style="flex:1;margin:0;font-size:11px;padding:10px${isManualMode?';background:var(--accent);color:#fff;border-color:var(--accent)':''}" onclick="setVolMode('manual')">✋ 수동 변동성</button>
+      </div>
+      
+      ${isManualMode ? `
+        <div class="ir"><label>변동성</label><input type="number" step="0.1" id="manual-vol" value="${curManualVol.toFixed(1)}" oninput="updManualVol()"><span class="u">%</span></div>
+        <div style="font-size:11px;color:var(--dim);margin:6px 0;padding:8px;background:#0a0a0f;border-radius:6px;line-height:1.6" id="manual-info"></div>
+        
+        <div style="margin-top:8px">
+          <div style="font-size:10px;color:var(--dim);margin-bottom:4px">빠른 선택:</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button class="btn btn-d" style="flex:1;margin:0;font-size:10px;padding:6px" onclick="setManualVol(0.8)">0.8% 안정</button>
+            <button class="btn btn-d" style="flex:1;margin:0;font-size:10px;padding:6px" onclick="setManualVol(1.5)">1.5% 지수</button>
+            <button class="btn btn-d" style="flex:1;margin:0;font-size:10px;padding:6px" onclick="setManualVol(2.5)">2.5% 안정성장</button>
+            <button class="btn btn-d" style="flex:1;margin:0;font-size:10px;padding:6px" onclick="setManualVol(4)">4% 변동</button>
+            <button class="btn btn-d" style="flex:1;margin:0;font-size:10px;padding:6px" onclick="setManualVol(5)">5% 극변동</button>
+          </div>
+        </div>
+      ` : `
+        <div style="font-size:12px;color:var(--dim);padding:8px;background:#0a0a0f;border-radius:6px">
+          ${p.vol ? `📊 측정 변동성: <b style="color:var(--vol)">${p.vol.toFixed(2)}%</b> (${p.volDate||'?'})` : '⚠️ 변동성 미측정 - 야후 가져오기 시 자동 측정'}
+          ${p.vol ? `<br><br>적용: 매도 +${(curParams().top_p*100).toFixed(2)}/${(curParams().mid_p*100).toFixed(2)}/${(curParams().bot_p*100).toFixed(2)}% · 강제 ${curParams().top_d}/${curParams().mid_d}/${curParams().bot_d}일` : ''}
+        </div>
+      `}
+    </div>`;
+    
+    if (rem > 0) {
+      const loc1 = (p.price * 1.15).toFixed(2);
+      const loc2 = (p.price - 0.01).toFixed(2);
+      const sUp = p.price ? Math.floor(UP * uw / p.price) : 0;
+      const sDn = p.price ? Math.floor(DN * uw / p.price) : 0;
+      const sDnX = sDn - sUp;
+      
+      h += `<div class="loc-box">
+        <div class="loc-title">📋 매수 LOC (${z.label} 구간)</div>
+        <div class="order buy">
+          <div class="lbl">① 무조건 매수</div>
+          <div class="val">LOC 매수 ${sUp}주 @ $${loc1}</div>
+          <div class="desc">${UP}유닛 · 전날×1.15</div>
+        </div>
+        <div class="order buy">
+          <div class="lbl">② 하락 추가</div>
+          <div class="val">LOC 매수 ${sDnX}주 @ $${loc2}</div>
+          <div class="desc">${DN-UP}유닛 · 전날-$0.01</div>
+        </div>
+      </div>`;
+    } else {
+      h += `<div class="warn">⚠️ ${TU}u MAX — 매수 불가</div>`;
+    }
+    
+    if (p.pos.length > 0) {
+      h += `<div class="loc-box">
+        <div class="loc-title">💰 매도 LOC (구간별)</div>`;
+      
+      p.pos.forEach((pp, idx) => {
+        const pz = ZONES[pp.z];
+        const sellPrice = (pp.e * (1+pz.tp)).toFixed(2);
+        const days = db(pp.d, td());
+        const rm = pz.fd - days;
+        const isForce = days >= pz.fd;
+        const cls = `sell-${pp.z}`;
+        
+        if (isForce) {
+          h += `<div class="order" style="border-left:3px solid var(--red);background:rgba(239,68,68,0.08)">
+            <div class="lbl" style="color:var(--red)">⚠️ T${idx+1} 강제매도! (${pz.fd}일 초과)</div>
+            <div class="val">MOC 매도 ${pp.s}주</div>
+            <div class="desc">매수 $${pp.e} · ${days}일 경과 · ${pz.label}</div>
+          </div>`;
+        } else {
+          h += `<div class="order ${cls}">
+            <div class="lbl">T${idx+1} 매도 LOC (${pz.label} +${(pz.tp*100).toFixed(2)}%)</div>
+            <div class="val">LOC 매도 ${pp.s}주 @ $${sellPrice}</div>
+            <div class="desc">매수 $${pp.e} · D+${days} · 잔여 ${rm}일 · ${pz.label}</div>
+          </div>`;
+        }
+      });
+      h += `</div>`;
+    }
+    
+    if (rem > 0) {
+      h += `<div class="card">
+        <div class="ct">💰 체결 기록 (매수)</div>
+        <div class="ir"><label>체결가</label><input type="number" step="0.01" id="fp" placeholder="체결가 입력!" oninput="upFillAuto()"><span class="u">$</span></div>
+        <div class="ir"><label>체결일</label><input type="date" id="fd" value="${td()}"><span class="u">📅</span></div>
+        
+        <div style="margin:10px 0">
+          <div style="font-size:11px;color:var(--dim);margin-bottom:6px;font-weight:700;letter-spacing:1px">유닛 선택</div>
+          <div style="display:flex;gap:6px">
+            <button id="btn-u-auto" class="btn btn-d" style="flex:1;margin:0;font-size:12px;padding:12px" onclick="resetUnitAuto()">🤖 자동</button>
+            <button id="btn-u-up" class="btn btn-d" style="flex:1;margin:0;font-size:12px;padding:12px" onclick="setUnit(${UP})">📈 ${UP}u (상승)</button>
+            <button id="btn-u-dn" class="btn btn-d" style="flex:1;margin:0;font-size:12px;padding:12px" onclick="setUnit(${DN})">📉 ${DN}u (하락)</button>
+          </div>
+        </div>
+        
+        <div class="ir"><label>유닛</label><input type="number" class="auto" id="fu" value="${UP}" oninput="onUnitManualChange()"><span class="u">u</span></div>
+        <div class="ir"><label>주수</label><input type="number" id="fs" placeholder="자동 또는 수동 입력"><span class="u">주</span></div>
+        
+        <div id="fi" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--dim);margin:8px 0;padding:10px;background:#0a0a0f;border-radius:8px"></div>
+        
+        <button class="btn btn-b" onclick="doBuy()">T${p.pos.length+1} 기록</button>
+      </div>`;
+    }
+  }
+  
+  if (tab === 't') {
+    if (p.pos.length === 0) {
+      h += `<div class="card" style="text-align:center;color:var(--dim);padding:40px 20px">
+        보유 티어가 없습니다<br><small>매매 탭에서 체결을 기록하세요</small>
+      </div>`;
+    } else {
+      h += `<div class="card">
+        <div class="ct">보유 티어 (${p.pos.length}개) · 밀어서 매도</div>`;
+      p.pos.forEach((pp, idx) => {
+        const pz = ZONES[pp.z];
+        const sellPrice = (pp.e * (1+pz.tp)).toFixed(2);
+        const days = db(pp.d, td());
+        const rm = pz.fd - days;
+        const pnl = p.price ? ((p.price - pp.e)/pp.e*100).toFixed(1) : 0;
+        const cls = pnl >= 0 ? 'up' : 'dn';
+        
+        h += `<div class="tier-wrap">
+          <div class="tier-sell-bg"></div>
+          <div class="tier-item zone-${pp.z}" data-idx="${idx}" ontouchstart="touchStart(event,${idx})" ontouchmove="touchMove(event,${idx})" ontouchend="touchEnd(event,${idx})" onmousedown="mouseStart(event,${idx})">
+            <div class="top-row">
+              <div>
+                <span class="tid">T${idx+1}</span>
+                <span class="info">${pp.s}주@$${pp.e} (${pp.u}u)</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="pnl ${cls}">${pnl>=0?'+':''}${pnl}%</div>
+                <button class="tier-sell-btn" onclick="promptSell(${idx})">매도</button>
+              </div>
+            </div>
+            <div class="meta">${pp.d} · D+${days} · 잔여${rm}일 · ${pz.label} · 매도$${sellPrice}</div>
+          </div>
+        </div>`;
+      });
+      
+      const ti = p.pos.reduce((a,pp) => a+pp.u, 0);
+      const ts = p.pos.reduce((a,pp) => a+pp.s, 0);
+      h += `<div style="text-align:center;padding:8px;color:var(--dim);font-size:12px;margin-top:8px">
+        ${ti}/${TU}u · 총 ${ts}주
+      </div></div>`;
+    }
+    
+    const tpnl = p.pos.reduce((a,pp) => a+((p.price-pp.e)/pp.e*pp.u/TU*100), 0);
+    const ts = p.hist.filter(x => x.a === 'S');
+    const tw = ts.filter(x => x.pnl >= 0).length;
+    
+    h += `<div class="sg">
+      <div class="sb"><div class="v">${p.pos.reduce((a,pp) => a+pp.u, 0)}/${TU}</div><div class="l">투입</div></div>
+      <div class="sb"><div class="v" style="color:${tpnl>=0?'var(--green)':'var(--red)'}">${tpnl>=0?'+':''}${tpnl.toFixed(1)}%</div><div class="l">미실현</div></div>
+      <div class="sb"><div class="v">${p.pos.length}</div><div class="l">보유</div></div>
+      <div class="sb"><div class="v">${tw}/${ts.length}</div><div class="l">승/매도</div></div>
+    </div>`;
+    
+    h += `<div class="card">
+      <div class="ct">💰 시드 관리</div>
+      <div class="status-row"><span class="k">현재 시드</span><span class="v" style="color:var(--green)">$${p.seed.toLocaleString()}</span></div>
+      <button class="btn btn-seed" onclick="promptSeedReset()">💰 시드 재설정</button>
+    </div>`;
+  }
+  
+  if (tab === 'h') {
+    if (p.hist.length === 0) {
+      h += `<div class="card" style="text-align:center;color:var(--dim);padding:40px 20px">
+        매매 기록이 없습니다
+      </div>`;
+    } else {
+      h += `<div class="card"><div class="ct">매매 기록 (최근 30)</div>`;
+      const zLabels = { top:'천장', mid:'중간', bot:'바닥' };
+      p.hist.slice(-30).reverse().forEach(r => {
+        const pnl = r.pnl || 0;
+        const cls = pnl >= 0 ? 'up' : 'dn';
+        const act = r.a === 'B' ? '매수' : '매도';
+        h += `<div style="padding:8px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px">
+          <span><b>${r.d}</b> · ${act} · ${r.s}주@$${r.e}${r.z?' · '+zLabels[r.z]:''}</span>
+          ${r.a==='S' ? `<span class="pnl ${cls}" style="font-family:'JetBrains Mono',monospace;font-weight:700">${pnl>=0?'+':''}${pnl.toFixed(1)}%</span>` : ''}
+        </div>`;
+      });
+      h += `</div>`;
+    }
+    
+    h += `<div class="card">
+      <div class="danger-zone">
+        <div class="title">⚠️ 위험 영역</div>
+        <div style="color:var(--dim);font-size:12px;margin-bottom:10px">${activeSymbol} 데이터(시드/티어/기록) 초기화</div>
+        <button class="btn btn-r" onclick="confirmFullReset()">💀 ${activeSymbol} 초기화</button>
+      </div>
+    </div>`;
+  }
+  
+  if (tab === 'g') {
+    h += `<div class="card">
+      <div class="ct">HUNTER v11 가이드</div>
+      <div style="font-size:13px;line-height:1.8">
+        <p><b style="color:var(--vol)">🆕 v11: 종목별 변동성 자동 튜닝</b></p>
+        <ul style="list-style:none;margin:10px 0;padding-left:10px;font-size:12px">
+          <li>✅ 야후 가져오기 시 변동성 자동 측정</li>
+          <li>✅ 변동성에 맞춰 매도/강제일 자동 조정</li>
+          <li>✅ 종목별 독립 파라미터 (SOXL/UCO/TSLA 전부 각자)</li>
+          <li>✅ 측정 후 다시 가져오면 업데이트</li>
+        </ul>
+        
+        <p style="margin-top:16px"><b style="color:var(--accent)">📋 변동성 카테고리</b></p>
+        <ul style="list-style:none;margin:10px 0;padding-left:10px;font-size:12px;line-height:2">
+          <li>🚨 극변동 (≥5%): 기본 (+2.5%/+0.5%/+3%, 7/7/10) · SOXL, POET</li>
+          <li>🔴 고변동 (3~5%): +1.5%/+0.9%/+2.4%, 15/15/22 · TQQQ, UCO</li>
+          <li>🟠 변동 (2.5~4%): +1.3%/+0.75%/+2.0%, 14/14/20일 · TSLA, NVDA</li>
+          <li>🟣 안정 (1.5~2.5%): 18/18/27일 · AAPL, MSFT</li>
+          <li>🔵 지수 (1~1.5%): 25/25/40일 · SPY, QQQ</li>
+          <li>🟢 안정주 (<1%): 25/25/40일 · 배당주</li>
+        </ul>
+        
+        <p style="margin-top:16px"><b style="color:var(--accent)">📈 기본 구조 (공통)</b></p>
+        <ul style="list-style:none;margin:10px 0;padding-left:10px;font-size:12px">
+          <li>• 20일 전고 대비 낙폭으로 Zone 판정</li>
+          <li>• 천장(-10% 이내) / 중간(-10~-15%) / 바닥(-15%↓)</li>
+          <li>• 매수 LOC: 전날×1.15(2u) + 전날-$0.01(2u, 하락시)</li>
+          <li>• TU20 = 최대 20유닛</li>
+          <li>• 진입 Zone 고정 (티어별 독립 운영)</li>
+        </ul>
+        
+        <p style="margin-top:16px"><b style="color:var(--green)">📊 백테 실적</b></p>
+        <ul style="list-style:none;font-size:12px;color:var(--dim)">
+          <li>SOXL 2020~2026 (기본): CAGR +102%, MDD -51%, 137배</li>
+          <li>UCO 2022~2026 (자동): +271%, CAGR +36%, MDD -37%</li>
+        </ul>
+        
+        <p style="margin-top:16px;color:var(--red)"><b>⚠️ 주의</b><br>
+        • 변동성은 가져올 때마다 재측정됨 (자동)<br>
+        • 주요 변동성 변화 시 파라미터도 자동 갱신<br>
+        • 강제매도 시 -5~30% 손실 가능</p>
+      </div>
+    </div>`;
+  }
+  
+  body.innerHTML = h;
+  setTimeout(() => {
+    restoreActiveInput();
+    if (tab === 'm' && typeof highlightUnitButtons === 'function') {
+      highlightUnitButtons();
+    }
+    // 수동 모드일 때 변동성 정보 초기 표시
+    if (tab === 'm' && curPort().manualParams && typeof updManualVol === 'function') {
+      updManualVol();
+    }
+  }, 0);
+}
+
+// ========== 기본 업데이트 함수들 ==========
+
+// 변동성 체크 (탭 아래 바에서 호출)
+async function checkVolatility() {
+  const p = curPort();
+  try {
+    showModal(`
+      <h3>📊 변동성 측정 중...</h3>
+      <div class="desc">야후 파이낸스에서 ${activeSymbol} 1년 데이터를 가져와 일간 변동성을 계산합니다.</div>
+    `);
+    
+    const end = new Date();
+    const start = new Date();
+    start.setFullYear(end.getFullYear() - 1);
+    const fmt = d => d.toISOString().slice(0, 10);
+    
+    const res = await fetch(`/api/history?symbol=${activeSymbol}&start=${fmt(start)}&end=${fmt(end)}`);
+    
+    // 🛡️ JSON 파싱 전에 응답 상태 확인
+    if (!res.ok) {
+      closeModal();
+      if (res.status === 404) {
+        alert(`❌ API 엔드포인트가 없습니다 (/api/history 404)\n\n` +
+              `이 Vercel 프로젝트에 history.js가 배포되어 있지 않아요.\n` +
+              `api/ 폴더에 history.js를 추가해야 변동성 측정 가능합니다.\n\n` +
+              `또는 hunter-v10.vercel.app 에서 사용하세요 (history.js 있음).`);
+      } else {
+        alert(`❌ API 오류: HTTP ${res.status}`);
+      }
+      return;
+    }
+    
+    // 🛡️ 응답이 HTML인지 JSON인지 확인
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch(parseErr) {
+      closeModal();
+      alert(`❌ 응답이 JSON이 아닙니다.\n\n` +
+            `서버 응답 시작: "${text.slice(0, 80)}..."\n\n` +
+            `이는 /api/history 엔드포인트가 제대로 배포되지 않았음을 의미합니다.\n` +
+            `api/ 폴더에 history.js 파일을 추가하세요.`);
+      return;
+    }
+    
+    if (data.error) {
+      closeModal();
+      alert('측정 실패: ' + data.error);
+      return;
+    }
+    if (!data.bars || data.bars.length < 30) {
+      closeModal();
+      alert('데이터 부족 (최소 30일 필요)');
+      return;
+    }
+    
+    const closes = data.bars.map(b => b.close);
+    const returns = [];
+    for (let i = 1; i < closes.length; i++) {
+      returns.push((closes[i] - closes[i-1]) / closes[i-1] * 100);
+    }
+    const mean = returns.reduce((a,b) => a+b, 0) / returns.length;
+    const variance = returns.reduce((s,r) => s + Math.pow(r-mean, 2), 0) / returns.length;
+    const vol = Math.sqrt(variance);
+    
+    p.vol = vol;
+    p.volDate = td();
+    save();
+    
+    const cat = categorizeVol(vol);
+    const appliedParams = vol >= 5.0 ? {...DEFAULT_PARAMS} : calcAutoParams(vol);
+    const appliedLabel = vol >= 5.0 ? '기본 파라미터 (검증된 값)' : '자동 파라미터 (변동성 기반)';
+    
+    // 매매점 계산용: 현재가 기준
+    const curP = p.price || 0;
+    const buyLoc1 = curP ? (curP * 1.15).toFixed(2) : '--';
+    const buyLoc2 = curP ? (curP - 0.01).toFixed(2) : '--';
+    const uw = p.seed / TU;
+    const upShares = curP ? Math.floor(UP * uw / curP) : 0;
+    const dnShares = curP ? Math.floor(DN * uw / curP) : 0;
+    const dnXShares = dnShares - upShares;
+    
+    showModal(`
+      <h3 style="color:var(--vol)">📊 ${activeSymbol} 변동성 분석</h3>
+      
+      <div style="text-align:center;padding:12px 0">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:800;color:#ffdd44">${vol.toFixed(2)}%</div>
+        <div style="font-size:15px;margin-top:6px">${cat.emoji} ${cat.name}</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:4px">예상 매매 빈도: ${cat.freq}</div>
+        <div style="font-size:13px;margin-top:8px;padding:8px 12px;display:inline-block;border-radius:8px;${vol < 1.5 ? 'background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3)' : vol < 2.5 ? 'background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3)' : 'background:rgba(34,197,94,0.15);color:#86efac;border:1px solid rgba(34,197,94,0.3)'}">${cat.fit}</div>
+      </div>
+      
+      ${vol < 1.5 ? `<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);padding:10px;border-radius:10px;font-size:11px;color:#fca5a5;margin-bottom:10px;line-height:1.6">
+        ⚠️ <b>HUNTER 비추천 종목</b><br>
+        <span style="color:#aaa">변동성 ${vol.toFixed(1)}% = 너무 낮음. 단순보유(B&H)가 ${cat.name}에서는 더 좋은 결과를 냅니다.<br>
+        ${cat.name}는 적립식 단순보유 추천. HUNTER는 변동성 3%+ 종목(SOXL/TQQQ/UCO 등)에 적합합니다.</span>
+      </div>` : ''}
+      
+      <div style="background:rgba(0,0,0,0.35);padding:12px;border-radius:10px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.8;color:#ddd;margin-bottom:10px">
+        <b style="color:#ffd;font-size:12px">⚙️ 적용 파라미터: ${appliedLabel}</b><br>
+        천장 <b style="color:var(--top)">+${(appliedParams.top_p*100).toFixed(2)}%</b> / ${appliedParams.top_d}일 강제<br>
+        중간 <b style="color:var(--mid)">+${(appliedParams.mid_p*100).toFixed(2)}%</b> / ${appliedParams.mid_d}일 강제<br>
+        바닥 <b style="color:var(--bot)">+${(appliedParams.bot_p*100).toFixed(2)}%</b> / ${appliedParams.bot_d}일 강제<br>
+        Lookback ${appliedParams.lookback}일
+      </div>
+      
+      ${curP ? `<div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.3);padding:12px;border-radius:10px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;color:#ddd;margin-bottom:10px">
+        <b style="color:var(--green);font-size:12px">📋 매수 LOC (현재가 $${curP} 기준)</b><br>
+        ① 상승 대응 ${upShares}주 @ $${buyLoc1} <span style="color:var(--dim)">(×1.15)</span><br>
+        ② 하락 추가 ${dnXShares}주 @ $${buyLoc2} <span style="color:var(--dim)">(-$0.01)</span>
+      </div>` : `<div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);padding:10px;border-radius:10px;font-size:11px;color:#fbbf24;margin-bottom:10px">
+        💡 매수 LOC를 보려면 매매 탭에서 현재가를 입력하거나 야후에서 가져오세요.
+      </div>`}
+      
+      <div class="btn-row">
+        <button class="btn btn-b" onclick="closeModal();render()">✅ 확인</button>
+      </div>
+    `);
+  } catch(e) {
+    closeModal();
+    alert('측정 실패: ' + e.message);
+  }
+}
+
+function updSeed() { 
+  const v = gv('seed-in');
+  if (v > 0) curPort().seed = v; 
+  save(); 
+  render(); 
+}
+function updPrice() { 
+  curPort().price = gv('cp');
+  save(); 
+  render(); 
+}
+function updHigh() { 
+  curPort().high20 = gv('h20');
+  save(); 
+  render(); 
+}
+
+let manualUnitOverride = false;
+
+function highlightUnitButtons() {
+  const btnAuto = $('btn-u-auto');
+  const btnUp = $('btn-u-up');
+  const btnDn = $('btn-u-dn');
+  if (!btnAuto || !btnUp || !btnDn) return;
+  
+  // 모두 초기화
+  [btnAuto, btnUp, btnDn].forEach(b => {
+    b.style.background = 'var(--card2)';
+    b.style.color = 'var(--dim)';
+    b.style.border = '1px solid var(--border)';
+  });
+  
+  if (!manualUnitOverride) {
+    btnAuto.style.background = 'var(--accent)';
+    btnAuto.style.color = '#fff';
+    btnAuto.style.border = '1px solid var(--accent)';
+  } else {
+    const fu = gv('fu');
+    if (fu === DN) {
+      btnDn.style.background = 'var(--red)';
+      btnDn.style.color = '#fff';
+      btnDn.style.border = '1px solid var(--red)';
+    } else if (fu === UP) {
+      btnUp.style.background = 'var(--green)';
+      btnUp.style.color = '#fff';
+      btnUp.style.border = '1px solid var(--green)';
+    }
+  }
+}
+
+function upFillAuto() {
+  const p = curPort();
+  const params = curParams();
+  const fp = gv('fp');
+  if (!fp) {
+    $('fs').value = '';
+    $('fi').innerHTML = '';
+    if (!manualUnitOverride) $('fu').value = UP;
+    highlightUnitButtons();
+    return;
+  }
+  
+  let fu;
+  let autoDetected = '';
+  
+  if (manualUnitOverride) {
+    fu = gv('fu') || UP;
+    if (fu === DN) {
+      autoDetected = ' <span style="color:var(--red);font-weight:700">📉 수동: 하락일 (4u)</span>';
+    } else if (fu === UP) {
+      autoDetected = ' <span style="color:var(--green);font-weight:700">📈 수동: 상승일 (2u)</span>';
+    } else {
+      autoDetected = ' <span style="color:var(--accent);font-weight:700">⚙️ 수동 (' + fu + 'u)</span>';
+    }
+  } else if (p.price && fp < p.price) {
+    fu = DN;
+    $('fu').value = DN;
+    const dropPct = ((fp - p.price) / p.price * 100).toFixed(1);
+    autoDetected = ` <span style="color:var(--red)">🔻 자동: 하락일 (${dropPct}%)</span>`;
+  } else if (p.price && fp >= p.price) {
+    fu = UP;
+    $('fu').value = UP;
+    const upPct = ((fp - p.price) / p.price * 100).toFixed(1);
+    autoDetected = ` <span style="color:var(--green)">🔺 자동: 상승일 (+${upPct}%)</span>`;
+  } else {
+    fu = gv('fu') || UP;
+    autoDetected = ' <span style="color:var(--dim)">(현재가 미입력 - 수동 선택 필요)</span>';
+  }
+  
+  const uw = p.seed/TU;
+  const sharesInput = $('fs');
+  const sharesAlreadyManual = sharesInput && sharesInput.value && document.activeElement === sharesInput;
+  
+  if (!sharesAlreadyManual) {
+    const shares = Math.floor(fu * uw / fp);
+    $('fs').value = shares;
+  }
+  
+  const finalShares = gv('fs');
+  
+  const z = zoneDesc();
+  const zconf = { top: {tp: params.top_p, fd: params.top_d, label:'천장'},
+                   mid: {tp: params.mid_p, fd: params.mid_d, label:'중간'},
+                   bot: {tp: params.bot_p, fd: params.bot_d, label:'바닥'} };
+  const pz = zconf[z.zone];
+  const sell = (fp * (1+pz.tp)).toFixed(2);
+  
+  const prevInfo = p.price ? `현재가 $${p.price} → 체결 $${fp}${autoDetected}<br>` : 
+                              `<span style="color:var(--accent)">⚠️ 현재가 입력 안 함 - 유닛 수동 선택 필요</span>${autoDetected}<br>`;
+  
+  const sharesNote = sharesAlreadyManual ? ' <span style="color:var(--accent)">(수동입력)</span>' : '';
+  
+  $('fi').innerHTML = `${prevInfo}
+    유닛당 $${uw.toFixed(0)} · <b>${fu}u</b> = $${(fu*uw).toFixed(0)} · <b style="color:var(--green)">${finalShares}주${sharesNote}</b><br>
+    구간: <b style="color:var(--${z.zone})">${pz.label}</b> · 매도 LOC <b>$${sell}</b> (+${(pz.tp*100).toFixed(2)}%) · 강제 ${pz.fd}일`;
+  
+  highlightUnitButtons();
+}
+
+function setUnit(u) { manualUnitOverride = true; $('fu').value = u; upFillAuto(); }
+function resetUnitAuto() { manualUnitOverride = false; upFillAuto(); }
+function onUnitManualChange() { manualUnitOverride = true; upFillAuto(); }
+
+function doBuy() {
+  const p = curPort();
+  const fp = gv('fp'), fu = gv('fu'), fs = gv('fs');
+  const fdEl = $('fd');
+  const fd = fdEl ? fdEl.value : td();
+  
+  if (!fp) return alert('체결가를 입력하세요!');
+  if (!fu) return alert('유닛을 선택하세요! (자동 / 2u / 4u)');
+  if (!fs) return alert('주수를 확인하세요! (자동 계산되거나 직접 입력)');
+  if (!fd) return alert('체결일을 입력하세요!');
+  if (fd > td()) return alert('미래 날짜는 입력할 수 없습니다!');
+  
+  const z = getZone();
+  p.pos.push({e: fp, u: fu, s: fs, d: fd, z: z});
+  p.hist.push({a:'B', d: fd, e: fp, u: fu, s: fs, z: z});
+  save();
+  
+  const zLabels = { top:'천장', mid:'중간', bot:'바닥' };
+  const daysAgo = db(fd, td());
+  const dateNote = daysAgo > 0 ? `\n📅 ${daysAgo}일 전 거래 (${fd})` : '';
+  
+  alert(`T${p.pos.length} 기록 완료!\n${fs}주 @ $${fp} (${zLabels[z]}, ${fu}u)${dateNote}`);
+  sw('t');
+}
+
+function promptSell(idx) {
+  const p = curPort();
+  const params = curParams();
+  const pp = p.pos[idx];
+  const zconf = { top: {tp: params.top_p, label:'천장'},
+                   mid: {tp: params.mid_p, label:'중간'},
+                   bot: {tp: params.bot_p, label:'바닥'} };
+  const pz = zconf[pp.z];
+  const defaultPrice = (pp.e * (1+pz.tp)).toFixed(2);
+  
+  showModal(`
+    <h3>T${idx+1} 매도</h3>
+    <div class="desc">매수가 <b>$${pp.e}</b> · ${pp.s}주 · ${pz.label} · 매수일 ${pp.d}<br>
+      추천 매도가: <b style="color:var(--green)">$${defaultPrice}</b> (+${(pz.tp*100).toFixed(2)}%)</div>
+    <div class="ir"><label>매도가</label><input type="number" step="0.01" id="sell-price" value="${defaultPrice}"><span class="u">$</span></div>
+    <div class="ir"><label>매도일</label><input type="date" id="sell-date" value="${td()}" min="${pp.d}"><span class="u">📅</span></div>
+    <div class="btn-row">
+      <button class="btn btn-d" onclick="closeModal()">취소</button>
+      <button class="btn btn-s" onclick="doSell(${idx})">매도!</button>
+    </div>
+  `);
+}
+
+function doSell(idx) {
+  const p = curPort();
+  const sellPrice = parseFloat($('sell-price').value);
+  const sellDateEl = $('sell-date');
+  const sellDate = sellDateEl ? sellDateEl.value : td();
+  
+  if (!sellPrice || sellPrice <= 0) return alert('매도가를 입력하세요');
+  if (!sellDate) return alert('매도일을 입력하세요');
+  if (sellDate > td()) return alert('미래 날짜는 입력할 수 없습니다!');
+  
+  const pp = p.pos[idx];
+  
+  if (sellDate < pp.d) return alert(`매도일은 매수일(${pp.d}) 이후여야 합니다!`);
+  
+  const pnl = (sellPrice - pp.e) / pp.e * 100;
+  const realized = (sellPrice - pp.e) * pp.s;
+  
+  p.hist.push({
+    a: 'S', d: sellDate, e: sellPrice, u: pp.u, s: pp.s, z: pp.z,
+    pnl: pnl, buyPrice: pp.e, realized: realized
+  });
+  
+  p.pos.splice(idx, 1);
+  save();
+  closeModal();
+  
+  const daysAgo = db(sellDate, td());
+  const dateNote = daysAgo > 0 ? `\n📅 ${daysAgo}일 전 거래 (${sellDate})` : '';
+  
+  if (p.pos.length === 0) {
+    checkFullLiquidation();
+  } else {
+    alert(`T${idx+1} 매도 완료!\n${pp.s}주 @ $${sellPrice}\n수익: ${pnl>=0?'+':''}${pnl.toFixed(1)}% ($${realized.toFixed(0)})${dateNote}`);
+    render();
+  }
+}
+
+function checkFullLiquidation() {
+  const p = curPort();
+  let totalRealized = 0;
+  let sellCount = 0;
+  
+  for (let i = p.hist.length - 1; i >= 0; i--) {
+    const r = p.hist[i];
+    if (r.a === 'S' && r.realized !== undefined) {
+      totalRealized += r.realized;
+      sellCount++;
+    }
+  }
+  
+  const newSeed = p.seed + totalRealized;
+  const pct = (totalRealized / p.seed * 100).toFixed(1);
+  
+  showModal(`
+    <h3>🎉 완전 청산!</h3>
+    <div class="desc">
+      모든 포지션이 청산되었습니다!<br><br>
+      💰 총 실현 수익: <b style="color:${totalRealized>=0?'var(--green)':'var(--red)'}">$${totalRealized.toFixed(0)} (${pct>=0?'+':''}${pct}%)</b><br>
+      📊 매도 횟수: ${sellCount}회<br><br>
+      <div style="background:#0a1a0a;padding:12px;border-radius:8px;border:1px solid var(--green);margin-top:8px">
+        <div style="font-size:11px;color:var(--dim)">현재 시드</div>
+        <div style="font-size:18px;font-weight:800">$${p.seed.toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:8px">새 시드 (복리 반영)</div>
+        <div style="font-size:20px;font-weight:800;color:var(--green)">$${newSeed.toFixed(0)}</div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-d" onclick="closeModal();render()">나중에</button>
+      <button class="btn btn-b" onclick="applyNewSeed(${newSeed})">✅ 복리 적용!</button>
+    </div>
+  `);
+}
+
+function applyNewSeed(newSeed) {
+  curPort().seed = Math.round(newSeed);
+  save();
+  closeModal();
+  alert(`💰 시드 업데이트!\n새 시드: $${curPort().seed.toLocaleString()}\n\n다음 라운드 시작!`);
+  render();
+}
+
+function promptSeedReset() {
+  const p = curPort();
+  showModal(`
+    <h3>💰 시드 재설정</h3>
+    <div class="desc">
+      현재 시드: <b>$${p.seed.toLocaleString()}</b><br>
+      새 시드 금액을 입력하세요.<br><br>
+      <small style="color:var(--red)">⚠️ 이 작업은 유닛 크기를 변경합니다.</small>
+    </div>
+    <div class="ir"><label>새 시드</label><input type="number" id="new-seed" value="${p.seed}" placeholder="$"><span class="u">$</span></div>
+    <div class="btn-row">
+      <button class="btn btn-d" onclick="closeModal()">취소</button>
+      <button class="btn btn-b" onclick="applyManualSeed()">재설정</button>
+    </div>
+  `);
+}
+
+function applyManualSeed() {
+  const p = curPort();
+  const ns = parseFloat($('new-seed').value);
+  if (!ns || ns <= 0) return alert('올바른 금액을 입력하세요');
+  if (!confirm(`시드를 $${p.seed.toLocaleString()} → $${ns.toLocaleString()}(으)로 변경할까요?`)) return;
+  p.seed = ns;
+  save();
+  closeModal();
+  alert(`시드 재설정 완료!\n$${p.seed.toLocaleString()}`);
+  render();
+}
+
+function confirmFullReset() {
+  const p = curPort();
+  showModal(`
+    <h3 style="color:var(--red)">⚠️ ${activeSymbol} 초기화</h3>
+    <div class="desc">
+      ${activeSymbol} 데이터가 <b style="color:var(--red)">영구 삭제</b>됩니다:<br>
+      • 시드 → $10,000 (기본값)<br>
+      • 현재가 / 20일 전고<br>
+      • 변동성 측정값<br>
+      • 보유 티어 ${p.pos.length}개<br>
+      • 매매 기록 ${p.hist.length}건<br><br>
+      <b>정말 초기화하시겠습니까?</b>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-d" onclick="closeModal()">취소</button>
+      <button class="btn btn-r" onclick="doFullReset()">💀 초기화</button>
+    </div>
+  `);
+}
+
+function doFullReset() {
+  if (!confirm('마지막 확인: 정말 삭제할까요?')) return;
+  portfolios[activeSymbol] = {
+    seed: 10000, price: 0, high20: 0, pos: [], hist: [],
+    vol: null, volDate: null
+  };
+  save();
+  closeModal();
+  alert('초기화 완료!');
+  sw('t');
+}
+
+function showModal(innerHTML) {
+  $('modal-container').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()">
+    <div class="modal">${innerHTML}</div>
+  </div>`;
+}
+function closeModal() { $('modal-container').innerHTML = ''; }
+
+// ========== 슬라이드 매도 ==========
+let swipeState = {startX: 0, currentX: 0, idx: null, el: null};
+
+function touchStart(e, idx) {
+  swipeState.startX = e.touches[0].clientX;
+  swipeState.idx = idx;
+  swipeState.el = e.currentTarget;
+  swipeState.el.classList.add('dragging');
+}
+
+function touchMove(e, idx) {
+  if (swipeState.idx !== idx) return;
+  swipeState.currentX = e.touches[0].clientX;
+  const dx = swipeState.currentX - swipeState.startX;
+  if (dx < 0) {
+    const clamped = Math.max(dx, -200);
+    swipeState.el.style.transform = `translateX(${clamped}px)`;
+  }
+}
+
+function touchEnd(e, idx) {
+  if (swipeState.idx !== idx) return;
+  const dx = swipeState.currentX - swipeState.startX;
+  swipeState.el.classList.remove('dragging');
+  swipeState.el.style.transform = '';
+  if (dx < -100) promptSell(idx);
+  swipeState = {startX: 0, currentX: 0, idx: null, el: null};
+}
+
+function mouseStart(e, idx) {
+  if (e.target.tagName === 'BUTTON') return;
+  swipeState.startX = e.clientX;
+  swipeState.idx = idx;
+  swipeState.el = e.currentTarget;
+  swipeState.el.classList.add('dragging');
+  
+  const onMove = (ev) => {
+    swipeState.currentX = ev.clientX;
+    const dx = ev.clientX - swipeState.startX;
+    if (dx < 0) {
+      const clamped = Math.max(dx, -200);
+      swipeState.el.style.transform = `translateX(${clamped}px)`;
+    }
+  };
+  
+  const onUp = () => {
+    const dx = swipeState.currentX - swipeState.startX;
+    if (swipeState.el) {
+      swipeState.el.classList.remove('dragging');
+      swipeState.el.style.transform = '';
+    }
+    if (dx < -100) promptSell(idx);
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    swipeState = {startX: 0, currentX: 0, idx: null, el: null};
+  };
+  
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+async function fetchAuto() {
+  try {
+    const res = await fetch('/api/quote?symbol=' + activeSymbol);
+    const data = await res.json();
+    if (data.error) { alert('자동 가져오기 실패: ' + data.error); return; }
+    const p = curPort();
+    if (data.price) p.price = data.price;
+    if (data.high20) p.high20 = data.high20;
+    save();
+    render();
+    const zLabels = { top:'천장', mid:'중간', bot:'바닥' };
+    
+    const stateMap = {
+      'PRE': '🌅 프리장 진행 중',
+      'REGULAR': '🔴 정규장 진행 중',
+      'POST': '🌃 애프터장 진행 중',
+      'CLOSED': '✅ 장 마감 (확정 종가)',
+      'PREPRE': '😴 장 시작 전'
+    };
+    const stateText = stateMap[data.marketState] || data.marketState;
+    
+    let warningMsg = '';
+    if (data.isLive) {
+      warningMsg = '\n\n⚠️ 장중이라 오늘 미확정\n→ 어제 확정 종가 사용 (LOC 안정적)';
+    }
+    
+    alert(`✅ ${activeSymbol} 가격 업데이트\n\n` +
+          `📅 종가 기준일: ${data.lastDate}\n` +
+          `💰 종가: $${p.price}\n` +
+          `📈 20일 전고: $${p.high20}\n` +
+          `🎯 구간: ${zLabels[getZone()]}\n` +
+          `📊 시장: ${stateText}` +
+          warningMsg);
+  } catch(e) {
+    alert('자동 가져오기 실패.\n수동으로 입력해주세요.');
+  }
+}
+
+render();
+</script>
+
+</body>
+</html>
