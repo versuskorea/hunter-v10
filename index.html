@@ -380,6 +380,7 @@ function render() {
       h += `<div class="card">
         <div class="ct">💰 체결 기록 (매수)</div>
         <div class="ir"><label>체결가</label><input type="number" step="0.01" id="fp" placeholder="체결가 입력!" oninput="upFillAuto()"><span class="u">$</span></div>
+        <div class="ir"><label>체결일</label><input type="date" id="fd" value="${td()}"><span class="u">📅</span></div>
         
         <div style="margin:10px 0">
           <div style="font-size:11px;color:var(--dim);margin-bottom:6px;font-weight:700;letter-spacing:1px">유닛 선택</div>
@@ -692,14 +693,27 @@ function onUnitManualChange() {
 
 function doBuy() {
   const fp = gv('fp'), fu = gv('fu'), fs = gv('fs');
+  const fdEl = $('fd');
+  const fd = fdEl ? fdEl.value : td();
+  
   if (!fp) return alert('체결가를 입력하세요!');
   if (!fu) return alert('유닛을 선택하세요! (자동 / 2u / 4u)');
   if (!fs) return alert('주수를 확인하세요! (자동 계산되거나 직접 입력)');
+  if (!fd) return alert('체결일을 입력하세요!');
+  
+  // 미래 날짜 방지
+  if (fd > td()) return alert('미래 날짜는 입력할 수 없습니다!');
+  
   const z = getZone();
-  pos.push({e: fp, u: fu, s: fs, d: td(), z: z});
-  hist.push({a:'B', d: td(), e: fp, u: fu, s: fs, z: z});
+  pos.push({e: fp, u: fu, s: fs, d: fd, z: z});
+  hist.push({a:'B', d: fd, e: fp, u: fu, s: fs, z: z});
   save();
-  alert(`T${pos.length} 기록 완료!\n${fs}주 @ $${fp} (${ZONES[z].label}, ${fu}u)`);
+  
+  // 며칠 전 거래 알림
+  const daysAgo = db(fd, td());
+  const dateNote = daysAgo > 0 ? `\n📅 ${daysAgo}일 전 거래 (${fd})` : '';
+  
+  alert(`T${pos.length} 기록 완료!\n${fs}주 @ $${fp} (${ZONES[z].label}, ${fu}u)${dateNote}`);
   sw('t');
 }
 
@@ -710,9 +724,10 @@ function promptSell(idx) {
   
   showModal(`
     <h3>T${idx+1} 매도</h3>
-    <div class="desc">매수가 <b>$${p.e}</b> · ${p.s}주 · ${pz.label}<br>
+    <div class="desc">매수가 <b>$${p.e}</b> · ${p.s}주 · ${pz.label} · 매수일 ${p.d}<br>
       추천 매도가: <b style="color:var(--green)">$${defaultPrice}</b> (+${(pz.tp*100).toFixed(1)}%)</div>
     <div class="ir"><label>매도가</label><input type="number" step="0.01" id="sell-price" value="${defaultPrice}"><span class="u">$</span></div>
+    <div class="ir"><label>매도일</label><input type="date" id="sell-date" value="${td()}" min="${p.d}"><span class="u">📅</span></div>
     <div class="btn-row">
       <button class="btn btn-d" onclick="closeModal()">취소</button>
       <button class="btn btn-s" onclick="doSell(${idx})">매도!</button>
@@ -722,14 +737,22 @@ function promptSell(idx) {
 
 function doSell(idx) {
   const sellPrice = parseFloat($('sell-price').value);
+  const sellDateEl = $('sell-date');
+  const sellDate = sellDateEl ? sellDateEl.value : td();
+  
   if (!sellPrice || sellPrice <= 0) return alert('매도가를 입력하세요');
+  if (!sellDate) return alert('매도일을 입력하세요');
+  if (sellDate > td()) return alert('미래 날짜는 입력할 수 없습니다!');
   
   const p = pos[idx];
+  
+  if (sellDate < p.d) return alert(`매도일은 매수일(${p.d}) 이후여야 합니다!`);
+  
   const pnl = (sellPrice - p.e) / p.e * 100;
   const realized = (sellPrice - p.e) * p.s;
   
   hist.push({
-    a: 'S', d: td(), e: sellPrice, u: p.u, s: p.s, z: p.z,
+    a: 'S', d: sellDate, e: sellPrice, u: p.u, s: p.s, z: p.z,
     pnl: pnl, buyPrice: p.e, realized: realized
   });
   
@@ -737,10 +760,14 @@ function doSell(idx) {
   save();
   closeModal();
   
+  // 며칠 전 매도 알림
+  const daysAgo = db(sellDate, td());
+  const dateNote = daysAgo > 0 ? `\n📅 ${daysAgo}일 전 거래 (${sellDate})` : '';
+  
   if (pos.length === 0) {
     checkFullLiquidation();
   } else {
-    alert(`T${idx+1} 매도 완료!\n${p.s}주 @ $${sellPrice}\n수익: ${pnl>=0?'+':''}${pnl.toFixed(1)}% ($${realized.toFixed(0)})`);
+    alert(`T${idx+1} 매도 완료!\n${p.s}주 @ $${sellPrice}\n수익: ${pnl>=0?'+':''}${pnl.toFixed(1)}% ($${realized.toFixed(0)})${dateNote}`);
     render();
   }
 }
