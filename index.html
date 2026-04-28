@@ -464,6 +464,20 @@ function render() {
   }
   
   if (tab === 't') {
+    // 🆕 실시간 현재가 빠른 입력 (티어 탭 최상단)
+    h += `<div class="card" style="border:1px solid var(--accent);background:linear-gradient(135deg,#0a0a1f,var(--card))">
+      <div class="ct" style="color:var(--accent)">⚡ 실시간 현재가 (손익 계산용)</div>
+      <div class="ir">
+        <label>현재가</label>
+        <input type="number" step="0.01" id="cp-live-quick" value="${p.priceLive||''}" oninput="updPriceLiveQuick()" placeholder="장중 가격 입력">
+        <span class="u">$</span>
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-top:6px;line-height:1.5">
+        💡 입력하면 아래 티어 손익이 진짜 현재가 기준으로 표시됨<br>
+        💡 비워두면 전날 종가 기준
+      </div>
+    </div>`;
+    
     if (p.pos.length === 0) {
       h += `<div class="card" style="text-align:center;color:var(--dim);padding:40px 20px">보유 티어 없음</div>`;
     } else {
@@ -594,6 +608,57 @@ function render() {
 function updSeed() { const v=gv('seed-in'); if(v>0) curPort().seed=v; save(); render(); }
 function updPriceClose() { curPort().priceClose=gv('cp'); save(); render(); }
 function updPriceLive() { curPort().priceLive=gv('cp-live'); save(); render(); }
+
+// 🆕 티어 탭에서 빠른 입력 - 포커스 유지 + 티어 손익만 갱신
+function updPriceLiveQuick() {
+  const v = gv('cp-live-quick');
+  curPort().priceLive = v;
+  save();
+  
+  // 티어 손익만 즉시 갱신 (포커스 유지)
+  const p = curPort();
+  const livePrice = p.priceLive || p.priceClose || 0;
+  
+  // 티어 손익 업데이트
+  document.querySelectorAll('.tier-item').forEach((el, idx) => {
+    const pp = p.pos[idx];
+    if (!pp) return;
+    const pnl = livePrice ? ((livePrice - pp.e)/pp.e*100).toFixed(2) : 0;
+    const pnlEl = el.querySelector('.pnl');
+    if (pnlEl) {
+      pnlEl.textContent = `${pnl>=0?'+':''}${pnl}%`;
+      pnlEl.className = `pnl ${pnl>=0?'up':'dn'}`;
+    }
+  });
+  
+  // 미실현 통계 갱신
+  const tpnl = livePrice ? p.pos.reduce((a,pp) => a+((livePrice-pp.e)/pp.e*pp.u/TU*100), 0) : 0;
+  const sgs = document.querySelectorAll('.sg .sb');
+  if (sgs[1]) {
+    const v = sgs[1].querySelector('.v');
+    if (v) {
+      v.textContent = `${tpnl>=0?'+':''}${tpnl.toFixed(1)}%`;
+      v.style.color = tpnl>=0 ? 'var(--green)' : 'var(--red)';
+    }
+  }
+  
+  // 상태 카드의 실시간 현재가도 갱신
+  const sb = document.getElementById('status-body');
+  if (sb) {
+    const rows = sb.querySelectorAll('.status-row');
+    rows.forEach(row => {
+      const k = row.querySelector('.k');
+      if (k && k.textContent.trim() === '실시간 현재가') {
+        const vEl = row.querySelector('.v');
+        if (vEl) vEl.textContent = `$${livePrice||'--'}`;
+      }
+    });
+  }
+  
+  // 티어 카드 헤더 갱신
+  const ct = document.querySelector('.card .ct');
+  // 헤더 텍스트는 그대로 유지 (포커스 유지가 우선)
+}
 function updHigh() { curPort().high20=gv('h20'); save(); render(); }
 
 // ========== 날짜로 가격 조회 ==========
