@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -131,9 +130,9 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
     <button onclick="setSym('QQQ')">QQQ</button>
   </div>
 
-<button class="btn btn-analyze" onclick="analyzeVolatility()">📊 변동성 분석 & 자동 설정!</button>
-<button class="btn btn-primary" onclick="runBacktest()">🚀 백테 실행!</button>
-<button class="btn" onclick="runBacktestBasic()" style="background:linear-gradient(135deg,#00c853,#00897b) !important;">🏹 기본 HUNTER로 백테! (SOXL용)</button>
+  <button class="btn btn-analyze" onclick="analyzeVolatility()">📊 변동성 분석 & 자동 설정!</button>
+  <button class="btn btn-primary" onclick="runBacktest()">🚀 백테 실행!</button>
+  <button class="btn" onclick="runBacktestBasic()" style="background:linear-gradient(135deg,#00c853,#00897b) !important;">🏹 기본 HUNTER로 백테! (SOXL용)</button>
 
   <div class="progress" id="bt-progress"></div>
 </div>
@@ -254,6 +253,12 @@ async function runBacktest() {
   try {
     let params = window.autoParams;
     let paramSource = '자동';
+    let measuredVol = null;
+    
+    if (params && params._forced) {
+      paramSource = params._forced;
+      // _forced 표시는 보존하되 simulate에는 영향 X
+    }
     
     if (!params) {
       const end1y = new Date(userEndDate);
@@ -271,8 +276,9 @@ async function runBacktest() {
       const mean = rets.reduce((a,b) => a+b, 0) / rets.length;
       const vr = rets.reduce((s,r) => s + Math.pow(r-mean, 2), 0) / rets.length;
       const vol = Math.sqrt(vr);
+      measuredVol = vol;
       params = calcParams(vol);
-      paramSource = '자동(계산)';
+      paramSource = `자동(측정값 ${vol.toFixed(2)}%)`;
     }
     
     const warmupTradingDays = Math.max(params.lookback + 5, 25);
@@ -378,6 +384,26 @@ async function runBacktest() {
         <span class="metric-value" style="color:#aaa">${result.tierWinRate.toFixed(0)}%</span>
       </div>
       
+      ${measuredVol !== null && measuredVol < 1.5 ? `
+      <div style="background:rgba(239,68,68,0.1);border:2px solid rgba(239,68,68,0.4);border-radius:14px;padding:14px;margin-bottom:12px;color:#fca5a5;font-size:13px;line-height:1.6">
+        <div style="font-weight:800;font-size:14px;margin-bottom:6px">⚠️ HUNTER 부적합 종목</div>
+        ${sym} 변동성 <b>${measuredVol.toFixed(2)}%</b>는 너무 낮습니다.<br>
+        <span style="color:#aaa;font-size:12px">→ 안정 ETF/지수는 단순보유(B&H)가 더 좋은 결과<br>
+        → HUNTER는 변동성 3%+ 종목 (SOXL, TQQQ, UCO 등)에서 빛납니다<br>
+        → ${sym} 같은 종목은 단순 적립이 정답</span>
+      </div>
+      ` : ''}
+      
+      ${result.completedCycles.length < 20 && result.nBuys > 100 ? `
+      <div style="background:#1a0f00;border:2px solid #f59e0b;border-radius:14px;padding:14px;margin-bottom:12px;color:#fbbf24;font-size:13px;line-height:1.6">
+        <div style="font-weight:800;font-size:14px;margin-bottom:6px">⚠️ 비정상 결과 감지</div>
+        매수 ${result.nBuys}회 / 매도 ${result.nSells}회인데 사이클은 ${result.completedCycles.length}회뿐입니다.<br>
+        <span style="color:#aaa;font-size:12px">→ 풀 포지션이 거의 항상 차있어 0u 복귀가 거의 없음<br>
+        → 강제일 너무 길거나 매도% 너무 큰 파라미터 가능성<br>
+        → "🏹 기본 HUNTER로 백테!" 버튼으로 SOXL 룰(7/7/10일) 강제 적용 권장</span>
+      </div>
+      ` : ''}
+      
       <div class="cycle-card">
         <div class="cs-title">🏆 사이클 분석 (0u → 매수 → ... → 0u 복귀)</div>
         
@@ -458,12 +484,14 @@ async function runBacktest() {
 }
 
 async function runBacktestBasic() {
+  // 기본 SOXL 룰 강제 적용 (변동성 측정 스킵)
   window.autoParams = {
     top_p: 0.025, mid_p: 0.005, bot_p: 0.03,
-    top_d: 7, mid_d: 7, bot_d: 10, lookback: 20
+    top_d: 7, mid_d: 7, bot_d: 10, lookback: 20,
+    _forced: '기본 SOXL (7/7/10일)'
   };
   await runBacktest();
-  setTimeout(() => { window.autoParams = null; }, 100);
+  window.autoParams = null;
 }
 
 function simulateHunter(bars, params, userStartIdx) {
