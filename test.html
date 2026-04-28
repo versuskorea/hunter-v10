@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>부스트 테스트</title>
+<style>
+body{background:#000;color:#fff;font-family:sans-serif;padding:20px;text-align:center}
+h1{color:#fbbf24}
+.btn{display:inline-block;padding:15px 25px;margin:5px;background:#333;color:#fff;border:1px solid #555;border-radius:8px;cursor:pointer;font-size:16px;font-weight:700}
+.btn.active{background:#f97316;color:#fff;border-color:#f97316}
+#status{margin:20px;padding:15px;background:#222;border-radius:10px;font-size:18px}
+</style>
+</head>
+<body>
+<h1>⚡ 부스트 버튼 테스트</h1>
+<p>아래 버튼 누르면 작동하나요?</p>
+<div>
+  <button class="btn" onclick="setBoost(0)">정상</button>
+  <button class="btn" onclick="setBoost(0.05)">+5%</button>
+  <button class="btn" onclick="setBoost(0.10)">+10%</button>
+  <button class="btn active" onclick="setBoost(0.15)">+15%</button>
+  <button class="btn" onclick="setBoost(0.20)">+20%</button>
+</div>
+<div id="status">현재: +15% (균형)</div>
+
+<script>
+function setBoost(val) {
+  const labels = {0:'정상', 0.05:'+5% 안전', 0.10:'+10% 보수', 0.15:'+15% 균형', 0.20:'+20% 공격'};
+  document.getElementById('status').innerText = '현재: ' + labels[val] + ' ✅ 작동!';
+  
+  // 모든 버튼 비활성화
+  document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+  
+  // 클릭한 버튼 활성화
+  event.target.classList.add('active');
+  
+  alert('✅ 클릭됨: ' + labels[val]);
+}
+</script>
+
+</body>
+</html>
