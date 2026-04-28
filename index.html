@@ -503,35 +503,69 @@ function render() {
       const loc1Shares = Math.floor(UP * uw / lastClose);
       const loc2Shares = Math.floor(DN * uw / lastClose) - loc1Shares;
       
+      // 다음 거래일 계산 (last.date 다음 영업일)
+      const lastDate = new Date(last.date);
+      let nextDate = new Date(lastDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+      while (nextDate.getDay() === 0 || nextDate.getDay() === 6) {
+        nextDate.setDate(nextDate.getDate() + 1);
+      }
+      const nextDateStr = nextDate.toISOString().slice(0,10);
+      const nextDateDisplay = `${nextDate.getMonth()+1}월 ${nextDate.getDate()}일`;
+      
+      // 시드 / 투입 정보
+      const totalU = p.pos.reduce((a,pp) => a+pp.u, 0);
+      const remU = TU - totalU;
+      
       h += `<div class="card" style="border:1px solid var(--accent)">
-        <div class="ct" style="color:var(--accent)">🛒 다음 거래일 주문표</div>
-        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">기준: ${last.date} 종가 $${lastClose} · 다음날 ${nextUnits}u 매수</div>
+        <div class="ct" style="color:var(--accent)">🛒 ${nextDateDisplay} 주문표</div>
+        
+        <div style="display:flex;gap:8px;margin-bottom:10px;padding:8px;background:#0a0a14;border-radius:8px">
+          <div style="flex:1;text-align:center">
+            <div style="font-size:9px;color:var(--dim)">시드</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800;color:var(--green)">$${p.seed.toLocaleString()}</div>
+          </div>
+          <div style="flex:1;text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)">
+            <div style="font-size:9px;color:var(--dim)">유닛 단가</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800">$${uw.toFixed(0)}</div>
+          </div>
+          <div style="flex:1;text-align:center">
+            <div style="font-size:9px;color:var(--dim)">투입</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800">${totalU}/${TU}u</div>
+          </div>
+        </div>
+        
+        <div style="font-size:11px;color:var(--dim);margin-bottom:8px">기준: ${last.date} 종가 $${lastClose} · 다음날 <b style="color:${nextUnits===DN?'var(--red)':'var(--green)'}">${nextUnits}u</b> 매수</div>
         <table class="order-table">
           <thead>
             <tr><th>티어</th><th>구분</th><th>방법</th><th>가격</th><th>수량</th></tr>
           </thead>
           <tbody>`;
       
-      // 매도 LOC들 (보유 티어별)
-      p.pos.forEach((pp, idx) => {
-        const pz = ZONES[pp.z];
-        const sellPrice = (pp.e * (1+pz.tp)).toFixed(2);
-        const days = db(pp.d, td());
-        const isForce = days >= pz.fd;
-        h += `<tr class="sell-row">
-          <td>T${idx+1}</td>
-          <td class="act-sell">${isForce?'⚠️강제':'매도'}</td>
-          <td>${isForce?'MOC':'LOC'}</td>
-          <td class="price-cell">${isForce?'-':'$'+sellPrice}</td>
-          <td>${pp.s}</td>
-        </tr>`;
-      });
+      // 매도 LOC들 (보유 티어별로 모두 표시!)
+      if (p.pos.length === 0) {
+        h += `<tr><td colspan="5" style="color:var(--dim);font-style:italic;padding:12px">보유 티어 없음 (매도 LOC 없음)</td></tr>`;
+      } else {
+        p.pos.forEach((pp, idx) => {
+          const pz = ZONES[pp.z];
+          const sellPrice = (pp.e * (1+pz.tp)).toFixed(2);
+          const days = db(pp.d, td());
+          const isForce = days >= pz.fd;
+          const zL = { top:'천장', mid:'중간', bot:'바닥' };
+          h += `<tr class="sell-row">
+            <td><b>T${idx+1}</b><br><span style="font-size:9px;color:var(--dim)">${zL[pp.z]}</span></td>
+            <td class="act-sell">${isForce?'⚠️강제':'매도'}</td>
+            <td>${isForce?'MOC':'LOC'}</td>
+            <td class="price-cell">${isForce?'-':'$'+sellPrice}</td>
+            <td>${pp.s}</td>
+          </tr>`;
+        });
+      }
       
       // 매수 LOC들
-      const ti = p.pos.reduce((a,pp) => a+pp.u, 0);
-      if (ti < TU) {
+      if (totalU < TU) {
         h += `<tr class="buy-row">
-          <td>T${p.pos.length+1}</td>
+          <td><b>T${p.pos.length+1}</b><br><span style="font-size:9px;color:var(--dim)">신규</span></td>
           <td class="act-buy">매수①</td>
           <td>LOC</td>
           <td class="price-cell">$${loc1Price}</td>
@@ -540,13 +574,15 @@ function render() {
         
         if (loc2Shares > 0) {
           h += `<tr class="buy-row">
-            <td>T${p.pos.length+1}</td>
+            <td><b>T${p.pos.length+1}</b><br><span style="font-size:9px;color:var(--dim)">신규</span></td>
             <td class="act-buy">매수②</td>
             <td>LOC</td>
             <td class="price-cell">$${loc2Price}</td>
             <td>${loc2Shares}</td>
           </tr>`;
         }
+      } else {
+        h += `<tr><td colspan="5" style="color:var(--red);font-weight:700;padding:12px">⚠️ 풀 포지션 (20u) - 매수 LOC 없음</td></tr>`;
       }
       
       h += `</tbody></table>
@@ -627,11 +663,9 @@ function render() {
       </tr>`;
     });
     
-    // 빈 슬롯 (선택)
-    if (p.pos.length < 5) {
-      for (let i = p.pos.length; i < 5; i++) {
-        h += `<tr class="empty"><td>T${i+1}</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`;
-      }
+    // 빈 상태 처리
+    if (p.pos.length === 0) {
+      h += `<tr class="empty"><td colspan="8" style="padding:20px;color:var(--dim);font-style:italic">보유 티어 없음</td></tr>`;
     }
     
     h += `</tbody></table></div>`;
