@@ -110,6 +110,21 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .sb-row .v{font-family:'JetBrains Mono',monospace;font-weight:700}
 
 .note{background:#0a0a14;border-radius:8px;padding:10px;font-size:11px;color:var(--dim);line-height:1.6;margin-top:8px}
+
+/* 🆕 미니 차트 박스 */
+.mini-chart-box{background:linear-gradient(135deg,#0a0a1a,var(--card));border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.mc-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.mc-price-info{display:flex;align-items:baseline;gap:8px}
+.mc-symbol{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px;color:var(--dim)}
+.mc-price{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800;color:#fff}
+.mc-change{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700}
+.mc-change.up{color:var(--green)}
+.mc-change.dn{color:var(--red)}
+.mc-refresh{background:transparent;border:1px solid var(--border);color:var(--dim);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer}
+.mc-refresh:active{transform:scale(0.95)}
+.mc-chart-area{height:60px;position:relative;overflow:hidden}
+.mc-chart-area canvas{width:100% !important;height:60px !important}
+.mc-footer{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);text-align:right;margin-top:2px}
 </style>
 </head>
 <body>
@@ -119,6 +134,23 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   </div>
   <h1><span id="ticker-name">SOXL</span> <span>HUNTER</span> 매매일지</h1>
   <div class="tickers-bar" id="tickers-bar"></div>
+  
+  <!-- 🆕 실시간 가격 + 미니 차트 -->
+  <div id="mini-chart-box" class="mini-chart-box">
+    <div class="mc-header">
+      <div class="mc-price-info">
+        <span class="mc-symbol" id="mc-symbol">SOXL</span>
+        <span class="mc-price" id="mc-price">--</span>
+        <span class="mc-change" id="mc-change">--</span>
+      </div>
+      <button class="mc-refresh" onclick="refreshMiniChart()" title="새로고침">🔄</button>
+    </div>
+    <div class="mc-chart-area">
+      <canvas id="mini-chart" width="560" height="60"></canvas>
+    </div>
+    <div class="mc-footer" id="mc-footer">실시간 가격 로딩...</div>
+  </div>
+  
   <div class="stats">매일 자동 기록 · 다음날 LOC 자동 계산</div>
 </div>
 
@@ -247,6 +279,8 @@ function switchSymbol(sym) {
   save(); activeSymbol = sym;
   if (!portfolios[sym]) portfolios[sym] = { seed:100000, startDate:'', priceClose:0, priceLive:0, high20:0, priceDate:'', diary:[], pos:[], hist:[] };
   save(); render();
+  // 🆕 미니 차트도 갱신
+  loadMiniChart(sym);
 }
 
 function addSymbol() {
@@ -1086,7 +1120,177 @@ function showModal(html) {
 }
 function closeModal() { $('modal-container').innerHTML = ''; }
 
+// 🆕 미니 차트 + 실시간 가격
+let miniChartCache = {};  // {SOXL: {bars, fetchedAt}, ...}
+
+async function loadMiniChart(symbol, force = false) {
+  const cacheTime = 5 * 60 * 1000; // 5분 캐시
+  const cached = miniChartCache[symbol];
+  
+  // 캐시 사용 (5분 이내)
+  if (!force && cached && (Date.now() - cached.fetchedAt) < cacheTime) {
+    drawMiniChart(symbol, cached.bars, cached.livePrice);
+    return;
+  }
+  
+  // UI: 로딩 표시
+  const footerEl = $('mc-footer');
+  if (footerEl) footerEl.textContent = '로딩 중...';
+  
+  try {
+    // 30일 데이터 + 실시간 가격
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 45);
+    const fmt = d => d.toISOString().slice(0, 10);
+    
+    const [historyRes, quoteRes] = await Promise.all([
+      fetch(`/api/history?symbol=${symbol}&start=${fmt(start)}&end=${fmt(end)}`),
+      fetch(`/api/quote?symbol=${symbol}`)
+    ]);
+    
+    if (!historyRes.ok || !quoteRes.ok) {
+      throw new Error('API 오류');
+    }
+    
+    const historyData = await historyRes.json();
+    const quoteData = await quoteRes.json();
+    
+    if (historyData.error || !historyData.bars) {
+      throw new Error(historyData.error || '데이터 없음');
+    }
+    
+    // 최근 30일만
+    const bars = historyData.bars.slice(-30);
+    const livePrice = quoteData.price || bars[bars.length-1].close;
+    
+    miniChartCache[symbol] = {
+      bars: bars,
+      livePrice: livePrice,
+      fetchedAt: Date.now()
+    };
+    
+    drawMiniChart(symbol, bars, livePrice);
+  } catch (e) {
+    if (footerEl) footerEl.textContent = `❌ ${e.message || '실패'}`;
+    const priceEl = $('mc-price');
+    if (priceEl) priceEl.textContent = '--';
+    const changeEl = $('mc-change');
+    if (changeEl) changeEl.textContent = '--';
+  }
+}
+
+function drawMiniChart(symbol, bars, livePrice) {
+  // 헤더 업데이트
+  const symEl = $('mc-symbol');
+  if (symEl) symEl.textContent = symbol;
+  
+  const priceEl = $('mc-price');
+  if (priceEl) priceEl.textContent = `$${livePrice.toFixed(2)}`;
+  
+  // 변동률 (전날 대비)
+  const lastClose = bars[bars.length-1].close;
+  const prevClose = bars[bars.length-2]?.close || lastClose;
+  const change = ((livePrice - prevClose) / prevClose * 100);
+  
+  const changeEl = $('mc-change');
+  if (changeEl) {
+    changeEl.textContent = `${change>=0?'+':''}${change.toFixed(2)}%`;
+    changeEl.className = `mc-change ${change>=0?'up':'dn'}`;
+  }
+  
+  // 캔버스 그리기
+  const canvas = $('mini-chart');
+  if (!canvas) return;
+  
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  
+  const padding = 4;
+  const w = rect.width - padding * 2;
+  const h = rect.height - padding * 2;
+  
+  // 데이터 포인트 (실시간 가격 추가)
+  const prices = [...bars.map(b => b.close), livePrice];
+  const minP = Math.min(...prices);
+  const maxP = Math.max(...prices);
+  const range = maxP - minP || 1;
+  
+  // 그라디언트
+  const gradient = ctx.createLinearGradient(0, padding, 0, padding + h);
+  if (change >= 0) {
+    gradient.addColorStop(0, 'rgba(34, 197, 94, 0.3)');
+    gradient.addColorStop(1, 'rgba(34, 197, 94, 0.0)');
+  } else {
+    gradient.addColorStop(0, 'rgba(239, 68, 68, 0.3)');
+    gradient.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+  }
+  
+  // 영역 채우기
+  ctx.beginPath();
+  ctx.moveTo(padding, padding + h);
+  prices.forEach((p, i) => {
+    const x = padding + (i / (prices.length - 1)) * w;
+    const y = padding + h - ((p - minP) / range) * h;
+    if (i === 0) ctx.lineTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.lineTo(padding + w, padding + h);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+  
+  // 라인
+  ctx.beginPath();
+  prices.forEach((p, i) => {
+    const x = padding + (i / (prices.length - 1)) * w;
+    const y = padding + h - ((p - minP) / range) * h;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = change >= 0 ? '#22c55e' : '#ef4444';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  
+  // 마지막 점 (실시간)
+  const lastX = padding + w;
+  const lastY = padding + h - ((livePrice - minP) / range) * h;
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+  ctx.fillStyle = change >= 0 ? '#22c55e' : '#ef4444';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(lastX, lastY, 5, 0, Math.PI * 2);
+  ctx.strokeStyle = change >= 0 ? '#22c55e' : '#ef4444';
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.5;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  
+  // Footer
+  const footerEl = $('mc-footer');
+  if (footerEl) {
+    const high = maxP.toFixed(2);
+    const low = minP.toFixed(2);
+    const fetchedAt = new Date(miniChartCache[symbol]?.fetchedAt || Date.now());
+    const timeStr = fetchedAt.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
+    footerEl.textContent = `30일 ↑$${high} ↓$${low} · ${timeStr} 갱신`;
+  }
+}
+
+function refreshMiniChart() {
+  loadMiniChart(activeSymbol, true);
+}
+
 render();
+
+// 🆕 페이지 로드 시 미니 차트 자동 로드
+setTimeout(() => loadMiniChart(activeSymbol), 100);
 </script>
 </body>
 </html>
