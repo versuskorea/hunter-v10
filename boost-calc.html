@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HUNTER 부스트 계산기</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#08080a;color:#f0f0f0;font-family:'DM Sans',sans-serif;min-height:100vh;padding:16px;max-width:600px;margin:0 auto}
+h1{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;color:#3b82f6;text-align:center;margin-bottom:8px}
+.sub{text-align:center;color:#666;font-size:13px;margin-bottom:20px}
+
+.card{background:#111118;border:1px solid #222233;border-radius:14px;padding:16px;margin-bottom:14px}
+.card-title{color:#fbbf24;font-weight:800;font-size:15px;margin-bottom:12px;letter-spacing:0.5px}
+
+.boost-grid{display:flex;gap:6px}
+.boost-btn{flex:1;background:rgba(255,255,255,0.05);color:#aaa;border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px 4px;cursor:pointer;font-family:‘DM Sans’,sans-serif;text-align:center;transition:all 0.15s}
+.boost-btn:active{transform:scale(0.95)}
+.boost-btn .label{font-size:14px;font-weight:800}
+.boost-btn .sub-label{font-size:10px;opacity:0.85;margin-top:3px}
+.boost-btn.active-0{background:#666;color:#fff;border-color:#666;font-weight:800}
+.boost-btn.active-5{background:#22c55e;color:#fff;border-color:#22c55e;font-weight:800;box-shadow:0 4px 12px rgba(34,197,94,0.4)}
+.boost-btn.active-10{background:#3b82f6;color:#fff;border-color:#3b82f6;font-weight:800;box-shadow:0 4px 12px rgba(59,130,246,0.4)}
+.boost-btn.active-15{background:#a78bfa;color:#fff;border-color:#a78bfa;font-weight:800;box-shadow:0 4px 12px rgba(167,139,250,0.4)}
+.boost-btn.active-20{background:#f97316;color:#fff;border-color:#f97316;font-weight:800;box-shadow:0 4px 12px rgba(249,115,22,0.4)}
+
+.input-row{display:flex;gap:10px;margin-bottom:12px;align-items:center}
+.input-row label{flex:1;font-size:13px;color:#aaa;font-weight:600}
+.input-row input{flex:1.5;background:#1a1a1f;border:1px solid #333;border-radius:8px;padding:10px;color:#fff;font-family:‘JetBrains Mono’,monospace;font-size:15px;font-weight:700;text-align:right;outline:none}
+.input-row input:focus{border-color:#3b82f6}
+
+.unit-toggle{display:flex;gap:6px;margin-bottom:12px}
+.unit-btn{flex:1;padding:12px;background:#1a1a1f;border:1px solid #333;border-radius:10px;color:#aaa;font-weight:700;cursor:pointer}
+.unit-btn.active{background:linear-gradient(135deg,#22c55e,#10b981);color:#fff;border-color:#22c55e}
+.unit-btn.active-dn{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border-color:#ef4444}
+
+.result-card{background:linear-gradient(135deg,#1a1a3a,#1a3a3a);border:2px solid #fbbf24;border-radius:14px;padding:18px}
+.result-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.08)}
+.result-row:last-child{border-bottom:none}
+.result-label{color:#aaa;font-size:13px;font-weight:600}
+.result-value{font-family:‘JetBrains Mono’,monospace;font-weight:800;font-size:16px;color:#fff}
+.result-value.gold{color:#fbbf24;font-size:20px}
+.result-value.purple{color:#a78bfa;font-size:18px}
+.result-value.green{color:#22c55e}
+
+.boost-info{background:#0a0a14;border-radius:10px;padding:12px;margin-top:10px;font-size:12px;color:#666;line-height:1.6}
+
+.safety-msg{background:#1a1a2a;border:1px solid #fbbf24;border-radius:10px;padding:10px;margin-top:10px;font-size:12px;font-weight:700;text-align:center}
+.safety-full{color:#22c55e}
+.safety-half{color:#fbbf24}
+.safety-normal{color:#ef4444}
+
+.note{font-size:11px;color:#555;text-align:center;margin-top:20px;line-height:1.6}
+</style>
+
+</head>
+<body>
+
+<h1>⚡ HUNTER 부스트 계산기</h1>
+<div class="sub">v13 일지 + 부스트 적용 LOC 수량 계산</div>
+
+<!-- 부스트 선택 -->
+
+<div class="card">
+  <div class="card-title">⚡ 가상 시드 부스트</div>
+  <div class="boost-grid">
+    <button class="boost-btn" id="b0" onclick="setBoost(0)">
+      <div class="label">정상</div>
+      <div class="sub-label">0%</div>
+    </button>
+    <button class="boost-btn" id="b5" onclick="setBoost(5)">
+      <div class="label">+5%</div>
+      <div class="sub-label">안전</div>
+    </button>
+    <button class="boost-btn" id="b10" onclick="setBoost(10)">
+      <div class="label">+10%</div>
+      <div class="sub-label">보수</div>
+    </button>
+    <button class="boost-btn" id="b15" onclick="setBoost(15)">
+      <div class="label">+15%</div>
+      <div class="sub-label">균형</div>
+    </button>
+    <button class="boost-btn" id="b20" onclick="setBoost(20)">
+      <div class="label">+20%</div>
+      <div class="sub-label">공격</div>
+    </button>
+  </div>
+</div>
+
+<!-- 입력 -->
+
+<div class="card">
+  <div class="card-title">📊 입력</div>
+
+  <div class="input-row">
+    <label>시드 ($)</label>
+    <input type="number" id="seed" value="100000" oninput="calc()">
+  </div>
+
+  <div class="input-row">
+    <label>전일 종가 ($)</label>
+    <input type="number" id="close" value="123.39" step="0.01" oninput="calc()">
+  </div>
+
+  <div class="input-row">
+    <label>현재 보유 (u)</label>
+    <input type="number" id="totalU" value="0" min="0" max="20" oninput="calc()">
+  </div>
+
+  <div style="margin-top:10px;font-size:13px;color:#aaa;margin-bottom:8px;font-weight:600">다음날 유닛 (vs전날):</div>
+  <div class="unit-toggle">
+    <button class="unit-btn active" id="up" onclick="setUnits(2)">상승일 (2u)</button>
+    <button class="unit-btn" id="dn" onclick="setUnits(4)">하락일 (4u)</button>
+  </div>
+</div>
+
+<!-- 결과 -->
+
+<div class="result-card">
+  <div class="card-title" style="color:#fbbf24;margin-bottom:14px">🎯 메리츠 LOC 입력값</div>
+
+  <div class="result-row">
+    <span class="result-label">실제 시드</span>
+    <span class="result-value" id="r-realSeed">$100,000</span>
+  </div>
+
+  <div class="result-row">
+    <span class="result-label">⚡ 가상 시드</span>
+    <span class="result-value gold" id="r-effSeed">$115,000</span>
+  </div>
+
+  <div class="result-row">
+    <span class="result-label">유닛 단가</span>
+    <span class="result-value" id="r-uw">$5,750</span>
+  </div>
+
+  <div class="result-row">
+    <span class="result-label">매수① LOC 가격</span>
+    <span class="result-value green" id="r-loc1Price">$141.90</span>
+  </div>
+
+  <div class="result-row">
+    <span class="result-label">매수① LOC 수량</span>
+    <span class="result-value purple" id="r-loc1Shares">81주</span>
+  </div>
+
+  <div class="result-row">
+    <span class="result-label">매수② LOC 가격</span>
+    <span class="result-value green" id="r-loc2Price">$123.38</span>
+  </div>
+
+  <div class="result-row">
+    <span class="result-label">매수② LOC 수량</span>
+    <span class="result-value purple" id="r-loc2Shares">81주</span>
+  </div>
+
+  <div class="safety-msg" id="r-safety">✅ 풀 적용 (보유 0~15u)</div>
+</div>
+
+<div class="boost-info">
+  <b style="color:#fbbf24">📊 백테 (SOXL 11년):</b><br>
+  정상: 848x · +5%: 936x (+10%)<br>
+  +10%: 1,029x (+21%) · +15%: 1,095x (+29%) ⭐<br>
+  +20%: 1,135x (+34%)<br><br>
+  <b style="color:#fbbf24">🛡️ 안전 장치:</b><br>
+  0~15u: 풀 적용 · 16~17u: 절반 · 18u+: 정상
+</div>
+
+<div class="note">
+  💡 v13 일지에서 종가/보유 확인 후<br>
+  여기서 부스트 적용된 수량 계산<br>
+  → 메리츠에 입력
+</div>
+
+<script>
+var boost = parseInt(localStorage.getItem('boost-calc') || '15');
+var units = 2;
+
+function setBoost(val) {
+  boost = val;
+  localStorage.setItem('boost-calc', val);
+  updateBoostButtons();
+  calc();
+}
+
+function updateBoostButtons() {
+  var ids = [0, 5, 10, 15, 20];
+  for (var i = 0; i < ids.length; i++) {
+    var btn = document.getElementById('b' + ids[i]);
+    if (!btn) continue;
+    btn.className = 'boost-btn';
+    if (ids[i] === boost) {
+      btn.className = 'boost-btn active-' + ids[i];
+    }
+  }
+}
+
+function setUnits(val) {
+  units = val;
+  document.getElementById('up').className = 'unit-btn' + (val === 2 ? ' active' : '');
+  document.getElementById('dn').className = 'unit-btn' + (val === 4 ? ' active-dn' : '');
+  calc();
+}
+
+function calc() {
+  var seed = parseFloat(document.getElementById('seed').value) || 0;
+  var close = parseFloat(document.getElementById('close').value) || 0;
+  var totalU = parseInt(document.getElementById('totalU').value) || 0;
+  
+  if (totalU < 0) totalU = 0;
+  if (totalU > 20) totalU = 20;
+  
+  // 가상 시드 계산 (안전 장치 포함)
+  var effSeed;
+  var safetyMsg = '';
+  var safetyClass = '';
+  
+  if (boost === 0) {
+    effSeed = seed;
+    safetyMsg = '🛡️ 정상 시드 (부스트 X)';
+    safetyClass = 'safety-normal';
+  } else if (totalU < 16) {
+    effSeed = seed * (1 + boost / 100);
+    safetyMsg = '✅ 풀 적용 (보유 ' + totalU + 'u, 0~15u)';
+    safetyClass = 'safety-full';
+  } else if (totalU < 18) {
+    effSeed = seed * (1 + boost / 200);
+    safetyMsg = '⚠️ 절반 적용 (보유 ' + totalU + 'u, 16~17u)';
+    safetyClass = 'safety-half';
+  } else {
+    effSeed = seed;
+    safetyMsg = '🛡️ 정상 시드 (보유 ' + totalU + 'u, 18u+ 안전 장치)';
+    safetyClass = 'safety-normal';
+  }
+  
+  var uw = effSeed / 20;
+  
+  // 매수 LOC 가격/수량
+  var loc1Price = (close * 1.15).toFixed(2);
+  var loc2Price = (close - 0.01).toFixed(2);
+  
+  var loc1Shares, loc2Shares;
+  if (units === 2) {
+    // 상승일: 매수① 2u, 매수② 0u
+    loc1Shares = Math.floor(2 * uw / close);
+    loc2Shares = 0;
+  } else {
+    // 하락일: 매수① 2u, 매수② 2u
+    loc1Shares = Math.floor(2 * uw / close);
+    loc2Shares = Math.floor(2 * uw / close);
+  }
+  
+  // 표시
+  document.getElementById('r-realSeed').textContent = '$' + seed.toLocaleString();
+  document.getElementById('r-effSeed').textContent = '$' + Math.round(effSeed).toLocaleString();
+  document.getElementById('r-uw').textContent = '$' + Math.round(uw).toLocaleString();
+  document.getElementById('r-loc1Price').textContent = '$' + loc1Price;
+  document.getElementById('r-loc1Shares').textContent = loc1Shares + '주';
+  document.getElementById('r-loc2Price').textContent = '$' + loc2Price;
+  document.getElementById('r-loc2Shares').textContent = (loc2Shares > 0 ? loc2Shares + '주' : '없음 (상승일)');
+  
+  var safetyEl = document.getElementById('r-safety');
+  safetyEl.textContent = safetyMsg;
+  safetyEl.className = 'safety-msg ' + safetyClass;
+}
+
+// 초기화
+updateBoostButtons();
+calc();
+</script>
+
+</body>
+</html>
