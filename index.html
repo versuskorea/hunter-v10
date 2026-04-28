@@ -139,12 +139,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 
 <a href="/bt.html" style="display:block;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-weight:700;font-size:14px;margin-top:14px;box-shadow:0 4px 16px rgba(249,115,22,0.3)">📊 백테스트 페이지로!</a>
 
-<div style="display:flex;gap:6px;margin-top:8px">
-  <a href="/v11.html" style="flex:1;background:var(--card2);color:var(--dim);text-decoration:none;text-align:center;padding:10px;border-radius:8px;font-size:11px;font-weight:700;border:1px solid var(--border)">v11 멀티</a>
-  <a href="/v12.html" style="flex:1;background:var(--card2);color:var(--dim);text-decoration:none;text-align:center;padding:10px;border-radius:8px;font-size:11px;font-weight:700;border:1px solid var(--border)">v12 깔끔</a>
-</div>
-
-<div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;color:#333;margin-top:16px">HUNTER v13 매매일지</div>
+<div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:9px;color:#333;margin-top:16px">HUNTER v13 매매일지 · 멀티종목 지원</div>
 <div id="modal-container"></div>
 
 <script>
@@ -560,17 +555,35 @@ function render() {
       } else {
         p.pos.forEach((pp, idx) => {
           const pz = ZONES[pp.z];
-          // 🆕 매도점 = 일지 종가 기준 (없으면 실제 매수가 기준)
+          // 매도점 = 일지 종가 기준
           const basePriceForSell = pp.diaryClose || pp.e;
           const sellPrice = (basePriceForSell * (1+pz.tp)).toFixed(2);
           const days = db(pp.d, td());
+          const remDays = pz.fd - days;
           const isForce = days >= pz.fd;
+          const isLastDay = remDays <= 1;  // 오늘 또는 내일이 강제일
           const zL = { top:'천장', mid:'중간', bot:'바닥' };
-          h += `<tr class="sell-row">
-            <td><b>T${idx+1}</b><br><span style="font-size:9px;color:var(--dim)">${zL[pp.z]}</span></td>
+          
+          let methodCell, priceCell, tierLabel;
+          if (isForce) {
+            methodCell = `<span style="color:var(--red);font-weight:800">⚠️ MOC<br><span style="font-size:9px">수동!</span></span>`;
+            priceCell = '시장가';
+            tierLabel = `<b>T${idx+1}</b><br><span style="font-size:9px;color:var(--red)">강제 D+${days}</span>`;
+          } else if (isLastDay) {
+            methodCell = `<span style="color:var(--gold);font-weight:800">⚠️ LOC<br><span style="font-size:9px">+ 내일 MOC!</span></span>`;
+            priceCell = `$${sellPrice}`;
+            tierLabel = `<b>T${idx+1}</b><br><span style="font-size:9px;color:var(--gold)">${zL[pp.z]} D+${days}/${pz.fd}</span>`;
+          } else {
+            methodCell = 'LOC';
+            priceCell = `$${sellPrice}`;
+            tierLabel = `<b>T${idx+1}</b><br><span style="font-size:9px;color:var(--dim)">${zL[pp.z]} D+${days}/${pz.fd}</span>`;
+          }
+          
+          h += `<tr class="sell-row" ${isForce?'style="background:rgba(239,68,68,0.1)"':isLastDay?'style="background:rgba(251,191,36,0.08)"':''}>
+            <td>${tierLabel}</td>
             <td class="act-sell">${isForce?'⚠️강제':'매도'}</td>
-            <td>${isForce?'MOC':'LOC'}</td>
-            <td class="price-cell">${isForce?'-':'$'+sellPrice}</td>
+            <td>${methodCell}</td>
+            <td class="price-cell">${priceCell}</td>
             <td>${pp.s}</td>
           </tr>`;
         });
@@ -603,6 +616,7 @@ function render() {
       <div class="note" style="margin-top:8px">
         💡 매수①: 전날×1.15 (상승 대응 ${UP}u)<br>
         💡 매수②: 전날-$0.01 (하락 추가 ${DN-UP}u, 하락일만 체결)<br>
+        💡 매도: D+0~D+5 = LOC 예약 / D+6 (마지막날) = MOC 수동! ⚠️<br>
         ⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X
       </div>
       </div>`;
