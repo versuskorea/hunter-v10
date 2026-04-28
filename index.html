@@ -129,7 +129,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 </div>
 
 <div class="tabs">
-  <button class="tab on" id="tab-d" onclick="sw('d')">📅 일지</button>
+  <button class="tab on" id="tab-d" onclick="sw('d')">📋 주문</button>
   <button class="tab" id="tab-t" onclick="sw('t')">📦 보유</button>
   <button class="tab" id="tab-s" onclick="sw('s')">⚙️ 설정</button>
   <button class="tab" id="tab-h" onclick="sw('h')">📜 기록</button>
@@ -458,16 +458,17 @@ function render() {
       const reversed = [...p.diary].reverse();
       
       h += `<div class="card" style="padding:0;overflow-x:auto">
-        <div style="padding:14px 14px 8px"><div class="ct" style="margin:0">📊 매매일지 (총 ${p.diary.length}일)</div></div>
+        <div style="padding:14px 14px 8px"><div class="ct" style="margin:0">📊 매매일지 (총 ${p.diary.length}일) · 체결한 날 ✅ 표시</div></div>
         <table class="diary-table">
           <thead>
             <tr>
               <th>날짜</th>
               <th>종가</th>
               <th>vs전날</th>
-              <th>20일 전고</th>
               <th>구간</th>
-              <th>다음날<br>유닛</th>
+              <th>유닛</th>
+              <th>매도점<br>(고정)</th>
+              <th>체결</th>
             </tr>
           </thead>
           <tbody>`;
@@ -479,15 +480,26 @@ function render() {
         const uCls = d.units === DN ? 'cell-4u' : 'cell-2u';
         const zCls = `cell-zone-${d.zone}`;
         const zLabel = ZONES[d.zone].label;
-        const dd = ((d.close - d.high20)/d.high20*100).toFixed(1);
         
-        h += `<tr class="${isToday?'today':''}">
+        // 매도점 = 종가 × (1 + zone tp) - 백테 기준 고정!
+        const zoneCfg = ZONES[d.zone];
+        const sellPoint = (d.close * (1 + zoneCfg.tp)).toFixed(2);
+        
+        // 이 날짜에 매수 체결한 티어가 있나?
+        const filledTier = p.pos.find(pp => pp.d === d.date);
+        const isFilled = !!filledTier;
+        
+        h += `<tr class="${isToday?'today':''}" ${isFilled?'style="background:rgba(34,197,94,0.06)"':''}>
           <td>${d.date.slice(5)}</td>
           <td>$${d.close}</td>
           <td class="${vsCls}">${d.vsPrev>0?'+':''}${d.vsPrev}%</td>
-          <td>$${d.high20}<br><span style="font-size:9px;color:var(--dim)">(${dd}%)</span></td>
           <td class="${zCls}">${zLabel}</td>
           <td class="${uCls}">${d.units}u</td>
+          <td style="color:var(--green);font-weight:700">$${sellPoint}</td>
+          <td>${isFilled 
+            ? `<span style="color:var(--green);font-weight:700">✅</span>` 
+            : `<button onclick="quickFillBuy('${d.date}',${d.close},${d.units})" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer">체결</button>`
+          }</td>
         </tr>`;
       });
       
@@ -548,7 +560,9 @@ function render() {
       } else {
         p.pos.forEach((pp, idx) => {
           const pz = ZONES[pp.z];
-          const sellPrice = (pp.e * (1+pz.tp)).toFixed(2);
+          // 🆕 매도점 = 일지 종가 기준 (없으면 실제 매수가 기준)
+          const basePriceForSell = pp.diaryClose || pp.e;
+          const sellPrice = (basePriceForSell * (1+pz.tp)).toFixed(2);
           const days = db(pp.d, td());
           const isForce = days >= pz.fd;
           const zL = { top:'천장', mid:'중간', bot:'바닥' };
@@ -644,7 +658,9 @@ function render() {
     
     p.pos.forEach((pp,idx) => {
       const pz = ZONES[pp.z];
-      const sellPrice = (pp.e * (1+pz.tp)).toFixed(2);
+      // 🆕 매도점 = 일지 종가 기준
+      const basePriceForSell = pp.diaryClose || pp.e;
+      const sellPrice = (basePriceForSell * (1+pz.tp)).toFixed(2);
       const days = db(pp.d, td());
       const rm = pz.fd - days;
       const pnl = livePrice ? ((livePrice-pp.e)/pp.e*100).toFixed(2) : 0;
@@ -675,16 +691,20 @@ function render() {
       <div class="sb-row"><span class="k">보유 주수</span><span class="v">${p.pos.reduce((a,pp)=>a+pp.s,0)}주</span></div>
       <div class="sb-row"><span class="k">시드</span><span class="v" style="color:var(--green)">$${p.seed.toLocaleString()}</span></div>
       <div class="sb-row"><span class="k">유닛 단가</span><span class="v">$${(p.seed/TU).toFixed(0)}</span></div>
+    </div>
+    
+    <div class="note" style="margin-top:8px">
+      💡 매수 체결은 <b style="color:var(--accent)">📋 주문 탭</b>에서 일지의 "체결" 버튼으로 입력하세요<br>
+      💡 여기서는 매도만 가능 (티어 클릭 또는 "매도 기록")
     </div>`;
     
-    // 매수/매도 빠른 입력
-    h += `<div class="card">
-      <div class="ct">💰 체결 입력</div>
-      <div style="display:flex;gap:6px;margin-top:6px">
-        <button class="btn btn-b" onclick="openBuyModal()" style="margin:0">📈 매수 기록</button>
-        ${p.pos.length>0 ? `<button class="btn btn-s" onclick="openSellModal()" style="margin:0">📉 매도 기록</button>` : ''}
-      </div>
-    </div>`;
+    // 매도 버튼만
+    if (p.pos.length > 0) {
+      h += `<div class="card">
+        <div class="ct">📉 매도</div>
+        <button class="btn btn-s" onclick="openSellModal()">매도 기록</button>
+      </div>`;
+    }
   }
   
   // ============ 설정 탭 ============
@@ -750,6 +770,88 @@ function render() {
 
 // ========== 업데이트 함수 ==========
 function updSeed() { const v=gv('seed-in'); if(v>0) curPort().seed=v; save(); render(); }
+
+// 🆕 일지에서 체결 버튼 누르면 그날 자동 매수 기록
+function quickFillBuy(date, close, units) {
+  const p = curPort();
+  
+  // 이미 그날 매수했는지 확인
+  if (p.pos.find(pp => pp.d === date)) {
+    if (!confirm(`${date}에 이미 매수 기록 있음. 추가로 더 기록할까요?`)) return;
+  }
+  
+  // 일지 데이터 찾기
+  const diaryEntry = p.diary.find(d => d.date === date);
+  if (!diaryEntry) return alert('일지에 없는 날');
+  
+  const zone = diaryEntry.zone;
+  const uw = p.seed / TU;
+  const shares = Math.floor(units * uw / close);
+  
+  showModal(`
+    <h3>📈 ${date} 체결 기록</h3>
+    <div class="desc">
+      백테 기준: <b>$${close}</b> · ${units}u<br>
+      형님 실제 체결가가 다르면 수정하세요.<br>
+      <span style="color:var(--green)">매도점은 일지 종가 기준으로 고정됩니다 ($${(close*(1+ZONES[zone].tp)).toFixed(2)})</span>
+    </div>
+    <div class="ir"><label>매수 날짜</label><input type="date" id="qf-date" value="${date}"><span class="u">📅</span></div>
+    <div class="ir"><label>실제 체결가</label><input type="number" step="0.01" id="qf-price" value="${close}"><span class="u">$</span></div>
+    <div class="ir"><label>유닛</label><input type="number" id="qf-units" value="${units}" readonly style="background:#0a0a14;color:var(--accent)"><span class="u">u</span></div>
+    <div class="ir"><label>실제 주수</label><input type="number" id="qf-shares" value="${shares}"><span class="u">주</span></div>
+    <div class="note" style="margin-top:8px">
+      💡 매도 LOC = <b style="color:var(--green)">$${(close*(1+ZONES[zone].tp)).toFixed(2)}</b> (일지 종가 기준 고정)<br>
+      💡 형님이 다른 가격에 사도 매도점은 일지 기준 유지
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-d" onclick="closeModal()">취소</button>
+      <button class="btn btn-b" onclick="confirmQuickFill('${date}',${close},'${zone}')">체결 기록</button>
+    </div>
+  `);
+}
+
+function confirmQuickFill(diaryDate, diaryClose, zone) {
+  const p = curPort();
+  const actualPrice = parseFloat($('qf-price').value) || diaryClose;
+  const actualShares = parseInt($('qf-shares').value);
+  const actualDate = $('qf-date').value || diaryDate;
+  const units = parseInt($('qf-units').value);
+  
+  if (!actualShares || actualShares <= 0) return alert('주수 입력');
+  if (!units) return alert('유닛 입력');
+  
+  // 매도점 = 일지 종가 기준 (실제 체결가가 아니라!)
+  // 백테 매도점 = diaryClose * (1 + ZONES[zone].tp)
+  // 보유 시 sellPoint를 별도로 저장 (e=실제매수가, sellPrice=일지매도점)
+  
+  p.pos.push({
+    e: actualPrice,           // 실제 체결가
+    u: units,
+    s: actualShares,
+    d: actualDate,
+    z: zone,
+    diaryClose: diaryClose,   // 🆕 일지 종가 (매도점 계산용 고정값)
+    diaryDate: diaryDate      // 🆕 일지 기준일
+  });
+  
+  p.hist.push({
+    a: 'B',
+    d: actualDate,
+    e: actualPrice,
+    u: units,
+    s: actualShares,
+    z: zone,
+    diaryClose: diaryClose,
+    diaryDate: diaryDate
+  });
+  
+  save();
+  closeModal();
+  
+  const sellPoint = (diaryClose * (1+ZONES[zone].tp)).toFixed(2);
+  alert(`✅ T${p.pos.length} 체결 기록!\n\n매수: ${actualShares}주 @ $${actualPrice}\n매도 LOC: $${sellPoint} (일지 기준 고정)`);
+  render();
+}
 function updPriceLive() { curPort().priceLive=gv('cp-live'); save(); render(); }
 
 function toggleLivePrice() {
@@ -863,11 +965,14 @@ function promptSell(idx) {
   const p = curPort();
   const pp = p.pos[idx];
   const pz = ZONES[pp.z];
-  const defaultPrice = (pp.e * (1+pz.tp)).toFixed(2);
+  const basePriceForSell = pp.diaryClose || pp.e;
+  const defaultPrice = (basePriceForSell * (1+pz.tp)).toFixed(2);
   
   showModal(`
     <h3>T${idx+1} 매도</h3>
-    <div class="desc">매수 $${pp.e} · ${pp.s}주 · ${pz.label} · ${pp.d}<br>추천 매도가: <b style="color:var(--green)">$${defaultPrice}</b></div>
+    <div class="desc">매수 $${pp.e} · ${pp.s}주 · ${pz.label} · ${pp.d}<br>
+      ${pp.diaryClose ? `일지 종가: $${pp.diaryClose} (매도점 기준)<br>` : ''}
+      추천 매도가: <b style="color:var(--green)">$${defaultPrice}</b></div>
     <div class="ir"><label>매도가</label><input type="number" step="0.01" id="sell-price" value="${defaultPrice}"><span class="u">$</span></div>
     <div class="ir"><label>매도일</label><input type="date" id="sell-date" value="${td()}" min="${pp.d}"><span class="u">📅</span></div>
     <div class="btn-row">
