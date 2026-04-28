@@ -1162,15 +1162,26 @@ async function loadMiniChart(symbol, force = false) {
     
     // 최근 30일만
     const bars = historyData.bars.slice(-30);
-    const livePrice = quoteData.price || bars[bars.length-1].close;
+    
+    // 🆕 새 quote.js: livePrice = 프리/애프터 포함 실시간
+    const livePrice = quoteData.livePrice || quoteData.price || bars[bars.length-1].close;
+    const livePriceLabel = quoteData.livePriceLabel || '';
+    const marketState = quoteData.marketState || 'UNKNOWN';
     
     miniChartCache[symbol] = {
       bars: bars,
       livePrice: livePrice,
+      livePriceLabel: livePriceLabel,
+      marketState: marketState,
+      previousClose: quoteData.previousClose,
+      changePercent: quoteData.changePercent,
+      preMarketPrice: quoteData.preMarketPrice,
+      postMarketPrice: quoteData.postMarketPrice,
+      regularPrice: quoteData.regularPrice,
       fetchedAt: Date.now()
     };
     
-    drawMiniChart(symbol, bars, livePrice);
+    drawMiniChart(symbol, bars, livePrice, miniChartCache[symbol]);
   } catch (e) {
     if (footerEl) footerEl.textContent = `❌ ${e.message || '실패'}`;
     const priceEl = $('mc-price');
@@ -1180,7 +1191,7 @@ async function loadMiniChart(symbol, force = false) {
   }
 }
 
-function drawMiniChart(symbol, bars, livePrice) {
+function drawMiniChart(symbol, bars, livePrice, cache) {
   // 헤더 업데이트
   const symEl = $('mc-symbol');
   if (symEl) symEl.textContent = symbol;
@@ -1188,10 +1199,15 @@ function drawMiniChart(symbol, bars, livePrice) {
   const priceEl = $('mc-price');
   if (priceEl) priceEl.textContent = `$${livePrice.toFixed(2)}`;
   
-  // 변동률 (전날 대비)
-  const lastClose = bars[bars.length-1].close;
-  const prevClose = bars[bars.length-2]?.close || lastClose;
-  const change = ((livePrice - prevClose) / prevClose * 100);
+  // 🆕 변동률 = quote.js의 정확한 값 사용 (전날 정규장 종가 대비)
+  let change;
+  if (cache && cache.changePercent !== undefined) {
+    change = cache.changePercent;
+  } else {
+    // 폴백: bars 마지막 vs livePrice
+    const prevClose = bars[bars.length-2]?.close || bars[bars.length-1].close;
+    change = ((livePrice - prevClose) / prevClose * 100);
+  }
   
   const changeEl = $('mc-change');
   if (changeEl) {
@@ -1237,8 +1253,7 @@ function drawMiniChart(symbol, bars, livePrice) {
   prices.forEach((p, i) => {
     const x = padding + (i / (prices.length - 1)) * w;
     const y = padding + h - ((p - minP) / range) * h;
-    if (i === 0) ctx.lineTo(x, y);
-    else ctx.lineTo(x, y);
+    ctx.lineTo(x, y);
   });
   ctx.lineTo(padding + w, padding + h);
   ctx.closePath();
@@ -1257,7 +1272,7 @@ function drawMiniChart(symbol, bars, livePrice) {
   ctx.lineWidth = 1.5;
   ctx.stroke();
   
-  // 마지막 점 (실시간)
+  // 마지막 점 (실시간) - 펄스 효과
   const lastX = padding + w;
   const lastY = padding + h - ((livePrice - minP) / range) * h;
   ctx.beginPath();
@@ -1272,14 +1287,35 @@ function drawMiniChart(symbol, bars, livePrice) {
   ctx.stroke();
   ctx.globalAlpha = 1;
   
-  // Footer
+  // 🆕 Footer - 시장 상태 표시 + 프리/애프터 가격 정보
   const footerEl = $('mc-footer');
-  if (footerEl) {
+  if (footerEl && cache) {
     const high = maxP.toFixed(2);
     const low = minP.toFixed(2);
-    const fetchedAt = new Date(miniChartCache[symbol]?.fetchedAt || Date.now());
-    const timeStr = fetchedAt.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'});
-    footerEl.textContent = `30일 ↑$${high} ↓$${low} · ${timeStr} 갱신`;
+    const fetchedAt = new Date(cache.fetchedAt);
+    const timeStr = fetchedAt.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    
+    // 시장 상태 이모지
+    const stateEmoji = {
+      'PRE': '🌅',
+      'REGULAR': '🔴 LIVE',
+      'POST': '🌃',
+      'CLOSED': '✅'
+    }[cache.marketState] || '⏸️';
+    
+    let extraInfo = '';
+    if (cache.marketState === 'CLOSED' && cache.postMarketPrice) {
+      // 장 마감 후 애프터 가격 따로 표시
+      extraInfo = ` · 애프터 $${cache.postMarketPrice}`;
+    } else if (cache.marketState === 'POST' && cache.regularPrice) {
+      extraInfo = ` · 종가 $${cache.regularPrice}`;
+    } else if (cache.marketState === 'PRE' && cache.previousClose) {
+      extraInfo = ` · 전날 $${cache.previousClose}`;
+    }
+    
+    footerEl.innerHTML = `${stateEmoji} ${cache.livePriceLabel || ''}${extraInfo} · 30일 ↑$${high}↓$${low} · ${timeStr}`;
+  } else if (footerEl) {
+    footerEl.textContent = `30일 갱신 완료`;
   }
 }
 
