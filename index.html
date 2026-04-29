@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html>
 <head>
 <meta charset="UTF-8">
@@ -253,6 +252,18 @@ function render(){
       if(p.pos.length===0){
         h+='<tr><td colspan="5" style="color:var(--dim);font-style:italic;padding:12px">보유 티어 없음 (매도 LOC 없음)</td></tr>';
       }else{
+        // 🆕 거래일 N일 후 계산 함수
+        const addBizDays = (dateStr, n) => {
+          const d = new Date(dateStr);
+          let added = 0;
+          while (added < n) {
+            d.setDate(d.getDate() + 1);
+            const day = d.getDay();
+            if (day !== 0 && day !== 6) added++;
+          }
+          return (d.getMonth()+1) + '/' + d.getDate();
+        };
+        
         p.pos.forEach((pp,idx)=>{
           const pz=ZONES[pp.z];
           const basePriceForSell=pp.diaryClose||pp.e;
@@ -262,19 +273,23 @@ function render(){
           const isForce=days>=pz.fd;
           const isLastDay=remDays<=1;
           const zL={top:'천장',mid:'중간',bot:'바닥'};
+          
+          // 🆕 청산 예정일 (매수일 + fd 거래일)
+          const closeDate = addBizDays(pp.d, pz.fd);
+          
           let methodCell,priceCell,tierLabel;
           if(isForce){
             methodCell='<span style="color:var(--red);font-weight:800">⚠️ MOC<br><span style="font-size:10px">수동!</span></span>';
             priceCell='시장가';
-            tierLabel='<b>T'+(idx+1)+'</b><br><span style="font-size:10px;color:var(--red)">강제 D+'+days+'</span>';
+            tierLabel='<b>T'+(idx+1)+'</b><br><span style="font-size:10px;color:var(--red)">강제!<br>('+closeDate+' 마감)</span>';
           }else if(isLastDay){
             methodCell='<span style="color:var(--gold);font-weight:800">⚠️ LOC<br><span style="font-size:10px">+ 내일 MOC!</span></span>';
             priceCell='$'+sellPrice;
-            tierLabel='<b>T'+(idx+1)+'</b><br><span style="font-size:10px;color:var(--gold)">'+zL[pp.z]+' D+'+days+'/'+pz.fd+'</span>';
+            tierLabel='<b>T'+(idx+1)+'</b><br><span style="font-size:10px;color:var(--gold)">'+zL[pp.z]+'<br>~'+closeDate+'</span>';
           }else{
             methodCell='LOC';
             priceCell='$'+sellPrice;
-            tierLabel='<b>T'+(idx+1)+'</b><br><span style="font-size:10px;color:var(--dim)">'+zL[pp.z]+' D+'+days+'/'+pz.fd+'</span>';
+            tierLabel='<b>T'+(idx+1)+'</b><br><span style="font-size:10px;color:var(--dim)">'+zL[pp.z]+'<br>~'+closeDate+'</span>';
           }
           h+='<tr class="sell-row" '+(isForce?'style="background:rgba(239,68,68,0.1)"':isLastDay?'style="background:rgba(251,191,36,0.08)"':'')+'><td>'+tierLabel+'</td><td class="act-sell">'+(isForce?'⚠️강제':'매도')+'</td><td>'+methodCell+'</td><td class="price-cell">'+priceCell+'</td><td>'+pp.s+'</td></tr>';
         });
