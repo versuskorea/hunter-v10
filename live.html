@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>주식</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif;min-height:100vh;padding-bottom:40px;overflow-x:hidden}
+
+.container{max-width:600px;margin:0 auto;padding:0 16px;padding-top:12px}
+
+.header{padding:18px 0 8px}
+.title{font-size:34px;font-weight:800;letter-spacing:0.4px;color:#fff;margin-bottom:2px}
+.date{font-size:22px;color:#8e8e93;font-weight:600}
+
+.market-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(28,28,30,0.7);border-radius:12px;margin:14px 0;font-size:13px}
+.market-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-pre{background:#ff9f0a;box-shadow:0 0 8px #ff9f0a}
+.dot-open{background:#30d158;box-shadow:0 0 8px #30d158}
+.dot-after{background:#bf5af2;box-shadow:0 0 8px #bf5af2}
+.dot-closed{background:#48484a}
+.market-text{color:#8e8e93;font-weight:500;flex:1}
+.market-time{color:#636366;font-size:11px;font-variant-numeric:tabular-nums}
+
+.toolbar{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;margin-bottom:10px}
+.toolbar-left{display:flex;align-items:center;gap:6px;font-size:11px;color:#636366}
+.toolbar-left input{accent-color:#0a84ff}
+.refresh{background:none;border:none;color:#0a84ff;font-size:15px;font-weight:600;cursor:pointer;padding:4px 8px}
+
+.ticker-list{background:rgba(28,28,30,0.6);border-radius:14px;overflow:hidden}
+
+.ticker-row-wrap{position:relative;overflow:hidden;border-bottom:0.5px solid rgba(84,84,88,0.4)}
+.ticker-row-wrap:last-child{border-bottom:none}
+
+.delete-action{position:absolute;right:0;top:0;bottom:0;width:90px;background:#ff453a;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:600;cursor:pointer;border:none;z-index:0}
+
+.ticker-row{display:grid;grid-template-columns:1fr 60px auto;align-items:center;gap:12px;padding:14px 16px;background:#1c1c1e;position:relative;transform:translateX(0);transition:transform 0.3s ease;touch-action:pan-y;z-index:1}
+.ticker-row.swiped{transform:translateX(-90px)}
+
+.ticker-left{min-width:0}
+.ticker-symbol{font-size:20px;font-weight:700;color:#fff;letter-spacing:0.2px;line-height:1.1}
+.ticker-name{font-size:12px;color:#8e8e93;margin-top:3px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.ticker-mini-chart{width:60px;height:32px}
+.ticker-mini-chart svg{width:100%;height:100%}
+
+.ticker-right{text-align:right;min-width:90px}
+.ticker-price{font-size:18px;font-weight:600;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:-0.3px}
+.ticker-change-box{display:inline-block;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:4px;min-width:64px;text-align:center}
+.up .ticker-change-box{background:#30d158;color:#fff}
+.dn .ticker-change-box{background:#ff453a;color:#fff}
+
+.market-state-tag{font-size:9px;color:#ff9f0a;font-weight:700;letter-spacing:0.5px;display:block;margin-top:2px}
+.market-state-tag.post{color:#bf5af2}
+
+.error{color:#ff453a;font-size:11px;margin-top:2px;font-weight:500}
+
+.add-button{display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(28,28,30,0.6);color:#0a84ff;border:none;width:100%;padding:14px;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;margin-top:12px}
+
+.last-update{text-align:center;font-size:11px;color:#48484a;padding:14px 0}
+
+.home-link{display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(10,132,255,0.15);color:#0a84ff;text-decoration:none;padding:14px;border-radius:14px;font-size:15px;font-weight:600;margin:6px 0 12px}
+
+.loading{text-align:center;padding:50px 0;color:#636366;font-size:14px}
+
+.swipe-hint{text-align:center;font-size:10px;color:#48484a;padding:6px 0;font-weight:500}
+</style>
+
+</head>
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <div class="title">주식</div>
+    <div class="date" id="date-display">--</div>
+  </div>
+
+  <div class="market-bar">
+    <div class="market-dot" id="market-dot"></div>
+    <div class="market-text" id="market-text">--</div>
+    <div class="market-time" id="market-time">--</div>
+  </div>
+
+<a href="/" class="home-link">🏠 HUNTER 홈으로</a>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <input type="checkbox" id="autoRefresh" onchange="toggleAuto()">
+      <label for="autoRefresh">10초 자동 갱신</label>
+    </div>
+    <button class="refresh" onclick="fetchAll()">갱신</button>
+  </div>
+
+  <div class="ticker-list" id="tickers-list">
+    <div class="loading">⏳ 데이터 가져오는 중...</div>
+  </div>
+
+  <div class="swipe-hint">← 종목을 왼쪽으로 슬라이드하면 삭제 버튼 표시</div>
+
+  <button class="add-button" onclick="addTicker()">
+    <span style="font-size:18px;line-height:1">+</span>
+    <span>종목 추가</span>
+  </button>
+
+  <div class="last-update" id="last-update">갱신 전</div>
+
+</div>
+
+<script>
+var DEFAULT_TICKERS = [
+  {sym:"SOXL", name:"Direxion Daily Semiconductor Bull 3X"},
+  {sym:"UCO", name:"ProShares Ultra Bloomberg Crude Oil"},
+  {sym:"AVGO", name:"Broadcom Inc."},
+  {sym:"AMZN", name:"Amazon.com, Inc."}
+];
+
+var stored = JSON.parse(localStorage.getItem('live-tickers-v3') || 'null');
+var TICKERS = stored || DEFAULT_TICKERS;
+
+var TICKER_DATA = {};
+var autoTimer = null;
+
+function saveTickers() {
+  localStorage.setItem('live-tickers-v3', JSON.stringify(TICKERS));
+}
+
+function updateDate() {
+  var now = new Date();
+  var months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  var days = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
+  document.getElementById('date-display').textContent = months[now.getMonth()] + ' ' + now.getDate() + '일 ' + days[now.getDay()];
+}
+
+function getMarketStatus() {
+  var now = new Date();
+  var nyTime = new Date(now.toLocaleString('en-US', {timeZone: 'America/New_York'}));
+  var hour = nyTime.getHours();
+  var min = nyTime.getMinutes();
+  var totalMin = hour * 60 + min;
+  var day = nyTime.getDay();
+  
+  var nyHour = nyTime.getHours().toString().padStart(2,'0');
+  var nyMin = nyTime.getMinutes().toString().padStart(2,'0');
+  var nyTimeStr = nyHour + ':' + nyMin + ' ET';
+  
+  if (day === 0 || day === 6) return {label: '주말 휴장', cls: 'closed', time: nyTimeStr};
+  if (totalMin >= 240 && totalMin < 570) return {label: '프리마켓', cls: 'pre', time: nyTimeStr};
+  if (totalMin >= 570 && totalMin < 960) return {label: '본장 진행 중', cls: 'open', time: nyTimeStr};
+  if (totalMin >= 960 && totalMin < 1200) return {label: '애프터마켓', cls: 'after', time: nyTimeStr};
+  return {label: '시장 휴장', cls: 'closed', time: nyTimeStr};
+}
+
+function updateMarketStatus() {
+  var s = getMarketStatus();
+  document.getElementById('market-dot').className = 'market-dot dot-' + s.cls;
+  document.getElementById('market-text').textContent = s.label;
+  document.getElementById('market-time').textContent = s.time;
+}
+
+// 실시간 가격 (api/quote.js)
+async function fetchTickerQuote(sym) {
+  try {
+    var res = await fetch('/api/quote?symbol=' + sym);
+    if (!res.ok) throw new Error('Quote ' + res.status);
+    var data = await res.json();
+    if (data.error) throw new Error(data.error);
+    
+    return {
+      symbol: sym,
+      price: data.price,
+      prevClose: null,  // quote.js에서 이걸 안 줌, history에서 받기
+      marketState: data.marketState,
+      isLive: data.isLive,
+      lastDate: data.lastDate
+    };
+  } catch (e) {
+    return {symbol: sym, error: e.message};
+  }
+}
+
+// 전일 종가 + 7일 미니 차트 (api/history.js)
+async function fetchHistory(sym) {
+  try {
+    var end = new Date().toISOString().slice(0, 10);
+    var startD = new Date();
+    startD.setDate(startD.getDate() - 14);
+    var start = startD.toISOString().slice(0, 10);
+    
+    var res = await fetch('/api/history?symbol=' + sym + '&start=' + start + '&end=' + end);
+    if (!res.ok) return null;
+    var data = await res.json();
+    if (!data.bars || data.bars.length < 2) return null;
+    
+    return {
+      prevClose: data.bars[data.bars.length - 1].close,
+      chartData: data.bars.slice(-7).map(function(b){return b.close;})
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+function makeMiniChart(data, isUp) {
+  if (!data || data.length < 2) return '';
+  var min = Math.min.apply(null, data);
+  var max = Math.max.apply(null, data);
+  var range = max - min || 1;
+  var w = 60;
+  var h = 32;
+  var pad = 2;
+  var pts = data.map(function(v, i) {
+    var x = pad + (i / (data.length - 1)) * (w - pad * 2);
+    var y = pad + (1 - (v - min) / range) * (h - pad * 2);
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+  var color = isUp ? '#30d158' : '#ff453a';
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none"><polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+
+async function fetchAll() {
+  var listEl = document.getElementById('tickers-list');
+  if (!Object.keys(TICKER_DATA).length) {
+    listEl.innerHTML = '<div class="loading">⏳ 데이터 가져오는 중...</div>';
+  }
+  
+  // 병렬 가져오기
+  var promises = TICKERS.map(function(t) {
+    return Promise.all([
+      fetchTickerQuote(t.sym),
+      fetchHistory(t.sym)
+    ]).then(function(results) {
+      var quote = results[0];
+      var hist = results[1];
+      
+      if (quote && !quote.error && hist) {
+        quote.prevClose = hist.prevClose;
+        quote.chartData = hist.chartData;
+        quote.change = quote.price - quote.prevClose;
+        quote.changePct = (quote.change / quote.prevClose) * 100;
+      }
+      
+      TICKER_DATA[t.sym] = quote;
+      return quote;
+    });
+  });
+  
+  await Promise.all(promises);
+  renderTickers();
+  
+  var now = new Date();
+  document.getElementById('last-update').textContent = '마지막 갱신 ' + now.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+function renderTickers() {
+  var listEl = document.getElementById('tickers-list');
+  if (TICKERS.length === 0) {
+    listEl.innerHTML = '<div class="loading">종목이 없습니다</div>';
+    return;
+  }
+  
+  var html = '';
+  for (var i = 0; i < TICKERS.length; i++) {
+    var t = TICKERS[i];
+    var r = TICKER_DATA[t.sym];
+    
+    if (!r) {
+      html += '<div class="ticker-row-wrap"><button class="delete-action" onclick="delTicker(\'' + t.sym + '\')">삭제</button><div class="ticker-row" data-sym="' + t.sym + '"><div class="ticker-left"><div class="ticker-symbol">' + t.sym + '</div><div class="ticker-name">' + t.name + '</div></div><div class="ticker-mini-chart"></div><div class="ticker-right"><div class="ticker-price">--</div></div></div></div>';
+      continue;
+    }
+    
+    if (r.error) {
+      html += '<div class="ticker-row-wrap"><button class="delete-action" onclick="delTicker(\'' + t.sym + '\')">삭제</button><div class="ticker-row" data-sym="' + t.sym + '"><div class="ticker-left"><div class="ticker-symbol">' + t.sym + '</div><div class="error">⚠️ ' + r.error + '</div></div><div></div><div></div></div></div>';
+      continue;
+    }
+    
+    var isUp = r.change >= 0;
+    var dirCls = isUp ? 'up' : 'dn';
+    var sign = isUp ? '+' : '';
+    var chart = makeMiniChart(r.chartData, isUp);
+    
+    var stateTag = '';
+    if (r.marketState === 'PRE') stateTag = '<span class="market-state-tag">프리</span>';
+    else if (r.marketState === 'POST') stateTag = '<span class="market-state-tag post">애프터</span>';
+    
+    html += '<div class="ticker-row-wrap">';
+    html += '<button class="delete-action" onclick="delTicker(\'' + t.sym + '\')">삭제</button>';
+    html += '<div class="ticker-row ' + dirCls + '" data-sym="' + t.sym + '">';
+    html += '<div class="ticker-left">';
+    html += '<div class="ticker-symbol">' + t.sym + '</div>';
+    html += '<div class="ticker-name">' + t.name + '</div>';
+    html += stateTag;
+    html += '</div>';
+    html += '<div class="ticker-mini-chart">' + chart + '</div>';
+    html += '<div class="ticker-right">';
+    html += '<div class="ticker-price">' + r.price.toFixed(2) + '</div>';
+    html += '<div class="ticker-change-box">' + sign + r.changePct.toFixed(2) + '%</div>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+  }
+  
+  listEl.innerHTML = html;
+  
+  // 슬라이드 이벤트 다시 연결
+  setupSwipe();
+}
+
+// 슬라이드 삭제 (아이폰 스타일)
+var swipeStartX = null;
+var swipeStartY = null;
+var swipeRow = null;
+var swipeMoved = false;
+
+function setupSwipe() {
+  document.querySelectorAll('.ticker-row').forEach(function(row) {
+    row.addEventListener('touchstart', onTouchStart, {passive: true});
+    row.addEventListener('touchmove', onTouchMove, {passive: false});
+    row.addEventListener('touchend', onTouchEnd, {passive: true});
+  });
+}
+
+function onTouchStart(e) {
+  swipeStartX = e.touches[0].clientX;
+  swipeStartY = e.touches[0].clientY;
+  swipeRow = e.currentTarget;
+  swipeMoved = false;
+}
+
+function onTouchMove(e) {
+  if (!swipeRow) return;
+  var dx = e.touches[0].clientX - swipeStartX;
+  var dy = e.touches[0].clientY - swipeStartY;
+  
+  if (Math.abs(dy) > Math.abs(dx)) {
+    swipeRow = null;
+    return;
+  }
+  
+  if (dx < -10) {
+    e.preventDefault();
+    swipeMoved = true;
+    var translate = Math.max(-90, dx);
+    swipeRow.style.transform = 'translateX(' + translate + 'px)';
+  } else if (dx > 10 && swipeRow.classList.contains('swiped')) {
+    e.preventDefault();
+    swipeMoved = true;
+  }
+}
+
+function onTouchEnd(e) {
+  if (!swipeRow || !swipeMoved) {
+    swipeRow = null;
+    return;
+  }
+  
+  var dx = (e.changedTouches[0].clientX - swipeStartX);
+  
+  if (dx < -45) {
+    swipeRow.classList.add('swiped');
+    swipeRow.style.transform = '';
+  } else {
+    swipeRow.classList.remove('swiped');
+    swipeRow.style.transform = '';
+  }
+  
+  swipeRow = null;
+}
+
+// 다른 곳 터치 시 슬라이드 리셋
+document.addEventListener('touchstart', function(e) {
+  var row = e.target.closest('.ticker-row');
+  var deleteBtn = e.target.closest('.delete-action');
+  if (!row && !deleteBtn) {
+    document.querySelectorAll('.ticker-row.swiped').forEach(function(r) {
+      r.classList.remove('swiped');
+    });
+  }
+}, {passive: true});
+
+function addTicker() {
+  var sym = prompt('종목 코드 (예: NVDA, TSLA):');
+  if (!sym) return;
+  var u = sym.toUpperCase().trim();
+  if (!u) return;
+  if (TICKERS.find(function(t){return t.sym === u;})) {
+    alert('이미 있음');
+    return;
+  }
+  var name = prompt('종목 이름 (선택):', u) || u;
+  TICKERS.push({sym: u, name: name});
+  saveTickers();
+  fetchAll();
+}
+
+function delTicker(sym) {
+  if (TICKERS.length <= 1) {
+    alert('최소 1개 필요');
+    return;
+  }
+  if (!confirm(sym + ' 삭제?')) return;
+  TICKERS = TICKERS.filter(function(t) { return t.sym !== sym; });
+  delete TICKER_DATA[sym];
+  saveTickers();
+  renderTickers();
+}
+
+function toggleAuto() {
+  var checked = document.getElementById('autoRefresh').checked;
+  if (checked) {
+    autoTimer = setInterval(fetchAll, 10000);
+  } else {
+    if (autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+    }
+  }
+}
+
+updateDate();
+updateMarketStatus();
+setInterval(updateMarketStatus, 30000);
+fetchAll();
+</script>
+
+</body>
+</html>
