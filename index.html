@@ -58,8 +58,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .diary-table tr.today td{color:var(--accent);font-weight:800}
 .cell-up{color:var(--green)}
 .cell-dn{color:var(--red)}
-.cell-2u{color:var(--green);font-weight:700}
-.cell-4u{color:var(--red);font-weight:700}
+.cell-2u{color:#4ade80;font-weight:800;background:rgba(34,197,94,0.18);border-radius:6px;padding:4px 8px;display:inline-block}
+.cell-4u{color:#f87171;font-weight:800;background:rgba(239,68,68,0.18);border-radius:6px;padding:4px 8px;display:inline-block}
 .cell-zone-top{color:var(--top)}
 .cell-zone-mid{color:var(--mid)}
 .cell-zone-bot{color:var(--bot)}
@@ -92,6 +92,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .sb-row .k{color:var(--dim)}
 .sb-row .v{font-family:'JetBrains Mono',monospace;font-weight:700}
 .note{background:#0a0a14;border-radius:8px;padding:12px;font-size:13px;color:var(--dim);line-height:1.7;margin-top:8px}
+.btn-edit{background:rgba(34,197,94,0.15);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer}
+.btn-edit:hover{background:rgba(34,197,94,0.25)}
 </style>
 </head>
 <body>
@@ -219,7 +221,7 @@ function render(){
       h+='<div class="card" style="text-align:center;color:var(--dim);padding:30px">일지가 비어있습니다.<br><small>위 "🔄 일지 갱신" 버튼을 누르세요</small></div>';
     }else{
       const reversed=[...p.diary].reverse();
-      h+='<div class="card" style="padding:0;overflow-x:auto"><div style="padding:14px 14px 8px"><div class="ct" style="margin:0">📊 매매일지 (총 '+p.diary.length+'일) · 체결한 날 ✅ 표시</div></div><table class="diary-table"><thead><tr><th>날짜</th><th>종가</th><th>vs전날</th><th>구간</th><th>주수</th><th>매도점<br>(고정)</th><th>체결</th></tr></thead><tbody>';
+      h+='<div class="card" style="padding:0;overflow-x:auto"><div style="padding:14px 14px 8px"><div class="ct" style="margin:0">📊 매매일지 (총 '+p.diary.length+'일) · ✅ 클릭시 수정/삭제</div></div><table class="diary-table"><thead><tr><th>날짜</th><th>종가</th><th>vs전날</th><th>구간</th><th>주수</th><th>매도점<br>(고정)</th><th>체결</th></tr></thead><tbody>';
       const todayDate=td();
       reversed.forEach(d=>{
         const isToday=d.date===todayDate;
@@ -236,7 +238,13 @@ function render(){
         if(filledInPos){sharesDisplay=filledInPos.s+'주';}
         else if(filledInHist){sharesDisplay=filledInHist.s+'주';}
         else{const uw=p.seed/TU;sharesDisplay=Math.floor(d.units*uw/d.close)+'주';}
-        h+='<tr class="'+(isToday?'today':'')+'" '+(isFilled?'style="background:rgba(34,197,94,0.06)"':'')+'><td>'+d.date.slice(5)+'</td><td>$'+d.close+'</td><td class="'+vsCls+'">'+(d.vsPrev>0?'+':'')+d.vsPrev+'%</td><td class="'+zCls+'">'+zLabel+'</td><td class="'+uCls+'">'+sharesDisplay+'</td><td style="color:var(--green);font-weight:700">$'+sellPoint+'</td><td>'+(isFilled?'<span style="color:var(--green);font-weight:700">✅</span>':'<button onclick="quickFillBuy(\''+d.date+'\','+d.close+','+d.units+')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">체결</button>')+'</td></tr>';
+        let actionBtn;
+        if(isFilled){
+          actionBtn='<button class="btn-edit" onclick="editFill(\''+d.date+'\')">✅ 수정</button>';
+        }else{
+          actionBtn='<button onclick="quickFillBuy(\''+d.date+'\','+d.close+','+d.units+')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">체결</button>';
+        }
+        h+='<tr class="'+(isToday?'today':'')+'" '+(isFilled?'style="background:rgba(34,197,94,0.06)"':'')+'><td>'+d.date.slice(5)+'</td><td>$'+d.close+'</td><td class="'+vsCls+'">'+(d.vsPrev>0?'+':'')+d.vsPrev+'%</td><td class="'+zCls+'">'+zLabel+'</td><td><span class="'+uCls+'">'+sharesDisplay+'</span></td><td style="color:var(--green);font-weight:700">$'+sellPoint+'</td><td>'+actionBtn+'</td></tr>';
       });
       h+='</tbody></table></div>';
       const last=p.diary[p.diary.length-1];
@@ -353,6 +361,55 @@ function confirmQuickFill(diaryDate,diaryClose,zone){
   save();closeModal();
   const sellPoint=(diaryClose*(1+ZONES[zone].tp)).toFixed(2);
   alert('✅ T'+p.pos.length+' 체결 기록!\n\n매수: '+actualShares+'주 @ $'+actualPrice+'\n매도 LOC: $'+sellPoint+' (일지 기준 고정)');
+  render();
+}
+function editFill(date){
+  const p=curPort();
+  const posIdx=p.pos.findIndex(pp=>pp.d===date);
+  const histIdx=p.hist.findIndex(r=>r.a==='B'&&r.d===date);
+  if(posIdx>=0){
+    const pp=p.pos[posIdx];
+    const sellPoint=((pp.diaryClose||pp.e)*(1+ZONES[pp.z].tp)).toFixed(2);
+    showModal('<h3>✏️ '+date+' 체결 수정</h3><div class="desc">현재 기록: <b>'+pp.s+'주 @ $'+pp.e+'</b> ('+pp.u+'u, '+ZONES[pp.z].label+')<br><span style="color:var(--green)">매도점: $'+sellPoint+'</span></div><div class="ir"><label>매수 날짜</label><input type="date" id="ef-date" value="'+pp.d+'"><span class="u">📅</span></div><div class="ir"><label>실제 체결가</label><input type="number" step="0.01" id="ef-price" value="'+pp.e+'"><span class="u">$</span></div><div class="ir"><label>유닛</label><input type="number" id="ef-units" value="'+pp.u+'"><span class="u">u</span></div><div class="ir"><label>실제 주수</label><input type="number" id="ef-shares" value="'+pp.s+'"><span class="u">주</span></div><div class="note" style="margin-top:8px;color:var(--red)">⚠️ 삭제하면 보유에서도 사라집니다 (실수로 체결 누른 경우)</div><div class="btn-row"><button class="btn btn-d" onclick="closeModal()">취소</button><button class="btn btn-r" onclick="deleteFill(\''+date+'\','+posIdx+','+histIdx+')">🗑️ 삭제</button><button class="btn btn-b" onclick="saveEditFill('+posIdx+','+histIdx+')">저장</button></div>');
+  }
+  else if(histIdx>=0){
+    const r=p.hist[histIdx];
+    showModal('<h3>📜 '+date+' 매수 기록 (매도 완료)</h3><div class="desc">이미 매도된 매수 기록입니다.<br>매수: <b>'+r.s+'주 @ $'+r.e+'</b> ('+r.u+'u)<br><br>📜 기록 탭에서 매도 기록도 확인하세요.<br><br>⚠️ 매도된 기록은 수정 불가 (회계 보존)</div><div class="btn-row"><button class="btn btn-d" onclick="closeModal()">닫기</button></div>');
+  }
+}
+function saveEditFill(posIdx,histIdx){
+  const p=curPort();
+  const newDate=$('ef-date').value;
+  const newPrice=parseFloat($('ef-price').value);
+  const newUnits=parseInt($('ef-units').value);
+  const newShares=parseInt($('ef-shares').value);
+  if(!newDate)return alert('날짜 입력');
+  if(!newPrice||newPrice<=0)return alert('가격 입력');
+  if(!newUnits||newUnits<=0)return alert('유닛 입력');
+  if(!newShares||newShares<=0)return alert('주수 입력');
+  if(posIdx>=0){
+    p.pos[posIdx].d=newDate;
+    p.pos[posIdx].e=newPrice;
+    p.pos[posIdx].u=newUnits;
+    p.pos[posIdx].s=newShares;
+  }
+  if(histIdx>=0){
+    p.hist[histIdx].d=newDate;
+    p.hist[histIdx].e=newPrice;
+    p.hist[histIdx].u=newUnits;
+    p.hist[histIdx].s=newShares;
+  }
+  save();closeModal();
+  alert('✅ 수정 완료!\n'+newShares+'주 @ $'+newPrice);
+  render();
+}
+function deleteFill(date,posIdx,histIdx){
+  if(!confirm(date+' 체결 기록을 정말 삭제하시겠습니까?\n\n보유에서도 사라지고, 매수 기록도 삭제됩니다.'))return;
+  const p=curPort();
+  if(posIdx>=0)p.pos.splice(posIdx,1);
+  if(histIdx>=0)p.hist.splice(histIdx,1);
+  save();closeModal();
+  alert('🗑️ 삭제 완료');
   render();
 }
 function toggleLivePrice(){window._showLivePrice=!window._showLivePrice;render();if(window._showLivePrice){setTimeout(()=>{const el=$('cp-live-quick');if(el)el.focus();},100);}}
