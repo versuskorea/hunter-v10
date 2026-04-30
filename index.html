@@ -150,6 +150,7 @@ const td=()=>new Date().toISOString().slice(0,10);
 const curPort=()=>portfolios[activeSymbol];
 const save=()=>{localStorage.setItem('v13-portfolios',JSON.stringify(portfolios));localStorage.setItem('v13-active',activeSymbol);};
 const db=(a,b)=>{try{if(!a||!b)return 0;const d1=new Date(a),d2=new Date(b);if(isNaN(d1.getTime())||isNaN(d2.getTime()))return 0;let days=0,cur=new Date(d1);while(cur<d2){cur.setDate(cur.getDate()+1);if(cur.getDay()!==0&&cur.getDay()!==6)days++;}return days;}catch(e){return 0;}};
+const addBd=(dateStr,n)=>{try{const d=new Date(dateStr);let added=0;while(added<n){d.setDate(d.getDate()+1);if(d.getDay()!==0&&d.getDay()!==6)added++;}return (d.getMonth()+1)+'/'+d.getDate();}catch(e){return '';}};
 function getZoneFor(close,high20){if(!close||!high20)return 'top';const dd=(close-high20)/high20*100;if(dd>=TOP_TH)return 'top';if(dd<=BOT_TH)return 'bot';return 'mid';}
 function getZone(){const p=curPort();return getZoneFor(p.priceClose,p.high20);}
 function switchSymbol(sym){save();activeSymbol=sym;if(!portfolios[sym])portfolios[sym]={seed:100000,startDate:'',priceClose:0,priceLive:0,high20:0,priceDate:'',diary:[],pos:[],hist:[]};save();render();}
@@ -274,7 +275,7 @@ function render(){
           const remDays=pz.fd-days;
           const isForce=days>=pz.fd;
           const zL={top:'천장',mid:'중간',bot:'바닥'};
-          h+='<tr class="sell-row"><td><b>T'+(idx+1)+'</b><br><span style="font-size:10px;color:var(--dim)">'+zL[pp.z]+' D+'+days+'/'+pz.fd+'</span></td><td class="act-sell">매도</td><td>LOC</td><td class="price-cell">$'+sellPrice+(isForce?' ⚠️':'')+'</td><td>'+pp.s+'</td></tr>';
+          h+='<tr class="sell-row"><td><b>T'+(idx+1)+'</b><br><span style="font-size:10px;color:var(--dim)">'+zL[pp.z]+' ~'+addBd(pp.d,pz.fd)+'</span></td><td class="act-sell">매도</td><td>LOC</td><td class="price-cell">$'+sellPrice+(isForce?' ⚠️':'')+'</td><td>'+pp.s+'</td></tr>';
         });
       }
       if(totalU<TU){
@@ -297,7 +298,7 @@ function render(){
     const livePrice=p.priceLive||p.priceClose;
     const totalU=p.pos.reduce((a,pp)=>a+pp.u,0);
     const remU=TU-totalU;
-    h+='<div class="card" style="padding:0"><div style="padding:12px 14px 6px"><div class="ct" style="margin:0">📦 보유 현황 '+(p.priceLive?'(실시간)':'(전날종가)')+'</div></div><table class="tier-table"><thead><tr><th>티어</th><th>매수일</th><th>매수가</th><th>수량</th><th>유닛</th><th>매도점</th><th>D+일</th><th>손익</th></tr></thead><tbody>';
+    h+='<div class="card" style="padding:0"><div style="padding:12px 14px 6px"><div class="ct" style="margin:0">📦 보유 현황 '+(p.priceLive?'(실시간)':'(전날종가)')+'</div></div><table class="tier-table"><thead><tr><th>티어</th><th>매수일</th><th>매수가</th><th>수량</th><th>유닛</th><th>매도점</th><th>강제청산</th><th>손익</th></tr></thead><tbody>';
     p.pos.forEach((pp,idx)=>{
       const pz=ZONES[pp.z];
       const basePriceForSell=pp.diaryClose||pp.e;
@@ -306,7 +307,7 @@ function render(){
       const pnl=livePrice?((livePrice-pp.e)/pp.e*100).toFixed(2):0;
       const pnlCls=pnl>=0?'pnl-up':'pnl-dn';
       const isForce=days>=pz.fd;
-      h+='<tr '+(isForce?'style="background:rgba(239,68,68,0.08)"':'')+'><td><b>T'+(idx+1)+'</b></td><td>'+pp.d.slice(5)+'</td><td>$'+pp.e+'</td><td>'+pp.s+'</td><td>'+pp.u+'u</td><td>$'+sellPrice+'</td><td>'+days+'/'+pz.fd+(isForce?'⚠️':'')+'</td><td class="'+pnlCls+'">'+(pnl>=0?'+':'')+pnl+'%</td></tr>';
+      h+='<tr '+(isForce?'style="background:rgba(239,68,68,0.08)"':'')+'><td><b>T'+(idx+1)+'</b></td><td>'+pp.d.slice(5)+'</td><td>$'+pp.e+'</td><td>'+pp.s+'</td><td>'+pp.u+'u</td><td>$'+sellPrice+'</td><td>~'+addBd(pp.d,pz.fd)+(isForce?'⚠️':'')+'</td><td class="'+pnlCls+'">'+(pnl>=0?'+':'')+pnl+'%</td></tr>';
     });
     if(p.pos.length===0){h+='<tr class="empty"><td colspan="8" style="padding:20px;color:var(--dim);font-style:italic">보유 티어 없음</td></tr>';}
     h+='</tbody></table></div><div class="card"><div class="sb-row"><span class="k">보유 유닛</span><span class="v">'+totalU+'/'+TU+' ('+remU+'u 남음)</span></div><div class="sb-row"><span class="k">보유 주수</span><span class="v">'+p.pos.reduce((a,pp)=>a+pp.s,0)+'주</span></div><div class="sb-row"><span class="k">시드</span><span class="v" style="color:var(--green)">$'+p.seed.toLocaleString()+'</span></div><div class="sb-row"><span class="k">유닛 단가</span><span class="v">$'+(p.seed/TU).toFixed(0)+'</span></div></div><div class="note" style="margin-top:8px">💡 매수 체결은 <b style="color:var(--accent)">📋 주문 탭</b>에서 일지의 "체결" 버튼으로 입력하세요<br>💡 여기서는 매도만 가능 (티어 클릭 또는 "매도 기록")</div>';
