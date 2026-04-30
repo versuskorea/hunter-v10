@@ -275,7 +275,7 @@ function render(){
           const remDays=pz.fd-days;
           const isForce=days>=pz.fd;
           const zL={top:'천장',mid:'중간',bot:'바닥'};
-          h+='<tr class="sell-row"><td><b>T'+(idx+1)+'</b><br><span style="font-size:10px;color:var(--dim)">'+zL[pp.z]+' ~'+addBd(pp.d,pz.fd)+'</span></td><td class="act-sell">매도</td><td>LOC</td><td class="price-cell">$'+sellPrice+(isForce?' ⚠️':'')+'</td><td>'+pp.s+'</td></tr>';
+          h+='<tr class="sell-row"><td><b>T'+(idx+1)+'</b><br><span style="font-size:11px;color:var(--top);font-weight:700">'+zL[pp.z]+'</span></td><td class="act-sell">매도</td><td>LOC</td><td class="price-cell">$'+sellPrice+(isForce?' ⚠️':'')+'<br><span style="font-size:13px;color:var(--gold);font-weight:800">~'+addBd(pp.d,pz.fd)+'까지</span></td><td>'+pp.s+'</td></tr>';
         });
       }
       if(totalU<TU){
