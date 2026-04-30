@@ -219,7 +219,7 @@ function render(){
       h+='<div class="card" style="text-align:center;color:var(--dim);padding:30px">일지가 비어있습니다.<br><small>위 "🔄 일지 갱신" 버튼을 누르세요</small></div>';
     }else{
       const reversed=[...p.diary].reverse();
-      h+='<div class="card" style="padding:0;overflow-x:auto"><div style="padding:14px 14px 8px"><div class="ct" style="margin:0">📊 매매일지 (총 '+p.diary.length+'일) · 체결한 날 ✅ 표시</div></div><table class="diary-table"><thead><tr><th>날짜</th><th>종가</th><th>vs전날</th><th>구간</th><th>유닛</th><th>매도점<br>(고정)</th><th>체결</th></tr></thead><tbody>';
+      h+='<div class="card" style="padding:0;overflow-x:auto"><div style="padding:14px 14px 8px"><div class="ct" style="margin:0">📊 매매일지 (총 '+p.diary.length+'일) · 체결한 날 ✅ 표시</div></div><table class="diary-table"><thead><tr><th>날짜</th><th>종가</th><th>vs전날</th><th>구간</th><th>주수</th><th>매도점<br>(고정)</th><th>체결</th></tr></thead><tbody>';
       const todayDate=td();
       reversed.forEach(d=>{
         const isToday=d.date===todayDate;
@@ -232,7 +232,11 @@ function render(){
         const filledInPos=p.pos.find(pp=>pp.d===d.date);
         const filledInHist=p.hist.find(r=>r.a==='B'&&r.d===d.date);
         const isFilled=!!filledInPos||!!filledInHist;
-        h+='<tr class="'+(isToday?'today':'')+'" '+(isFilled?'style="background:rgba(34,197,94,0.06)"':'')+'><td>'+d.date.slice(5)+'</td><td>$'+d.close+'</td><td class="'+vsCls+'">'+(d.vsPrev>0?'+':'')+d.vsPrev+'%</td><td class="'+zCls+'">'+zLabel+'</td><td class="'+uCls+'">'+d.units+'u</td><td style="color:var(--green);font-weight:700">$'+sellPoint+'</td><td>'+(isFilled?'<span style="color:var(--green);font-weight:700">✅</span>':'<button onclick="quickFillBuy(\''+d.date+'\','+d.close+','+d.units+')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">체결</button>')+'</td></tr>';
+        let sharesDisplay;
+        if(filledInPos){sharesDisplay=filledInPos.s+'주';}
+        else if(filledInHist){sharesDisplay=filledInHist.s+'주';}
+        else{const uw=p.seed/TU;sharesDisplay=Math.floor(d.units*uw/d.close)+'주';}
+        h+='<tr class="'+(isToday?'today':'')+'" '+(isFilled?'style="background:rgba(34,197,94,0.06)"':'')+'><td>'+d.date.slice(5)+'</td><td>$'+d.close+'</td><td class="'+vsCls+'">'+(d.vsPrev>0?'+':'')+d.vsPrev+'%</td><td class="'+zCls+'">'+zLabel+'</td><td class="'+uCls+'">'+sharesDisplay+'</td><td style="color:var(--green);font-weight:700">$'+sellPoint+'</td><td>'+(isFilled?'<span style="color:var(--green);font-weight:700">✅</span>':'<button onclick="quickFillBuy(\''+d.date+'\','+d.close+','+d.units+')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">체결</button>')+'</td></tr>';
       });
       h+='</tbody></table></div>';
       const last=p.diary[p.diary.length-1];
@@ -392,11 +396,9 @@ function doSell(idx){
   if(sd<pp.d)return alert('매수일('+pp.d+') 이후');
   const pnl=(sp-pp.e)/pp.e*100;
   const realized=(sp-pp.e)*pp.s;
-  // 🆕 시드 자동 증액 X (한 사이클 시드 유지)
   p.hist.push({a:'S',d:sd,e:sp,u:pp.u,s:pp.s,z:pp.z,pnl:pnl,buyPrice:pp.e,realized:realized});
   p.pos.splice(idx,1);
   save();closeModal();
-  // 🆕 사이클 완료 (보유 0u) = T1까지 매도 = 시드 수정 알림
   if(p.pos.length===0){
     const allSells=p.hist.filter(r=>r.a==='S'&&r.realized!==undefined);
     const cumulativeRealized=allSells.reduce((sum,r)=>sum+(r.realized||0),0);
@@ -413,7 +415,6 @@ function applyCycleSeed(newSeed){
   const p=curPort();
   const oldSeed=p.seed;
   p.seed=Math.round(newSeed);
-  // 누적 매도 수익을 시드에 반영했으므로 모든 매도 기록의 realized를 0으로 (다음 사이클 새로 누적)
   p.hist.forEach(r=>{if(r.a==='S')r.realized=0;});
   save();closeModal();
   alert('💰 시드 업데이트!\n$'+oldSeed.toLocaleString()+' → $'+p.seed.toLocaleString()+'\n\n다음 사이클 시작!');
