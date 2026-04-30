@@ -267,7 +267,8 @@ function render(){
       if(p.pos.length===0){
         h+='<tr><td colspan="5" style="color:var(--dim);font-style:italic;padding:12px">보유 티어 없음 (매도 LOC 없음)</td></tr>';
       }else{
-        p.pos.forEach((pp,idx)=>{
+        const sortedPos=[...p.pos].sort((a,b)=>a.d.localeCompare(b.d));
+        sortedPos.forEach((pp,idx)=>{
           const pz=ZONES[pp.z];
           const basePriceForSell=pp.diaryClose||pp.e;
           const sellPrice=(basePriceForSell*(1+pz.tp)).toFixed(2);
@@ -275,7 +276,7 @@ function render(){
           const remDays=pz.fd-days;
           const isForce=days>=pz.fd;
           const zL={top:'천장',mid:'중간',bot:'바닥'};
-          h+='<tr class="sell-row"><td><b>T'+(idx+1)+'</b><br><span style="font-size:11px;color:var(--top);font-weight:700">'+zL[pp.z]+'</span></td><td class="act-sell">매도</td><td>LOC</td><td class="price-cell">$'+sellPrice+(isForce?' ⚠️':'')+'<br><span style="font-size:13px;color:var(--gold);font-weight:800">~'+addBd(pp.d,pz.fd)+'까지</span></td><td>'+pp.s+'</td></tr>';
+          h+='<tr class="sell-row"><td><b>T'+(idx+1)+'</b><br><span style="font-size:11px;color:var(--text);font-weight:600">'+pp.d.slice(5)+'</span><br><span style="font-size:11px;color:var(--top);font-weight:700">'+zL[pp.z]+'</span></td><td class="act-sell">매도</td><td>LOC</td><td class="price-cell">$'+sellPrice+(isForce?' ⚠️':'')+'<br><span style="font-size:13px;color:var(--gold);font-weight:800">~'+addBd(pp.d,pz.fd)+'까지</span></td><td>'+pp.s+'</td></tr>';
         });
       }
       if(totalU<TU){
@@ -299,7 +300,8 @@ function render(){
     const totalU=p.pos.reduce((a,pp)=>a+pp.u,0);
     const remU=TU-totalU;
     h+='<div class="card" style="padding:0"><div style="padding:12px 14px 6px"><div class="ct" style="margin:0">📦 보유 현황 '+(p.priceLive?'(실시간)':'(전날종가)')+'</div></div><table class="tier-table"><thead><tr><th>티어</th><th>매수일</th><th>매수가</th><th>수량</th><th>유닛</th><th>매도점</th><th>강제청산</th><th>손익</th></tr></thead><tbody>';
-    p.pos.forEach((pp,idx)=>{
+    const sortedPosT=[...p.pos].sort((a,b)=>a.d.localeCompare(b.d));
+    sortedPosT.forEach((pp,idx)=>{
       const pz=ZONES[pp.z];
       const basePriceForSell=pp.diaryClose||pp.e;
       const sellPrice=(basePriceForSell*(1+pz.tp)).toFixed(2);
@@ -428,11 +430,14 @@ function openSellModal(){
   const p=curPort();
   if(p.pos.length===0)return alert('보유 티어 없음');
   let h='<h3>📉 매도할 티어 선택</h3>';
-  p.pos.forEach((pp,idx)=>{
+  const sortedWithIdx=p.pos.map((pp,origIdx)=>({pp,origIdx})).sort((a,b)=>a.pp.d.localeCompare(b.pp.d));
+  sortedWithIdx.forEach((item,displayIdx)=>{
+    const pp=item.pp;
+    const origIdx=item.origIdx;
     const pz=ZONES[pp.z];
     const basePriceForSell=pp.diaryClose||pp.e;
     const sellP=(basePriceForSell*(1+pz.tp)).toFixed(2);
-    h+='<button class="btn btn-d" onclick="promptSell('+idx+')" style="text-align:left;margin-top:6px"><b>T'+(idx+1)+'</b> '+pp.s+'주 @ $'+pp.e+' ('+pp.u+'u, '+pz.label+') → 매도점 $'+sellP+'</button>';
+    h+='<button class="btn btn-d" onclick="promptSell('+origIdx+')" style="text-align:left;margin-top:6px"><b>T'+(displayIdx+1)+'</b> '+pp.s+'주 @ $'+pp.e+' ('+pp.u+'u, '+pz.label+') → 매도점 $'+sellP+'</button>';
   });
   h+='<div class="btn-row"><button class="btn btn-d" onclick="closeModal()">취소</button></div>';
   showModal(h);
