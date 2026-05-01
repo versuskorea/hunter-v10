@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-
 <html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>HUNTER v13 매매일지</title>
+<title>HUNTER v14 매매일지</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#08080a;--card:#111118;--card2:#1a1a1f;--border:#222233;--accent:#3b82f6;--green:#22c55e;--red:#ef4444;--text:#f0f0f0;--dim:#666;--radius:16px;--top:#a78bfa;--mid:#3b82f6;--bot:#22c55e;--gold:#fbbf24}
@@ -56,6 +55,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .diary-table tr:hover{background:#0a0a14}
 .diary-table tr.today{background:rgba(59,130,246,0.08)}
 .diary-table tr.today td{color:var(--accent);font-weight:800}
+.diary-table tr.refday{opacity:0.5}
+.diary-table tr.refday td{color:var(--dim)}
 .cell-up{color:var(--green)}
 .cell-dn{color:var(--red)}
 .cell-2u{color:#4ade80;font-weight:800;background:rgba(34,197,94,0.18);border-radius:6px;padding:4px 8px;display:inline-block}
@@ -63,6 +64,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .cell-zone-top{color:var(--top)}
 .cell-zone-mid{color:var(--mid)}
 .cell-zone-bot{color:var(--bot)}
+.ref-badge{font-size:9px;background:rgba(102,102,102,0.3);color:var(--dim);padding:2px 5px;border-radius:4px;font-weight:700;letter-spacing:0.3px;display:inline-block;margin-left:4px}
+.ref-banner{background:#0a0a14;border-left:3px solid var(--gold);padding:10px 12px;border-radius:6px;margin-bottom:10px;font-size:13px;color:var(--text)}
+.ref-banner b{color:var(--gold);font-family:'JetBrains Mono',monospace;font-size:15px}
+.ref-banner small{color:var(--dim);font-size:11px;margin-left:6px}
 .order-table{width:100%;border-collapse:collapse;font-size:14px;font-family:'JetBrains Mono',monospace;margin-top:6px}
 .order-table th{background:#0a0a1a;color:var(--accent);font-size:12px;padding:12px 6px;text-align:center;border-bottom:1px solid var(--accent)}
 .order-table td{padding:12px 6px;text-align:center;border-bottom:1px solid var(--border);color:var(--text);font-weight:700}
@@ -100,7 +105,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 <div class="hdr">
   <h1><span id="ticker-name">SOXL</span> <span>HUNTER</span> 매매일지</h1>
   <div class="tickers-bar" id="tickers-bar"></div>
-  <div class="stats">매일 자동 기록 · 다음날 LOC 자동 계산</div>
+  <div class="stats" id="us-status">매일 자동 기록 · 다음날 LOC 자동 계산</div>
 </div>
 <div class="zone-bar">
   <div class="zone-box" id="zbox-top">천장<div class="pct">+2.5% / 7일</div><div class="rule">-10% 이내</div></div>
@@ -115,7 +120,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 </div>
 <div id="body"></div>
 <a href="/bt.html" style="display:block;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-weight:700;font-size:15px;margin-top:14px;box-shadow:0 4px 16px rgba(249,115,22,0.3)">📊 백테스트 페이지로!</a>
-<div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:#333;margin-top:16px">HUNTER v13 매매일지 · 멀티종목 지원</div>
+<div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:#333;margin-top:16px">HUNTER v14 매매일지 · 멀티종목 지원</div>
 <div id="modal-container"></div>
 <script>
 const TU=20,UP=2,DN=4,TOP_TH=-10,BOT_TH=-15;
@@ -146,8 +151,25 @@ for(const sym in portfolios){
 }
 const $=id=>document.getElementById(id);
 const gv=id=>parseFloat($(id).value)||0;
-const td=()=>new Date().toISOString().slice(0,10);
+const td=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const curPort=()=>portfolios[activeSymbol];
+function getUSMarketStatus(){
+  const now=new Date();
+  const etStr=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'short',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}).format(now);
+  const parts=etStr.split(', ');
+  const weekday=parts[0];const date=parts[1];const time=parts[2];
+  const [h,m]=time.split(':').map(Number);
+  const min=h*60+m;
+  const isWeekday=!['Sat','Sun'].includes(weekday);
+  let status,statusColor,emoji;
+  if(!isWeekday){status='주말 휴장';statusColor='#666';emoji='💤';}
+  else if(min<570){status='장 시작 전';statusColor='#fbbf24';emoji='⏳';}
+  else if(min<960){status='본장 진행중';statusColor='#ef4444';emoji='🔴';}
+  else{status='장 마감';statusColor='#22c55e';emoji='✅';}
+  const wdMap={Mon:'월',Tue:'화',Wed:'수',Thu:'목',Fri:'금',Sat:'토',Sun:'일'};
+  const wdKr=wdMap[weekday]||weekday;
+  return '<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;background:#0a0a14;border:1px solid '+statusColor+';border-radius:6px;font-size:11px;font-family:\'JetBrains Mono\',monospace;font-weight:700;color:'+statusColor+';letter-spacing:0.5px">🇺🇸 '+date+' ('+wdKr+') · '+time+' ET · '+emoji+' '+status+'</div>';
+}
 const save=()=>{localStorage.setItem('v13-portfolios',JSON.stringify(portfolios));localStorage.setItem('v13-active',activeSymbol);};
 const db=(a,b)=>{try{if(!a||!b)return 0;const d1=new Date(a),d2=new Date(b);if(isNaN(d1.getTime())||isNaN(d2.getTime()))return 0;let days=0,cur=new Date(d1);while(cur<d2){cur.setDate(cur.getDate()+1);if(cur.getDay()!==0&&cur.getDay()!==6)days++;}return days;}catch(e){return 0;}};
 const addBd=(dateStr,n)=>{try{const d=new Date(dateStr);let added=0;while(added<n){d.setDate(d.getDate()+1);if(d.getDay()!==0&&d.getDay()!==6)added++;}return (d.getMonth()+1)+'/'+d.getDate();}catch(e){return '';}};
@@ -185,25 +207,63 @@ async function buildDiary(){
     if(data.error){alert('실패: '+data.error);return;}
     if(!data.bars||data.bars.length<21){alert('데이터 부족');return;}
     const startTs=new Date(p.startDate).getTime();
-    let startIdx=-1;
-    for(let i=0;i<data.bars.length;i++){if(new Date(data.bars[i].date).getTime()>=startTs){startIdx=i;break;}}
-    if(startIdx<0){alert('시작일 데이터 없음');return;}
+    // ─── v14: 시작일 직전 거래일 = 참조 / 시작일~오늘 = 거래 ───
+    let refIdx=-1;
+    let firstTradingIdx=-1;
+    for(let i=0;i<data.bars.length;i++){
+      const ts=new Date(data.bars[i].date).getTime();
+      if(ts<startTs)refIdx=i;
+      if(ts>=startTs&&firstTradingIdx<0)firstTradingIdx=i;
+    }
+    if(firstTradingIdx<0&&refIdx<0){alert('시작일 데이터 없음');return;}
+    
     const diary=[];
-    for(let i=startIdx;i<data.bars.length;i++){
-      const bar=data.bars[i];
-      const prevBar=i>0?data.bars[i-1]:null;
-      const start20=Math.max(0,i-19);
-      const last20=data.bars.slice(start20,i+1);
+    
+    // 시작일 직전 거래일 = 참조 (isRef:true)
+    if(refIdx>=0){
+      const bar=data.bars[refIdx];
+      const prevBar=refIdx>0?data.bars[refIdx-1]:null;
+      const start20=Math.max(0,refIdx-19);
+      const last20=data.bars.slice(start20,refIdx+1);
       const high20=Math.max(...last20.map(b=>b.high));
       const vsPrev=prevBar?((bar.close-prevBar.close)/prevBar.close*100):0;
       const nextUnits=(prevBar&&bar.close<prevBar.close)?DN:UP;
       const zone=getZoneFor(bar.close,high20);
-      diary.push({date:bar.date,close:+bar.close.toFixed(2),high20:+high20.toFixed(2),vsPrev:+vsPrev.toFixed(2),units:nextUnits,zone:zone});
+      diary.push({date:bar.date,close:+bar.close.toFixed(2),high20:+high20.toFixed(2),vsPrev:+vsPrev.toFixed(2),units:nextUnits,zone:zone,isRef:true});
     }
+    
+    // 시작일부터 오늘까지 = 거래 (isRef:false)
+    if(firstTradingIdx>=0){
+      for(let i=firstTradingIdx;i<data.bars.length;i++){
+        const bar=data.bars[i];
+        const prevBar=i>0?data.bars[i-1]:null;
+        const start20=Math.max(0,i-19);
+        const last20=data.bars.slice(start20,i+1);
+        const high20=Math.max(...last20.map(b=>b.high));
+        const vsPrev=prevBar?((bar.close-prevBar.close)/prevBar.close*100):0;
+        const nextUnits=(prevBar&&bar.close<prevBar.close)?DN:UP;
+        const zone=getZoneFor(bar.close,high20);
+        diary.push({date:bar.date,close:+bar.close.toFixed(2),high20:+high20.toFixed(2),vsPrev:+vsPrev.toFixed(2),units:nextUnits,zone:zone,isRef:false});
+      }
+    }
+    
     p.diary=diary;
     if(diary.length>0){const last=diary[diary.length-1];p.priceClose=last.close;p.high20=last.high20;p.priceDate=last.date;}
     save();render();
-    alert('✅ '+activeSymbol+' 매매일지 생성!\n\n📅 '+p.startDate+' ~ '+diary[diary.length-1].date+'\n📊 총 '+diary.length+'일\n💰 마지막 종가: $'+diary[diary.length-1].close);
+    
+    const tradingDays=diary.filter(d=>!d.isRef);
+    const refDay=diary.find(d=>d.isRef);
+    let msg='✅ '+activeSymbol+' 매매일지 생성!\n\n';
+    if(refDay)msg+='📌 참조 데이터: '+refDay.date+' ($'+refDay.close+')\n';
+    if(tradingDays.length>0){
+      msg+='📅 거래일: '+tradingDays[0].date+' ~ '+tradingDays[tradingDays.length-1].date+'\n';
+      msg+='📊 총 '+tradingDays.length+'거래일\n';
+      msg+='💰 마지막 종가: $'+tradingDays[tradingDays.length-1].close;
+    }else{
+      msg+='⏳ 시작일 데이터 아직 없음\n';
+      msg+='🛒 참조 데이터로 다음 거래일 LOC 주문표만 표시됩니다';
+    }
+    alert(msg);
   }catch(e){alert('실패: '+e.message);}
 }
 function setStartDate(){const dateEl=$('start-date-in');if(!dateEl)return;curPort().startDate=dateEl.value;save();render();}
@@ -214,18 +274,24 @@ function render(){
   const body=$('body');const p=curPort();let h='';
   if(tab==='d'){
     if(!p.startDate){
-      h+='<div class="start-box"><div class="title">📅 매매 시작일 설정</div><div style="font-size:13px;color:var(--text);margin-bottom:10px">매매를 시작한 날짜를 정하세요. 그 날부터 매일 자동으로 종가/매수점이 기록됩니다.</div><div class="ir"><label>시작일</label><input type="date" id="start-date-in" value="'+td()+'" max="'+td()+'"><span class="u">📅</span></div><button class="btn btn-gold" onclick="setStartDate()">✨ 매매일지 시작</button></div>';
+      h+='<div class="start-box"><div class="title">📅 매매 시작일 설정</div><div style="font-size:13px;color:var(--text);margin-bottom:10px">매매를 시작할 날짜를 정하세요. 시작일 전날 종가는 참조용으로 표시되며, 시작일부터 매일 자동으로 종가/매수점이 기록됩니다.</div><div class="ir"><label>시작일</label><input type="date" id="start-date-in" value="'+td()+'" max="'+td()+'"><span class="u">📅</span></div><button class="btn btn-gold" onclick="setStartDate()">✨ 매매일지 시작</button></div>';
       body.innerHTML=h;return;
     }
-    h+='<div class="card" style="border:1px solid var(--accent)"><div class="ct">📅 매매일지 ('+p.startDate+' ~)</div><div class="ir"><label>시작일</label><input type="date" id="start-date-in" value="'+p.startDate+'" max="'+td()+'" onchange="setStartDate()"><span class="u">📅</span></div><button class="btn btn-fetch" onclick="buildDiary()">🔄 야후에서 일지 갱신 (오늘까지)</button><div class="note">※ 시작일부터 오늘까지 모든 거래일 종가 + 20일 전고 + 다음날 유닛 자동 기록</div></div>';
+    h+='<div class="card" style="border:1px solid var(--accent)"><div class="ct">📅 매매일지 ('+p.startDate+' ~)</div><div class="ir"><label>시작일</label><input type="date" id="start-date-in" value="'+p.startDate+'" max="'+td()+'" onchange="setStartDate()"><span class="u">📅</span></div><button class="btn btn-fetch" onclick="buildDiary()">🔄 야후에서 일지 갱신 (오늘까지)</button><div class="note">※ 시작일 전날 = 참조 데이터 (체결 X, 흐리게)<br>※ 시작일부터 = 거래일 (체결 가능)</div></div>';
+    
+    const tradingDays=p.diary.filter(d=>!d.isRef);
+    const refDay=p.diary.find(d=>d.isRef);
+    
     if(p.diary.length===0){
       h+='<div class="card" style="text-align:center;color:var(--dim);padding:30px">일지가 비어있습니다.<br><small>위 "🔄 일지 갱신" 버튼을 누르세요</small></div>';
     }else{
       const reversed=[...p.diary].reverse();
-      h+='<div class="card" style="padding:0;overflow-x:auto"><div style="padding:14px 14px 8px"><div class="ct" style="margin:0">📊 매매일지 (총 '+p.diary.length+'일) · ✅ 클릭시 수정/삭제</div></div><table class="diary-table"><thead><tr><th>날짜</th><th>종가</th><th>vs전날</th><th>구간</th><th>주수</th><th>매도점<br>(고정)</th><th>체결</th></tr></thead><tbody>';
+      const tradingCount=tradingDays.length;
+      h+='<div class="card" style="padding:0;overflow-x:auto"><div style="padding:14px 14px 8px"><div class="ct" style="margin:0">📊 매매일지 (거래 '+tradingCount+'일'+(refDay?' + 참조 1일':'')+') · ✅ 클릭시 수정/삭제</div></div><table class="diary-table"><thead><tr><th>날짜</th><th>종가</th><th>vs전날</th><th>구간</th><th>주수</th><th>매도점<br>(고정)</th><th>체결</th></tr></thead><tbody>';
       const todayDate=td();
       reversed.forEach(d=>{
         const isToday=d.date===todayDate;
+        const isRef=d.isRef===true;
         const vsCls=d.vsPrev>0?'cell-up':(d.vsPrev<0?'cell-dn':'');
         const uCls=d.units===DN?'cell-4u':'cell-2u';
         const zCls='cell-zone-'+d.zone;
@@ -239,15 +305,27 @@ function render(){
         if(filledInPos){sharesDisplay=filledInPos.s+'주';}
         else if(filledInHist){sharesDisplay=filledInHist.s+'주';}
         else{const uw=p.seed/TU;sharesDisplay=Math.floor(d.units*uw/d.close)+'주';}
+        
+        // ─── v14: 참조일은 체결 버튼 X, 거래일만 체결 가능 ───
         let actionBtn;
-        if(isFilled){
+        if(isRef){
+          actionBtn='<span class="ref-badge">참조</span>';
+        }else if(isFilled){
           actionBtn='<button class="btn-edit" onclick="editFill(\''+d.date+'\')">✅ 수정</button>';
         }else{
           actionBtn='<button onclick="quickFillBuy(\''+d.date+'\','+d.close+','+d.units+')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">체결</button>';
         }
-        h+='<tr class="'+(isToday?'today':'')+'" '+(isFilled?'style="background:rgba(34,197,94,0.06)"':'')+'><td>'+d.date.slice(5)+'</td><td>$'+d.close+'</td><td class="'+vsCls+'">'+(d.vsPrev>0?'+':'')+d.vsPrev+'%</td><td class="'+zCls+'">'+zLabel+'</td><td><span class="'+uCls+'">'+sharesDisplay+'</span></td><td style="color:var(--green);font-weight:700">$'+sellPoint+'</td><td>'+actionBtn+'</td></tr>';
+        
+        let trClass='';
+        if(isRef)trClass='refday';
+        else if(isToday)trClass='today';
+        const trStyle=(isFilled&&!isRef)?'style="background:rgba(34,197,94,0.06)"':'';
+        
+        h+='<tr class="'+trClass+'" '+trStyle+'><td>'+d.date.slice(5)+(isRef?'<span class="ref-badge">참조</span>':'')+'</td><td>$'+d.close+'</td><td class="'+vsCls+'">'+(d.vsPrev>0?'+':'')+d.vsPrev+'%</td><td class="'+zCls+'">'+zLabel+'</td><td><span class="'+uCls+'">'+sharesDisplay+'</span></td><td style="color:var(--green);font-weight:700">$'+sellPoint+'</td><td>'+actionBtn+'</td></tr>';
       });
       h+='</tbody></table></div>';
+      
+      // 주문표 — last = 매매일지 마지막 행 (참조든 거래든)
       const last=p.diary[p.diary.length-1];
       const lastClose=last.close;
       const nextUnits=last.units;
@@ -263,7 +341,11 @@ function render(){
       const nextDateDisplay=(nextDate.getMonth()+1)+'월 '+nextDate.getDate()+'일';
       const totalU=p.pos.reduce((a,pp)=>a+pp.u,0);
       const remU=TU-totalU;
-      h+='<div class="card" style="border:1px solid var(--accent)"><div class="ct" style="color:var(--accent)">🛒 '+nextDateDisplay+' 주문표</div><div style="display:flex;gap:8px;margin-bottom:10px;padding:10px;background:#0a0a14;border-radius:8px;align-items:center"><div style="flex:1.4"><div style="font-size:10px;color:var(--dim);margin-bottom:3px">시드 (수정가능)</div><input type="number" id="seed-quick" value="'+p.seed+'" onchange="updSeedQuick()" style="width:100%;background:transparent;border:1px solid var(--green);border-radius:6px;padding:7px 8px;color:var(--green);font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800;text-align:center;outline:none"></div><div style="flex:1;text-align:center;border-left:1px solid var(--border);padding-left:8px"><div style="font-size:10px;color:var(--dim)">유닛 단가</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800">$'+uw.toFixed(0)+'</div></div><div style="flex:1;text-align:center;border-left:1px solid var(--border);padding-left:8px"><div style="font-size:10px;color:var(--dim)">투입</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800">'+totalU+'/'+TU+'u</div></div></div><div style="font-size:13px;color:var(--dim);margin-bottom:8px">기준: '+last.date+' 종가 $'+lastClose+' · 다음날 <b style="color:'+(nextUnits===DN?'var(--red)':'var(--green)')+'">'+nextUnits+'u</b> 매수</div><table class="order-table"><thead><tr><th>티어</th><th>구분</th><th>방법</th><th>가격</th><th>수량</th></tr></thead><tbody>';
+      
+      // ─── v14: 주문표 상단에 "전날 종가 참조" 배너 ───
+      h+='<div class="card" style="border:1px solid var(--accent)"><div class="ct" style="color:var(--accent)">🛒 '+nextDateDisplay+' 주문표</div>';
+      h+='<div class="ref-banner">전날 종가: <b>$'+lastClose+'</b><small>('+last.date.slice(5)+(last.isRef?' · 참조':'')+' 기준)</small></div>';
+      h+='<div style="display:flex;gap:8px;margin-bottom:10px;padding:10px;background:#0a0a14;border-radius:8px;align-items:center"><div style="flex:1.4"><div style="font-size:10px;color:var(--dim);margin-bottom:3px">시드 (수정가능)</div><input type="number" id="seed-quick" value="'+p.seed+'" onchange="updSeedQuick()" style="width:100%;background:transparent;border:1px solid var(--green);border-radius:6px;padding:7px 8px;color:var(--green);font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800;text-align:center;outline:none"></div><div style="flex:1;text-align:center;border-left:1px solid var(--border);padding-left:8px"><div style="font-size:10px;color:var(--dim)">유닛 단가</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800">$'+uw.toFixed(0)+'</div></div><div style="flex:1;text-align:center;border-left:1px solid var(--border);padding-left:8px"><div style="font-size:10px;color:var(--dim)">투입</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800">'+totalU+'/'+TU+'u</div></div></div><div style="font-size:13px;color:var(--dim);margin-bottom:8px">다음날 <b style="color:'+(nextUnits===DN?'var(--red)':'var(--green)')+'">'+nextUnits+'u</b> 매수</div><table class="order-table"><thead><tr><th>티어</th><th>구분</th><th>방법</th><th>가격</th><th>수량</th></tr></thead><tbody>';
       if(p.pos.length===0){
         h+='<tr><td colspan="5" style="color:var(--dim);font-style:italic;padding:12px">보유 티어 없음 (매도 LOC 없음)</td></tr>';
       }else{
@@ -338,14 +420,18 @@ function render(){
     }
   }
   body.innerHTML=h;
+  const usEl=$('us-status');
+  if(usEl)usEl.innerHTML=getUSMarketStatus();
 }
 function updSeed(){const v=gv('seed-in');if(v>0)curPort().seed=v;save();render();}
 function updSeedQuick(){const v=gv('seed-quick');if(v>0){curPort().seed=v;save();render();}}
 function quickFillBuy(date,close,units){
   const p=curPort();
-  if(p.pos.find(pp=>pp.d===date)){if(!confirm(date+'에 이미 매수 기록 있음. 추가로 더 기록할까요?'))return;}
   const diaryEntry=p.diary.find(d=>d.date===date);
   if(!diaryEntry)return alert('일지에 없는 날');
+  // ─── v14: 참조일 체결 차단 ───
+  if(diaryEntry.isRef){alert('참조 데이터는 체결할 수 없습니다 (시작일 전날)');return;}
+  if(p.pos.find(pp=>pp.d===date)){if(!confirm(date+'에 이미 매수 기록 있음. 추가로 더 기록할까요?'))return;}
   const zone=diaryEntry.zone;
   const uw=p.seed/TU;
   const shares=Math.floor(units*uw/close);
@@ -509,6 +595,7 @@ function doFullReset(){
 function showModal(html){$('modal-container').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">'+html+'</div></div>';}
 function closeModal(){$('modal-container').innerHTML='';}
 render();
+setInterval(()=>{const usEl=$('us-status');if(usEl)usEl.innerHTML=getUSMarketStatus();},60000);
 </script>
 </body>
 </html>
