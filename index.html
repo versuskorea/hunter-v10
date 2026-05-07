@@ -176,7 +176,7 @@ const addBd=(dateStr,n)=>{try{const d=new Date(dateStr);let added=0;while(added<
 function getZoneFor(close,high20){if(!close||!high20)return 'top';const dd=(close-high20)/high20*100;if(dd>=TOP_TH)return 'top';if(dd<=BOT_TH)return 'bot';return 'mid';}
 function getZone(){const p=curPort();return getZoneFor(p.priceClose,p.high20);}
 function switchSymbol(sym){save();activeSymbol=sym;if(!portfolios[sym])portfolios[sym]={seed:100000,startDate:'',priceClose:0,priceLive:0,high20:0,priceDate:'',diary:[],pos:[],hist:[]};save();render();}
-function addSymbol(){const sym=prompt('종목 코드:');if(!sym)return;const u=sym.toUpperCase().trim();if(!u)return;if(portfolios[u]){alert('이미 있음');return;}portfolios[u]={seed:100000,startDate:'',priceClose:0,priceLive:0,high20:0,priceDate:'',diary:[],pos:[],hist:[]};save();switchSymbol(u);}
+function addSymbol(){if(Object.keys(portfolios).length>=2){alert('⚠️ 집중을 위해 최대 2종목까지만 가능합니다.\n기존 종목을 삭제 후 추가하세요.');return;}const sym=prompt('종목 코드:');if(!sym)return;const u=sym.toUpperCase().trim();if(!u)return;if(portfolios[u]){alert('이미 있음');return;}portfolios[u]={seed:100000,startDate:'',priceClose:0,priceLive:0,high20:0,priceDate:'',diary:[],pos:[],hist:[]};save();switchSymbol(u);}
 function removeSymbol(sym){if(Object.keys(portfolios).length<=1){alert('최소 1개 필요');return;}if(!confirm(sym+' 삭제?'))return;delete portfolios[sym];save();if(sym===activeSymbol)activeSymbol=Object.keys(portfolios)[0];render();}
 function renderTickers(){
   const bar=$('tickers-bar');if(!bar)return;
@@ -358,7 +358,7 @@ function render(){
           const remDays=pz.fd-days;
           const isForce=days>=pz.fd;
           const zL={top:'천장',mid:'중간',bot:'바닥'};
-          h+='<tr class="sell-row"><td><b>T'+(idx+1)+'</b><br><span style="font-size:11px;color:var(--text);font-weight:600">'+pp.d.slice(5)+'</span><br><span style="font-size:11px;color:var(--top);font-weight:700">'+zL[pp.z]+'</span></td><td class="act-sell">매도</td><td>LOC</td><td class="price-cell">$'+sellPrice+(isForce?' ⚠️':'')+'<br><span style="font-size:13px;color:var(--gold);font-weight:800">~'+addBd(pp.d,pz.fd)+'까지</span></td><td>'+pp.s+'</td></tr>';
+          h+='<tr class="sell-row"'+(isForce?' style="background:rgba(239,68,68,0.15)"':'')+'><td><b>T'+(idx+1)+'</b><br><span style="font-size:11px;color:var(--text);font-weight:600">'+pp.d.slice(5)+'</span><br><span style="font-size:11px;color:'+(isForce?'var(--red)':'var(--top)')+';font-weight:700">'+(isForce?'⚠️청산':zL[pp.z])+'</span></td><td class="act-sell">매도</td><td>'+(isForce?'<b style="color:var(--red)">MOC</b>':'LOC')+'</td><td class="price-cell">'+(isForce?'<b style="color:var(--red)">시장가</b><br><span style="font-size:11px;color:var(--red);font-weight:700">⚠️ 강제청산</span>':'$'+sellPrice+'<br><span style="font-size:13px;color:var(--gold);font-weight:800">~'+addBd(pp.d,pz.fd)+'까지</span>')+'</td><td>'+pp.s+'</td></tr>';
         });
       }
       if(totalU<TU){
@@ -367,7 +367,7 @@ function render(){
       }else{
         h+='<tr><td colspan="5" style="color:var(--red);font-weight:700;padding:12px">⚠️ 풀 포지션 ('+TU+'u) - 매수 LOC 없음</td></tr>';
       }
-      h+='</tbody></table><div class="note" style="margin-top:8px">💡 매수①: 전날×1.15 (상승 대응 '+UP+'u)<br>💡 매수②: 전날-$0.01 (하락 추가 '+(DN-UP)+'u, 하락일만 체결)<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X</div></div>';
+      h+='</tbody></table><div class="note" style="margin-top:8px">💡 매수①: 전날×1.15 (상승 대응 '+UP+'u)<br>💡 매수②: 전날-$0.01 (하락 추가 '+(DN-UP)+'u, 하락일만 체결)<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X<br>🚨 <b style="color:var(--red)">MOC = 강제청산일! 시장가 매도 필수 (시스템 룰)</b></div></div>';
     }
   }
   if(tab==='t'){
