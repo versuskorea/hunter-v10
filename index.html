@@ -396,6 +396,7 @@ function render(){
     if(p.pos.length===0){h+='<tr class="empty"><td colspan="8" style="padding:20px;color:var(--dim);font-style:italic">보유 티어 없음</td></tr>';}
     h+='</tbody></table></div><div class="card"><div class="sb-row"><span class="k">보유 유닛</span><span class="v">'+totalU+'/'+TU+' ('+remU+'u 남음)</span></div><div class="sb-row"><span class="k">보유 주수</span><span class="v">'+p.pos.reduce((a,pp)=>a+pp.s,0)+'주</span></div><div class="sb-row"><span class="k">시드</span><span class="v" style="color:var(--green)">$'+p.seed.toLocaleString()+'</span></div><div class="sb-row"><span class="k">유닛 단가</span><span class="v">$'+(p.seed/TU).toFixed(0)+'</span></div></div><div class="note" style="margin-top:8px">💡 매수 체결은 <b style="color:var(--accent)">📋 주문 탭</b>에서 일지의 "체결" 버튼으로 입력하세요<br>💡 여기서는 매도만 가능 (티어 클릭 또는 "매도 기록")</div>';
     if(p.pos.length>0){h+='<div class="card"><div class="ct">📉 매도</div><button class="btn btn-s" onclick="openSellModal()">매도 기록</button></div>';}
+    h+='<div class="card"><div class="ct">📈 수동 매수 기록</div><div style="font-size:13px;color:var(--dim);margin-bottom:10px;line-height:1.6">매매일지에 없는 날 매수했을 때 사용<br>(예: 야후 데이터 지연, 같은 날 추가 매수 등)</div><button class="btn btn-b" onclick="openManualBuyModal()">+ 수동 매수 기록</button></div>';
   }
   if(tab==='s'){
     h+='<div class="card"><div class="ct">⚙️ 기본 설정</div><div class="ir"><label>시드</label><input type="number" id="seed-in" value="'+p.seed+'" onchange="updSeed()"><span class="u">$</span></div><div class="note">시드 변경 시 유닛 크기도 함께 변경됨 ($시드/20)</div></div>';
@@ -435,7 +436,30 @@ function quickFillBuy(date,close,units){
   const zone=diaryEntry.zone;
   const uw=p.seed/TU;
   const shares=Math.floor(units*uw/close);
-  showModal('<h3>📈 '+date+' 체결 기록</h3><div class="desc">백테 기준: <b>$'+close+'</b> · '+units+'u<br>형님 실제 체결가가 다르면 수정하세요.<br><span style="color:var(--green)">매도점은 일지 종가 기준으로 고정됩니다 ($'+(close*(1+ZONES[zone].tp)).toFixed(2)+')</span></div><div class="ir"><label>매수 날짜</label><input type="date" id="qf-date" value="'+date+'"><span class="u">📅</span></div><div class="ir"><label>실제 체결가</label><input type="number" step="0.01" id="qf-price" value="'+close+'"><span class="u">$</span></div><div class="ir"><label>유닛</label><input type="number" id="qf-units" value="'+units+'" readonly style="background:#0a0a14;color:var(--accent)"><span class="u">u</span></div><div class="ir"><label>실제 주수</label><input type="number" id="qf-shares" value="'+shares+'"><span class="u">주</span></div><div class="note" style="margin-top:8px">💡 매도 LOC = <b style="color:var(--green)">$'+(close*(1+ZONES[zone].tp)).toFixed(2)+'</b> (일지 종가 기준 고정)<br>💡 형님이 다른 가격에 사도 매도점은 일지 기준 유지</div><div class="btn-row"><button class="btn btn-d" onclick="closeModal()">취소</button><button class="btn btn-b" onclick="confirmQuickFill(\''+date+'\','+close+',\''+zone+'\')">체결 기록</button></div>');
+  showModal('<h3>📈 '+date+' 체결 기록</h3><div class="desc">백테 기준: <b>$'+close+'</b> · '+units+'u<br>형님 실제 체결가가 다르면 수정하세요.<br><span style="color:var(--green)">매도점은 일지 종가 기준으로 고정됩니다 ($'+(close*(1+ZONES[zone].tp)).toFixed(2)+')</span></div><div class="ir"><label>매수 날짜</label><input type="date" id="qf-date" value="'+date+'"><span class="u">📅</span></div><div class="ir"><label>실제 체결가</label><input type="number" step="0.01" id="qf-price" value="'+close+'" onchange="recalcQfShares()"><span class="u">$</span></div><div class="ir"><label>유닛</label><input type="number" id="qf-units" value="'+units+'" min="1" max="20" onchange="recalcQfShares()" style="background:#0a0a14;color:var(--accent)"><span class="u">u</span></div><div class="ir"><label>실제 주수</label><input type="number" id="qf-shares" value="'+shares+'"><span class="u">주</span></div><div class="note" style="margin-top:8px">💡 매도 LOC = <b style="color:var(--green)">$'+(close*(1+ZONES[zone].tp)).toFixed(2)+'</b> (일지 종가 기준 고정)<br>💡 다른 가격에 사도 매도점은 일지 기준 유지<br>💡 <b style="color:var(--accent)">유닛 변경 가능</b>: 건너뛴 날 보충하려면 4u→8u 등으로 늘리기<br><div id="qf-warn" style="margin-top:6px;font-family:\'JetBrains Mono\',monospace;font-size:12px"></div></div><div class="btn-row"><button class="btn btn-d" onclick="closeModal()">취소</button><button class="btn btn-b" onclick="confirmQuickFill(\''+date+'\','+close+',\''+zone+'\')">체결 기록</button></div>');
+}
+function recalcQfShares(){
+  const p=curPort();
+  const units=parseInt($('qf-units').value)||0;
+  const price=parseFloat($('qf-price').value)||0;
+  if(units>0&&price>0){
+    const uw=p.seed/TU;
+    const newShares=Math.floor(units*uw/price);
+    $('qf-shares').value=newShares;
+    // 경고 표시
+    const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+    const newTotal=totalU+units;
+    const warnEl=$('qf-warn');
+    if(warnEl){
+      if(newTotal>TU){
+        warnEl.innerHTML='<span style="color:var(--red);font-weight:700">⚠️ 총 '+newTotal+'u (TU '+TU+' 초과!)</span>';
+      }else if(newTotal>=TU*0.8){
+        warnEl.innerHTML='<span style="color:var(--gold);font-weight:700">⚠️ 총 '+newTotal+'u/'+TU+' (80%+)</span>';
+      }else{
+        warnEl.innerHTML='<span style="color:var(--green)">✓ 총 '+newTotal+'u/'+TU+'</span>';
+      }
+    }
+  }
 }
 function confirmQuickFill(diaryDate,diaryClose,zone){
   const p=curPort();
@@ -445,6 +469,12 @@ function confirmQuickFill(diaryDate,diaryClose,zone){
   const units=parseInt($('qf-units').value);
   if(!actualShares||actualShares<=0)return alert('주수 입력');
   if(!units)return alert('유닛 입력');
+  // TU 초과 경고
+  const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+  const newTotal=totalU+units;
+  if(newTotal>TU){
+    if(!confirm('⚠️ 총 '+newTotal+'u가 됩니다 (TU '+TU+' 초과)\n시드 부족 위험이 있습니다.\n\n그래도 진행하시겠습니까?'))return;
+  }
   p.pos.push({e:actualPrice,u:units,s:actualShares,d:actualDate,z:zone,diaryClose:diaryClose,diaryDate:diaryDate});
   p.hist.push({a:'B',d:actualDate,e:actualPrice,u:units,s:actualShares,z:zone,diaryClose:diaryClose,diaryDate:diaryDate});
   save();closeModal();
@@ -513,6 +543,68 @@ function updPriceLiveQuick(){
     if(tds.length>=8){tds[7].textContent=(pnl>=0?'+':'')+pnl+'%';tds[7].className=pnl>=0?'pnl-up':'pnl-dn';}
   });
 }
+function openManualBuyModal(){
+  const p=curPort();
+  const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+  const remU=TU-totalU;
+  // 마지막 일지 종가 또는 현재가 추정
+  const refPrice=(p.diary&&p.diary.length>0)?p.diary[p.diary.length-1].close:(p.priceLive||p.priceClose||100);
+  const refHigh20=(p.diary&&p.diary.length>0)?p.diary[p.diary.length-1].high20:refPrice;
+  const today=td();
+  showModal('<h3>📈 수동 매수 기록</h3><div class="desc">매매일지에 없는 날 매수했을 때 직접 입력하세요.<br><br>현재 보유: <b>'+totalU+'/'+TU+'u</b> ('+remU+'u 남음)<br>참조 종가: $'+refPrice+'</div><div class="ir"><label>매수 날짜</label><input type="date" id="mb-date" value="'+today+'" max="'+today+'"><span class="u">📅</span></div><div class="ir"><label>매수가</label><input type="number" step="0.01" id="mb-price" value="'+refPrice+'" oninput="recalcMbShares()"><span class="u">$</span></div><div class="ir"><label>유닛</label><input type="number" id="mb-units" value="2" min="1" max="20" oninput="recalcMbShares()"><span class="u">u</span></div><div class="ir"><label>주수</label><input type="number" id="mb-shares" value="0"><span class="u">주</span></div><div class="ir"><label>구간</label><select id="mb-zone" style="flex:1;background:#0a0a0f;border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:\'JetBrains Mono\',monospace;font-size:16px;font-weight:700;outline:none"><option value="top">천장 (+2.5%/7일)</option><option value="mid">중간 (+0.5%/7일)</option><option value="bot">바닥 (+3%/10일)</option></select><span class="u">📍</span></div><div class="ir"><label>일지 종가</label><input type="number" step="0.01" id="mb-diary" value="'+refPrice+'"><span class="u">$</span></div><div class="note" style="margin-top:8px;font-size:12px">💡 매수가 = 실제 체결가<br>💡 일지 종가 = 매도 LOC 계산 기준 (보통 매수가와 같음)<br>💡 구간은 -10%이내=천장, -10~15%=중간, -15%이상=바닥<br><div id="mb-warn" style="margin-top:6px;font-family:\'JetBrains Mono\',monospace;font-size:12px"></div></div><div class="btn-row"><button class="btn btn-d" onclick="closeModal()">취소</button><button class="btn btn-b" onclick="confirmManualBuy()">매수 기록</button></div>');
+  setTimeout(()=>recalcMbShares(),100);
+}
+
+function recalcMbShares(){
+  const p=curPort();
+  const units=parseInt($('mb-units').value)||0;
+  const price=parseFloat($('mb-price').value)||0;
+  if(units>0&&price>0){
+    const uw=p.seed/TU;
+    const newShares=Math.floor(units*uw/price);
+    $('mb-shares').value=newShares;
+    const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+    const newTotal=totalU+units;
+    const warnEl=$('mb-warn');
+    if(warnEl){
+      if(newTotal>TU){
+        warnEl.innerHTML='<span style="color:var(--red);font-weight:700">⚠️ 총 '+newTotal+'u (TU '+TU+' 초과!)</span>';
+      }else if(newTotal>=TU*0.8){
+        warnEl.innerHTML='<span style="color:var(--gold);font-weight:700">⚠️ 총 '+newTotal+'u/'+TU+' (80%+)</span>';
+      }else{
+        warnEl.innerHTML='<span style="color:var(--green)">✓ 총 '+newTotal+'u/'+TU+'</span>';
+      }
+    }
+  }
+}
+
+function confirmManualBuy(){
+  const p=curPort();
+  const date=$('mb-date').value;
+  const price=parseFloat($('mb-price').value);
+  const units=parseInt($('mb-units').value);
+  const shares=parseInt($('mb-shares').value);
+  const zone=$('mb-zone').value;
+  const diaryClose=parseFloat($('mb-diary').value)||price;
+  if(!date)return alert('날짜 입력');
+  if(!price||price<=0)return alert('매수가 입력');
+  if(!units||units<=0)return alert('유닛 입력');
+  if(!shares||shares<=0)return alert('주수 입력');
+  if(!zone)return alert('구간 선택');
+  // TU 초과 경고
+  const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+  const newTotal=totalU+units;
+  if(newTotal>TU){
+    if(!confirm('⚠️ 총 '+newTotal+'u가 됩니다 (TU '+TU+' 초과)\n시드 부족 위험.\n계속?'))return;
+  }
+  p.pos.push({e:price,u:units,s:shares,d:date,z:zone,diaryClose:diaryClose,diaryDate:date,manual:true});
+  p.hist.push({a:'B',d:date,e:price,u:units,s:shares,z:zone,diaryClose:diaryClose,diaryDate:date,manual:true});
+  save();closeModal();
+  const sellPoint=(diaryClose*(1+ZONES[zone].tp)).toFixed(2);
+  alert('✅ T'+p.pos.length+' 수동 매수 기록!\n\n매수: '+shares+'주 @ $'+price+'\n매도 LOC: $'+sellPoint+' ('+ZONES[zone].label+' 기준)');
+  render();
+}
+
 function openSellModal(){
   const p=curPort();
   if(p.pos.length===0)return alert('보유 티어 없음');
@@ -565,9 +657,24 @@ function applyCycleSeed(newSeed){
   const p=curPort();
   const oldSeed=p.seed;
   p.seed=Math.round(newSeed);
-  p.hist.forEach(r=>{if(r.a==='S')r.realized=0;});
+  // === v14.2 사이클 자동 정리 ===
+  // 1. 매도 기록의 수익금은 보존 (realized 그대로)
+  // 2. 매수 기록은 사이클 종료 시 정리 (이미 매도된 매수는 의미 없음)
+  // 3. 시작일 자동 = 오늘 (새 사이클)
+  // 4. 일지 (diary)는 야후 갱신 시 새로 생성됨
+  
+  // 매수 기록 정리 (B 액션 중 이미 매도된 것 = 모든 매수)
+  // 매도 기록은 보존 (수익금 추적용)
+  p.hist=p.hist.filter(r=>r.a==='S'); // 매도 기록만 남김
+  
+  // 시작일 자동 갱신 (새 사이클 = 오늘)
+  p.startDate=td();
+  
+  // 일지 초기화 (야후 갱신 시 새로 생성)
+  p.diary=[];
+  
   save();closeModal();
-  alert('💰 시드 업데이트!\n$'+oldSeed.toLocaleString()+' → $'+p.seed.toLocaleString()+'\n\n다음 사이클 시작!');
+  alert('💰 시드 업데이트 + 새 사이클 시작!\n$'+oldSeed.toLocaleString()+' → $'+p.seed.toLocaleString()+'\n\n📅 시작일: '+p.startDate+'\n📊 매도 수익 기록 보존됨\n\n야후 갱신 한 번 해줘!');
   render();
 }
 function promptSeedReset(){
