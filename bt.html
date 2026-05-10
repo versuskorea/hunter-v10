@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HUNTER 백테 v3 - 진짜 사이클</title>
+<title>HUNTER 백테 v4 - 유닛 통계</title>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 html, body { background: #0f0f1e !important; color: #fff !important; color-scheme: dark !important; }
@@ -74,19 +73,26 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
 .bw-card.best .bw-pnl { color: #0f0 !important; }
 .bw-card.worst .bw-pnl { color: #f88 !important; }
 .bw-card .bw-date { color: #aaa !important; font-size: 10px; }
+.unit-stats { background: rgba(123, 97, 255, 0.1); border: 1px solid rgba(123, 97, 255, 0.4); padding: 12px; border-radius: 10px; margin-top: 12px; }
+.unit-stats-title { font-size: 12px; font-weight: 700; color: #a78bfa !important; margin-bottom: 8px; }
+.unit-row { display: flex; align-items: center; font-size: 11px; margin: 4px 0; color: #ddd !important; font-family: monospace; }
+.unit-row .ulbl { width: 60px; flex-shrink: 0; color: #aaa !important; font-size: 11px; }
+.unit-row .ubar { flex: 1; height: 16px; background: #2a2a3e; border-radius: 4px; margin: 0 8px; overflow: hidden; }
+.unit-row .ufill { display: block; height: 100%; border-radius: 4px; min-width: 2px; }
+.unit-row .ucnt { width: 90px; flex-shrink: 0; text-align: right; font-size: 11px; color: #fff; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>📊 <span class="grad">HUNTER</span> 백테<span class="cycle-badge">사이클 v3</span></h1>
+  <h1>📊 <span class="grad">HUNTER</span> 백테<span class="cycle-badge">v4 유닛통계</span></h1>
   <a href="/" class="back-btn">← 돌아가기</a>
 </div>
 
 <div class="tip">
-  💡 <b>v3:</b> 진짜 사이클 승률! 0u → 매수 → ... → 0u 복귀 = 1 사이클<br>
-  → 떨사와 동일한 방식으로 비교 가능 (실제 시드 투입/회수 1세트)<br>
-  → 5년 SOXL 예상: <b>176 사이클, 승률 91%</b> (떨사 175회 / 93%와 비슷)
+  💡 <b>v4:</b> 사이클 종료 시 최대 유닛 통계 추가!<br>
+  → 2u/4u/8u/12u/20u 종료 분포 = 시장 변동성 패턴 진단<br>
+  → 4u 종료 多 = 건강한 변동, 20u 多 = 폭락 시장, 2u 多 = 단방향 (HUNTER 한계)
 </div>
 
 <div class="card">
@@ -115,9 +121,7 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
     <button onclick="setRange(20)">최대</button>
   </div>
 
-  <div class="quick-sym" style="margin-top:12px" id="sym-buttons">
-    <!-- 최근 15개 종목 자동 표시 -->
-  </div>
+  <div class="quick-sym" style="margin-top:12px" id="sym-buttons"></div>
 
 <button class="btn btn-analyze" onclick="analyzeVolatility()">📊 변동성 분석 & 자동 설정!</button>
 <button class="btn btn-primary" onclick="runBacktest()">🚀 백테 실행!</button>
@@ -131,55 +135,36 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
 <div id="result"></div>
 
 <script>
-// 최근 검색한 종목 관리 (최근 15개만)
 const DEFAULT_SYMS = ['SOXL', 'TQQQ', 'POET', 'UCO', 'USO', 'TSLA', 'NVDA', 'AMD', 'AAPL', 'MSFT', 'GOOGL', 'SPY', 'QQQ'];
 
 function getRecentSyms() {
   const stored = localStorage.getItem('bt-recent-syms');
   if (stored) {
-    try {
-      const arr = JSON.parse(stored);
-      if (Array.isArray(arr) && arr.length > 0) return arr;
-    } catch(e) {}
+    try { const arr = JSON.parse(stored); if (Array.isArray(arr) && arr.length > 0) return arr; } catch(e) {}
   }
   return DEFAULT_SYMS.slice();
 }
-
-function saveRecentSyms(syms) {
-  localStorage.setItem('bt-recent-syms', JSON.stringify(syms.slice(0, 15)));
-}
-
+function saveRecentSyms(syms) { localStorage.setItem('bt-recent-syms', JSON.stringify(syms.slice(0, 15))); }
 function addRecentSym(sym) {
   if (!sym) return;
   const u = sym.toUpperCase().trim();
   if (!u) return;
   let recent = getRecentSyms();
-  // 이미 있으면 제거 (맨 앞으로 이동 위해)
   recent = recent.filter(s => s !== u);
-  // 맨 앞에 추가
   recent.unshift(u);
-  // 15개로 제한
   recent = recent.slice(0, 15);
   saveRecentSyms(recent);
   renderSymButtons();
 }
-
 function renderSymButtons() {
   const container = document.getElementById('sym-buttons');
   if (!container) return;
   const syms = getRecentSyms();
   let html = '';
-  syms.forEach(s => {
-    html += `<button onclick="setSym('${s}')">${s}</button>`;
-  });
+  syms.forEach(s => { html += '<button onclick="setSym(\'' + s + '\')">' + s + '</button>'; });
   container.innerHTML = html;
 }
-
-function setSym(s) { 
-  document.getElementById('bt-sym').value = s;
-  addRecentSym(s);
-}
-
+function setSym(s) { document.getElementById('bt-sym').value = s; addRecentSym(s); }
 function setRange(years) {
   const end = new Date();
   const start = new Date();
@@ -191,63 +176,34 @@ function setRange(years) {
   document.getElementById('bt-end').value = fmt(end);
 }
 
-window.addEventListener('DOMContentLoaded', () => { 
-  setRange(5); 
-  renderSymButtons(); 
-});
+window.addEventListener('DOMContentLoaded', () => { setRange(5); renderSymButtons(); });
 
 async function analyzeVolatility() {
   const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
   if (!sym) { alert('종목 입력!'); return; }
-  
   const progressEl = document.getElementById('bt-progress');
   const volEl = document.getElementById('vol-panel');
   progressEl.innerHTML = '📊 1년 데이터 다운로드...';
   volEl.innerHTML = '';
-  
   try {
     const end = new Date();
     const start = new Date();
     start.setFullYear(end.getFullYear() - 1);
     const fmt = d => d.toISOString().slice(0, 10);
-    
-    const url = `/api/history?symbol=${sym}&start=${fmt(start)}&end=${fmt(end)}`;
+    const url = '/api/history?symbol=' + sym + '&start=' + fmt(start) + '&end=' + fmt(end);
     const res = await fetch(url);
     const data = await res.json();
-    
     if (data.error) { progressEl.innerHTML = '❌ ' + data.error; return; }
     if (!data.bars || data.bars.length < 30) { progressEl.innerHTML = '❌ 데이터 부족'; return; }
-    
     const closes = data.bars.map(b => b.close);
     const returns = [];
-    for (let i = 1; i < closes.length; i++) {
-      returns.push((closes[i] - closes[i-1]) / closes[i-1] * 100);
-    }
+    for (let i = 1; i < closes.length; i++) returns.push((closes[i] - closes[i-1]) / closes[i-1] * 100);
     const mean = returns.reduce((a,b) => a+b, 0) / returns.length;
     const variance = returns.reduce((s,r) => s + Math.pow(r-mean, 2), 0) / returns.length;
     const vol = Math.sqrt(variance);
-    
     const params = calcParams(vol);
     const category = categorize(vol);
-    
-    let html = `<div class="vol-result">
-      <div class="ct" style="color:#ffd">🎯 ${sym} 변동성 분석</div>
-      <div class="vol-main">
-        <div class="vol-num">${vol.toFixed(2)}%</div>
-        <div class="vol-cat">${category.emoji} ${category.name}</div>
-      </div>
-      <div style="background:rgba(0,0,0,0.3);padding:12px;border-radius:10px;margin-top:10px">
-        <div style="font-weight:700;margin-bottom:8px;color:#ffd">💡 추천 HUNTER 설정:</div>
-        <div class="param-row"><span class="param-label">유닛</span><span class="param-value">2u / 4u / TU20 (공통)</span></div>
-        <div class="param-row"><span class="param-label">매도 목표 (천/중/바)</span><span class="param-value">+${(params.top_p*100).toFixed(1)}% / +${(params.mid_p*100).toFixed(1)}% / +${(params.bot_p*100).toFixed(1)}%</span></div>
-        <div class="param-row"><span class="param-label">강제 기간</span><span class="param-value">${params.top_d}일 / ${params.mid_d}일 / ${params.bot_d}일</span></div>
-        <div class="param-row"><span class="param-label">Lookback</span><span class="param-value">${params.lookback}일</span></div>
-      </div>
-      <div style="background:rgba(255,255,100,0.1);padding:10px;border-radius:8px;margin-top:10px;font-size:12px">
-        <b>💡 ${category.recommendation}</b>
-      </div>
-    </div>`;
-    
+    let html = '<div class="vol-result"><div class="ct" style="color:#ffd">🎯 ' + sym + ' 변동성 분석</div><div class="vol-main"><div class="vol-num">' + vol.toFixed(2) + '%</div><div class="vol-cat">' + category.emoji + ' ' + category.name + '</div></div><div style="background:rgba(0,0,0,0.3);padding:12px;border-radius:10px;margin-top:10px"><div style="font-weight:700;margin-bottom:8px;color:#ffd">💡 추천 HUNTER 설정:</div><div class="param-row"><span class="param-label">유닛</span><span class="param-value">2u / 4u / TU20</span></div><div class="param-row"><span class="param-label">매도 (천/중/바)</span><span class="param-value">+' + (params.top_p*100).toFixed(1) + '% / +' + (params.mid_p*100).toFixed(1) + '% / +' + (params.bot_p*100).toFixed(1) + '%</span></div><div class="param-row"><span class="param-label">강제 기간</span><span class="param-value">' + params.top_d + '/' + params.mid_d + '/' + params.bot_d + '일</span></div></div><div style="background:rgba(255,255,100,0.1);padding:10px;border-radius:8px;margin-top:10px;font-size:12px"><b>💡 ' + category.recommendation + '</b></div></div>';
     volEl.innerHTML = html;
     progressEl.innerHTML = '✅ 분석 완료! [🚀 백테 실행] 클릭!';
     window.autoParams = params;
@@ -268,7 +224,6 @@ function calcParams(vol) {
   const mid_p = vol * 0.3 / 100;
   const bot_p = vol * 0.8 / 100;
   let top_d, mid_d, bot_d, lookback;
-  // 강제일 최적화 (백테 검증) - 자본 회전율 ↑
   if (vol >= 5) { top_d = 7; mid_d = 7; bot_d = 10; lookback = 20; }
   else if (vol >= 3) { top_d = 10; mid_d = 10; bot_d = 14; lookback = 30; }
   else if (vol >= 2) { top_d = 14; mid_d = 14; bot_d = 20; lookback = 40; }
@@ -281,38 +236,26 @@ async function runBacktest() {
   const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
   const userStartDate = document.getElementById('bt-start').value;
   const userEndDate = document.getElementById('bt-end').value;
-  
   if (!sym) { alert('종목 입력!'); return; }
   if (!userStartDate || !userEndDate) { alert('날짜 선택!'); return; }
-  
-  // 🆕 검색한 종목을 최근 목록에 자동 추가
   addRecentSym(sym);
-  
   const progressEl = document.getElementById('bt-progress');
   const resultEl = document.getElementById('result');
   progressEl.innerHTML = '📥 데이터 가져오는 중...';
   resultEl.innerHTML = '';
-  
   try {
     let params = window.autoParams;
     let paramSource = '자동';
     let measuredVol = null;
-    
-    if (params && params._forced) {
-      paramSource = params._forced;
-      // _forced 표시는 보존하되 simulate에는 영향 X
-    }
-    
+    if (params && params._forced) paramSource = params._forced;
     if (!params) {
       const end1y = new Date(userEndDate);
       const start1y = new Date(end1y);
       start1y.setFullYear(start1y.getFullYear() - 1);
       const fmt = d => d.toISOString().slice(0, 10);
-      
-      const volRes = await fetch(`/api/history?symbol=${sym}&start=${fmt(start1y)}&end=${fmt(end1y)}`);
+      const volRes = await fetch('/api/history?symbol=' + sym + '&start=' + fmt(start1y) + '&end=' + fmt(end1y));
       const volData = await volRes.json();
       if (volData.error) { progressEl.innerHTML = '❌ ' + volData.error; return; }
-      
       const closes1y = volData.bars.map(b => b.close);
       const rets = [];
       for (let i = 1; i < closes1y.length; i++) rets.push((closes1y[i] - closes1y[i-1]) / closes1y[i-1] * 100);
@@ -321,45 +264,32 @@ async function runBacktest() {
       const vol = Math.sqrt(vr);
       measuredVol = vol;
       params = calcParams(vol);
-      paramSource = `자동(측정값 ${vol.toFixed(2)}%)`;
+      paramSource = '자동(측정값 ' + vol.toFixed(2) + '%)';
     }
-    
     const warmupTradingDays = Math.max(params.lookback + 5, 25);
     const warmupCalendarDays = Math.ceil(warmupTradingDays * 1.6) + 10;
     const fetchStartDate = new Date(userStartDate);
     fetchStartDate.setDate(fetchStartDate.getDate() - warmupCalendarDays);
     const fmt = d => d.toISOString().slice(0, 10);
     const fetchStartStr = fmt(fetchStartDate);
-    
-    progressEl.innerHTML = `📥 데이터 가져오는 중...`;
-    
-    const res = await fetch(`/api/history?symbol=${sym}&start=${fetchStartStr}&end=${userEndDate}`);
+    progressEl.innerHTML = '📥 데이터 가져오는 중...';
+    const res = await fetch('/api/history?symbol=' + sym + '&start=' + fetchStartStr + '&end=' + userEndDate);
     const data = await res.json();
-    
     if (data.error) { progressEl.innerHTML = '❌ ' + data.error; return; }
     if (!data.bars || data.bars.length < 30) { progressEl.innerHTML = '❌ 데이터 부족'; return; }
-    
     const userStartTs = new Date(userStartDate).getTime();
     let userStartIdx = -1;
     for (let i = 0; i < data.bars.length; i++) {
-      if (new Date(data.bars[i].date).getTime() >= userStartTs) {
-        userStartIdx = i;
-        break;
-      }
+      if (new Date(data.bars[i].date).getTime() >= userStartTs) { userStartIdx = i; break; }
     }
-    
     if (userStartIdx < 0) { progressEl.innerHTML = '❌ 시작일 데이터 없음'; return; }
-    
-    progressEl.innerHTML = `✅ 총 ${data.bars.length}일 (warmup ${userStartIdx}일 + 거래 ${data.bars.length - userStartIdx}일)`;
-    
+    progressEl.innerHTML = '✅ 총 ' + data.bars.length + '일 (warmup ' + userStartIdx + '일 + 거래 ' + (data.bars.length - userStartIdx) + '일)';
     const result = simulateHunter(data.bars, params, userStartIdx);
-    
     const userStartPrice = data.bars[userStartIdx].close;
     const userEndPrice = data.bars[data.bars.length - 1].close;
     const buyHoldMult = userEndPrice / userStartPrice;
     const vsHold = result.mult / buyHoldMult;
     
-    // 사이클 분포
     const dist = [
       { label: '+10% 이상 🌟', min: 10, max: 999, color: '#0f0' },
       { label: '+5%~+10%', min: 5, max: 10, color: '#0d8' },
@@ -368,201 +298,118 @@ async function runBacktest() {
       { label: '0%~+1%', min: 0, max: 1, color: '#066' },
       { label: '-3%~0%', min: -3, max: 0, color: '#a44' },
       { label: '-5%~-3%', min: -5, max: -3, color: '#c33' },
-      { label: '-5% 이하 💀', min: -999, max: -5, color: '#f00' },
+      { label: '-5% 이하 💀', min: -999, max: -5, color: '#f00' }
     ];
-    
     const completed = result.cycles.filter(c => !c.incomplete);
     const maxCnt = Math.max(...dist.map(d => completed.filter(c => c.pnl >= d.min && c.pnl < d.max).length), 1);
-    
     let distHtml = '';
     dist.forEach(d => {
       const cnt = completed.filter(c => c.pnl >= d.min && c.pnl < d.max).length;
       const pct = completed.length > 0 ? cnt / completed.length * 100 : 0;
       const barW = cnt / maxCnt * 100;
-      distHtml += `<div class="cycle-dist-row">
-        <div class="dist-label">${d.label}</div>
-        <div class="dist-bar"><div class="dist-fill" style="width:${barW}%;background:${d.color}"></div></div>
-        <div class="dist-cnt">${cnt}회 (${pct.toFixed(1)}%)</div>
-      </div>`;
+      distHtml += '<div class="cycle-dist-row"><div class="dist-label">' + d.label + '</div><div class="dist-bar"><div class="dist-fill" style="width:' + barW + '%;background:' + d.color + '"></div></div><div class="dist-cnt">' + cnt + '회 (' + pct.toFixed(1) + '%)</div></div>';
     });
     
-    let html = `<div class="card">
-      <div class="ct">📈 ${data.symbol} · ${userStartDate} ~ ${userEndDate}</div>
-      
-      <div class="result-grid">
-        <div class="result-box hold">
-          <div class="rb-label">📌 단순 보유</div>
-          <div class="rb-value" style="color:${buyHoldMult>=1?'#0f0':'#f44'}">
-            ${buyHoldMult>=1?'+':''}${((buyHoldMult-1)*100).toFixed(1)}%
-          </div>
-          <div class="rb-pct">${buyHoldMult.toFixed(2)}배</div>
-        </div>
-        <div class="result-box hunter">
-          <div class="rb-label">🏹 HUNTER</div>
-          <div class="rb-value">+${((result.mult-1)*100).toFixed(1)}%</div>
-          <div class="rb-pct">${result.mult.toFixed(2)}배</div>
-        </div>
-      </div>
-      
-      <div class="metric-row">
-        <span class="metric-label">HUNTER 추가 수익</span>
-        <span class="metric-value" style="color:${vsHold>1?'#0f0':'#f44'};font-size:16px">
-          ${vsHold>1?'+':''}${((result.mult - buyHoldMult) * 100).toFixed(1)}%p ${vsHold>1?'🚀':'📉'}
-        </span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">vs 단순보유 배율</span>
-        <span class="metric-value" style="color:${vsHold>1?'#0f0':'#f44'}">${vsHold.toFixed(2)}배</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">최대 낙폭 (MDD)</span>
-        <span class="metric-value" style="color:#f88">${result.mdd.toFixed(1)}%</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">매수 / 매도</span>
-        <span class="metric-value">${result.nBuys}회 / ${result.nSells}회</span>
-      </div>
-      <div class="metric-row">
-        <span class="metric-label">티어 승률 (참고)</span>
-        <span class="metric-value" style="color:#aaa">${result.tierWinRate.toFixed(0)}%</span>
-      </div>
-      
-      ${measuredVol !== null && measuredVol < 1.5 ? `
-      <div style="background:rgba(239,68,68,0.1);border:2px solid rgba(239,68,68,0.4);border-radius:14px;padding:14px;margin-bottom:12px;color:#fca5a5;font-size:13px;line-height:1.6">
-        <div style="font-weight:800;font-size:14px;margin-bottom:6px">⚠️ HUNTER 부적합 종목</div>
-        ${sym} 변동성 <b>${measuredVol.toFixed(2)}%</b>는 너무 낮습니다.<br>
-        <span style="color:#aaa;font-size:12px">→ 안정 ETF/지수는 단순보유(B&H)가 더 좋은 결과<br>
-        → HUNTER는 변동성 3%+ 종목 (SOXL, TQQQ, UCO 등)에서 빛납니다<br>
-        → ${sym} 같은 종목은 단순 적립이 정답</span>
-      </div>
-      ` : ''}
-      
-      ${result.completedCycles.length < 20 && result.nBuys > 100 ? `
-      <div style="background:#1a0f00;border:2px solid #f59e0b;border-radius:14px;padding:14px;margin-bottom:12px;color:#fbbf24;font-size:13px;line-height:1.6">
-        <div style="font-weight:800;font-size:14px;margin-bottom:6px">⚠️ 비정상 결과 감지</div>
-        매수 ${result.nBuys}회 / 매도 ${result.nSells}회인데 사이클은 ${result.completedCycles.length}회뿐입니다.<br>
-        <span style="color:#aaa;font-size:12px">→ 풀 포지션이 거의 항상 차있어 0u 복귀가 거의 없음<br>
-        → 강제일 너무 길거나 매도% 너무 큰 파라미터 가능성<br>
-        → "🏹 기본 HUNTER로 백테!" 버튼으로 SOXL 룰(7/7/10일) 강제 적용 권장</span>
-      </div>
-      ` : ''}
-      
-      ${(() => {
-        // 🆕 연도별 수익 + MDD (사이클 기준) - 클릭 시 월별 펼침
-        const snapshots = result.periodSnapshots || {};
-        const yearKeys = Object.keys(snapshots).filter(k => k.length === 4).sort();
-        if (yearKeys.length === 0) return '';
-        
-        let yearHtml = '<div class="card"><div class="ct">📊 연도별 수익률 + MDD (사이클 기준) · 행 클릭 시 월별 펼침</div>';
-        yearHtml += '<table style="width:100%;border-collapse:collapse;font-family:\'JetBrains Mono\',monospace;font-size:14px">';
-        yearHtml += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:10px 8px;text-align:left;color:#888;font-size:12px">년도</th><th style="padding:10px 8px;text-align:right;color:#fbbf24;font-size:12px">수익률</th><th style="padding:10px 8px;text-align:right;color:#888;font-size:12px">MDD</th></tr></thead><tbody>';
-        
-        for (const yKey of yearKeys) {
-          const snap = snapshots[yKey];
-          const yearReturn = snap.startCap > 0 ? ((snap.endCap - snap.startCap) / snap.startCap * 100) : 0;
-          const yearMdd = snap.mdd || 0;
-          const returnCls = yearReturn >= 0 ? '#22c55e' : '#ef4444';
-          
-          yearHtml += '<tr style="border-bottom:1px solid #222;cursor:pointer" onclick="toggleYearMonths(\'' + yKey + '\')">';
-          yearHtml += '<td style="padding:12px 8px;color:#fff;font-weight:700">' + yKey + ' <span id="year-arrow-' + yKey + '" style="color:#666;font-size:11px">▼</span></td>';
-          yearHtml += '<td style="padding:12px 8px;text-align:right;font-weight:800;color:' + returnCls + ';font-size:15px">' + (yearReturn >= 0 ? '+' : '') + yearReturn.toFixed(1) + '%</td>';
-          yearHtml += '<td style="padding:12px 8px;text-align:right;color:#ef4444;font-size:13px">' + yearMdd.toFixed(1) + '%</td>';
-          yearHtml += '</tr>';
-          
-          // 월별 행 (숨김 상태로 미리 생성)
-          const monthKeys = Object.keys(snapshots).filter(k => k.length === 7 && k.startsWith(yKey)).sort();
-          if (monthKeys.length > 0) {
-            yearHtml += '<tr id="months-' + yKey + '" style="display:none"><td colspan="3" style="padding:0;background:#0a0a14"><div style="padding:10px"><table style="width:100%;border-collapse:collapse;font-family:\'JetBrains Mono\',monospace;font-size:13px">';
-            yearHtml += '<thead><tr style="border-bottom:1px solid #333"><th style="padding:8px;text-align:left;color:#666;font-size:11px">월</th><th style="padding:8px;text-align:right;color:#888;font-size:11px">수익률</th><th style="padding:8px;text-align:right;color:#666;font-size:11px">MDD</th></tr></thead><tbody>';
-            for (const mKey of monthKeys) {
-              const mSnap = snapshots[mKey];
-              const mReturn = mSnap.startCap > 0 ? ((mSnap.endCap - mSnap.startCap) / mSnap.startCap * 100) : 0;
-              const mMdd = mSnap.mdd || 0;
-              const mCls = mReturn >= 0 ? '#22c55e' : '#ef4444';
-              const monthOnly = mKey.slice(5);
-              yearHtml += '<tr style="border-bottom:1px solid #1a1a1a"><td style="padding:8px;color:#aaa">' + monthOnly + '월</td><td style="padding:8px;text-align:right;color:' + mCls + ';font-weight:700">' + (mReturn >= 0 ? '+' : '') + mReturn.toFixed(1) + '%</td><td style="padding:8px;text-align:right;color:#ef4444">' + mMdd.toFixed(1) + '%</td></tr>';
-            }
-            yearHtml += '</tbody></table></div></td></tr>';
-          }
-        }
-        
-        yearHtml += '</tbody></table></div>';
-        return yearHtml;
-      })()}
-      
-      <div class="cycle-card">
-        <div class="cs-title">🏆 사이클 분석 (0u → 매수 → ... → 0u 복귀)</div>
-        
-        <div class="cycle-main">
-          <div class="cycle-big">
-            <div class="lbl">🎯 사이클 승률</div>
-            <div class="big" style="color:${result.cycleWinRate>=80?'#0f0':result.cycleWinRate>=60?'#fbbf24':'#f88'}">${result.cycleWinRate.toFixed(1)}%</div>
-            <div class="sub">${result.cycleWins}승 : ${result.cycleLosses}패</div>
-          </div>
-          <div class="cycle-big">
-            <div class="lbl">📊 총 사이클</div>
-            <div class="big" style="color:#fbbf24">${result.cycleTotal}<span style="font-size:14px;color:#aaa">회</span></div>
-            <div class="sub">${result.incompleteCount > 0 ? `진행중 ${result.incompleteCount}회 포함` : '모두 완료'}</div>
-          </div>
-        </div>
-        
-        <div class="cycle-grid">
-          <div class="cycle-mini">
-            <div class="lbl">평균 수익</div>
-            <div class="val" style="color:${result.avgCyclePnl>=0?'#0f0':'#f88'}">${result.avgCyclePnl>=0?'+':''}${result.avgCyclePnl.toFixed(2)}%</div>
-          </div>
-          <div class="cycle-mini">
-            <div class="lbl">평균 기간</div>
-            <div class="val">${result.avgCycleDuration.toFixed(1)}일</div>
-          </div>
-          <div class="cycle-mini">
-            <div class="lbl">중앙값 기간</div>
-            <div class="val">${result.medianCycleDuration}일</div>
-          </div>
-        </div>
-        
-        ${result.bestCycle && result.worstCycle ? `
-        <div class="best-worst">
-          <div class="bw-card best">
-            <div style="color:#0f0;font-weight:700">🌟 최고 사이클</div>
-            <div class="bw-pnl" style="color:${result.bestCycle.pnl>=0?'#0f0':'#f88'} !important">${result.bestCycle.pnl>=0?'+':''}${result.bestCycle.pnl.toFixed(2)}%</div>
-            <div class="bw-date">${result.bestCycle.startDate}<br>→ ${result.bestCycle.endDate}<br>(${result.bestCycle.duration}일)</div>
-          </div>
-          <div class="bw-card worst">
-            <div style="color:#f88;font-weight:700">💀 최악 사이클</div>
-            <div class="bw-pnl" style="color:${result.worstCycle.pnl>=0?'#0f0':'#f88'} !important">${result.worstCycle.pnl>=0?'+':''}${result.worstCycle.pnl.toFixed(2)}%</div>
-            <div class="bw-date">${result.worstCycle.startDate}<br>→ ${result.worstCycle.endDate}<br>(${result.worstCycle.duration}일)</div>
-          </div>
-        </div>` : ''}
-        
-        <div class="cycle-distribution">
-          <div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:6px">📊 사이클 수익률 분포</div>
-          ${distHtml}
-        </div>
-        
-        <div class="def-info">
-          <b>📐 사이클 정의:</b> 0u 상태 → 매수 진입 → 모든 티어 매도 후 0u 복귀 = 1 사이클<br>
-          <b>💡 의미:</b> 떨사 시스템의 "회차"와 동일! 실제 시드 투입/회수 1세트<br>
-          <b>🎯 승률:</b> 사이클 종료 시 cap 증가 = 승, 감소 = 패 (실제 손익 기준)
-        </div>
-      </div>
-      
-      <div class="warmup-info">
-        🔧 사용자 시작일(${userStartDate})부터 <b>실제 거래 시작</b><br>
-        · warmup ${userStartIdx}일 + 실거래 ${data.bars.length - userStartIdx}일
-      </div>
-    </div>
+    // 🆕 사이클 종료 유닛 통계
+    const unitBuckets = [
+      { label: '2u', min: 2, max: 2, color: '#22c55e' },
+      { label: '3-4u', min: 3, max: 4, color: '#3b82f6' },
+      { label: '5-6u', min: 5, max: 6, color: '#a78bfa' },
+      { label: '7-8u', min: 7, max: 8, color: '#f59e0b' },
+      { label: '9-12u', min: 9, max: 12, color: '#f97316' },
+      { label: '13-16u', min: 13, max: 16, color: '#ef4444' },
+      { label: '17-20u', min: 17, max: 20, color: '#dc2626' }
+    ];
+    const maxUnitCnt = Math.max(...unitBuckets.map(b => completed.filter(c => c.maxUnits >= b.min && c.maxUnits <= b.max).length), 1);
+    let unitHtml = '';
+    unitBuckets.forEach(b => {
+      const cnt = completed.filter(c => c.maxUnits >= b.min && c.maxUnits <= b.max).length;
+      if (cnt === 0) return;
+      const pct = completed.length > 0 ? cnt / completed.length * 100 : 0;
+      const barW = cnt / maxUnitCnt * 100;
+      unitHtml += '<div class="unit-row"><div class="ulbl">' + b.label + '</div><div class="ubar"><div class="ufill" style="width:' + barW + '%;background:' + b.color + '"></div></div><div class="ucnt">' + cnt + '회 (' + pct.toFixed(1) + '%)</div></div>';
+    });
     
-    <div class="card" style="font-size:12px;color:#aaa;line-height:1.7">
-      <b style="color:#ffd">⚙️ 사용된 HUNTER 파라미터:</b><br>
-      매도: +${(params.top_p*100).toFixed(1)}% / +${(params.mid_p*100).toFixed(1)}% / +${(params.bot_p*100).toFixed(1)}% (천/중/바)<br>
-      기간: ${params.top_d} / ${params.mid_d} / ${params.bot_d}일 · Lookback ${params.lookback}일<br>
-      파라미터: ${paramSource}
-    </div>`;
+    let html = '<div class="card">';
+    html += '<div class="ct">📈 ' + data.symbol + ' · ' + userStartDate + ' ~ ' + userEndDate + '</div>';
+    html += '<div class="result-grid"><div class="result-box hold"><div class="rb-label">📌 단순 보유</div><div class="rb-value" style="color:' + (buyHoldMult>=1?'#0f0':'#f44') + '">' + (buyHoldMult>=1?'+':'') + ((buyHoldMult-1)*100).toFixed(1) + '%</div><div class="rb-pct">' + buyHoldMult.toFixed(2) + '배</div></div><div class="result-box hunter"><div class="rb-label">🏹 HUNTER</div><div class="rb-value">+' + ((result.mult-1)*100).toFixed(1) + '%</div><div class="rb-pct">' + result.mult.toFixed(2) + '배</div></div></div>';
+    html += '<div class="metric-row"><span class="metric-label">HUNTER 추가 수익</span><span class="metric-value" style="color:' + (vsHold>1?'#0f0':'#f44') + ';font-size:16px">' + (vsHold>1?'+':'') + ((result.mult - buyHoldMult) * 100).toFixed(1) + '%p ' + (vsHold>1?'🚀':'📉') + '</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">vs 단순보유 배율</span><span class="metric-value" style="color:' + (vsHold>1?'#0f0':'#f44') + '">' + vsHold.toFixed(2) + '배</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">최대 낙폭 (MDD)</span><span class="metric-value" style="color:#f88">' + result.mdd.toFixed(1) + '%</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">매수 / 매도</span><span class="metric-value">' + result.nBuys + '회 / ' + result.nSells + '회</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">티어 승률 (참고)</span><span class="metric-value" style="color:#aaa">' + result.tierWinRate.toFixed(0) + '%</span></div>';
+    
+    // 연도별 (생략 - 기존과 동일)
+    const snapshots = result.periodSnapshots || {};
+    const yearKeys = Object.keys(snapshots).filter(k => k.length === 4).sort();
+    if (yearKeys.length > 0) {
+      let yearHtml = '<div class="card"><div class="ct">📊 연도별 수익률 + MDD (사이클 기준) · 행 클릭 시 월별 펼침</div>';
+      yearHtml += '<table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:14px">';
+      yearHtml += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:10px 8px;text-align:left;color:#888;font-size:12px">년도</th><th style="padding:10px 8px;text-align:right;color:#fbbf24;font-size:12px">수익률</th><th style="padding:10px 8px;text-align:right;color:#888;font-size:12px">MDD</th></tr></thead><tbody>';
+      for (const yKey of yearKeys) {
+        const snap = snapshots[yKey];
+        const yearReturn = snap.startCap > 0 ? ((snap.endCap - snap.startCap) / snap.startCap * 100) : 0;
+        const yearMdd = snap.mdd || 0;
+        const returnCls = yearReturn >= 0 ? '#22c55e' : '#ef4444';
+        yearHtml += '<tr style="border-bottom:1px solid #222;cursor:pointer" onclick="toggleYearMonths(\'' + yKey + '\')">';
+        yearHtml += '<td style="padding:12px 8px;color:#fff;font-weight:700">' + yKey + ' <span id="year-arrow-' + yKey + '" style="color:#666;font-size:11px">▼</span></td>';
+        yearHtml += '<td style="padding:12px 8px;text-align:right;font-weight:800;color:' + returnCls + ';font-size:15px">' + (yearReturn >= 0 ? '+' : '') + yearReturn.toFixed(1) + '%</td>';
+        yearHtml += '<td style="padding:12px 8px;text-align:right;color:#ef4444;font-size:13px">' + yearMdd.toFixed(1) + '%</td>';
+        yearHtml += '</tr>';
+        const monthKeys = Object.keys(snapshots).filter(k => k.length === 7 && k.startsWith(yKey)).sort();
+        if (monthKeys.length > 0) {
+          yearHtml += '<tr id="months-' + yKey + '" style="display:none"><td colspan="3" style="padding:0;background:#0a0a14"><div style="padding:10px"><table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:13px">';
+          yearHtml += '<thead><tr style="border-bottom:1px solid #333"><th style="padding:8px;text-align:left;color:#666;font-size:11px">월</th><th style="padding:8px;text-align:right;color:#888;font-size:11px">수익률</th><th style="padding:8px;text-align:right;color:#666;font-size:11px">MDD</th></tr></thead><tbody>';
+          for (const mKey of monthKeys) {
+            const mSnap = snapshots[mKey];
+            const mReturn = mSnap.startCap > 0 ? ((mSnap.endCap - mSnap.startCap) / mSnap.startCap * 100) : 0;
+            const mMdd = mSnap.mdd || 0;
+            const mCls = mReturn >= 0 ? '#22c55e' : '#ef4444';
+            const monthOnly = mKey.slice(5);
+            yearHtml += '<tr style="border-bottom:1px solid #1a1a1a"><td style="padding:8px;color:#aaa">' + monthOnly + '월</td><td style="padding:8px;text-align:right;color:' + mCls + ';font-weight:700">' + (mReturn >= 0 ? '+' : '') + mReturn.toFixed(1) + '%</td><td style="padding:8px;text-align:right;color:#ef4444">' + mMdd.toFixed(1) + '%</td></tr>';
+          }
+          yearHtml += '</tbody></table></div></td></tr>';
+        }
+      }
+      yearHtml += '</tbody></table></div>';
+      html += yearHtml;
+    }
+    
+    // 사이클 분석
+    html += '<div class="cycle-card">';
+    html += '<div class="cs-title">🏆 사이클 분석 (0u → 매수 → ... → 0u 복귀)</div>';
+    html += '<div class="cycle-main"><div class="cycle-big"><div class="lbl">🎯 사이클 승률</div><div class="big" style="color:' + (result.cycleWinRate>=80?'#0f0':result.cycleWinRate>=60?'#fbbf24':'#f88') + '">' + result.cycleWinRate.toFixed(1) + '%</div><div class="sub">' + result.cycleWins + '승 : ' + result.cycleLosses + '패</div></div><div class="cycle-big"><div class="lbl">📊 총 사이클</div><div class="big" style="color:#fbbf24">' + result.cycleTotal + '<span style="font-size:14px;color:#aaa">회</span></div><div class="sub">' + (result.incompleteCount > 0 ? '진행중 ' + result.incompleteCount + '회 포함' : '모두 완료') + '</div></div></div>';
+    html += '<div class="cycle-grid"><div class="cycle-mini"><div class="lbl">평균 수익</div><div class="val" style="color:' + (result.avgCyclePnl>=0?'#0f0':'#f88') + '">' + (result.avgCyclePnl>=0?'+':'') + result.avgCyclePnl.toFixed(2) + '%</div></div><div class="cycle-mini"><div class="lbl">평균 기간</div><div class="val">' + result.avgCycleDuration.toFixed(1) + '일</div></div><div class="cycle-mini"><div class="lbl">중앙값 기간</div><div class="val">' + result.medianCycleDuration + '일</div></div></div>';
+    
+    if (result.bestCycle && result.worstCycle) {
+      html += '<div class="best-worst"><div class="bw-card best"><div style="color:#0f0;font-weight:700">🌟 최고 사이클</div><div class="bw-pnl" style="color:' + (result.bestCycle.pnl>=0?'#0f0':'#f88') + ' !important">' + (result.bestCycle.pnl>=0?'+':'') + result.bestCycle.pnl.toFixed(2) + '%</div><div class="bw-date">' + result.bestCycle.startDate + '<br>→ ' + result.bestCycle.endDate + '<br>(' + result.bestCycle.duration + '일, max ' + result.bestCycle.maxUnits + 'u)</div></div><div class="bw-card worst"><div style="color:#f88;font-weight:700">💀 최악 사이클</div><div class="bw-pnl" style="color:' + (result.worstCycle.pnl>=0?'#0f0':'#f88') + ' !important">' + (result.worstCycle.pnl>=0?'+':'') + result.worstCycle.pnl.toFixed(2) + '%</div><div class="bw-date">' + result.worstCycle.startDate + '<br>→ ' + result.worstCycle.endDate + '<br>(' + result.worstCycle.duration + '일, max ' + result.worstCycle.maxUnits + 'u)</div></div></div>';
+    }
+    
+    html += '<div class="cycle-distribution"><div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:6px">📊 사이클 수익률 분포</div>' + distHtml + '</div>';
+    
+    // 🆕 사이클 종료 유닛 통계
+    if (unitHtml) {
+      html += '<div class="unit-stats"><div class="unit-stats-title">🎯 사이클 최대 유닛 분포 (얼마나 진입했나)</div>' + unitHtml;
+      // 평균/중앙값
+      const allMax = completed.map(c => c.maxUnits).filter(u => u > 0);
+      if (allMax.length > 0) {
+        const avgMax = allMax.reduce((s,u) => s+u, 0) / allMax.length;
+        const sortedMax = [...allMax].sort((a,b) => a-b);
+        const medMax = sortedMax[Math.floor(sortedMax.length/2)];
+        html += '<div style="margin-top:8px;font-size:11px;color:#aaa;text-align:center">평균 ' + avgMax.toFixed(1) + 'u · 중앙값 ' + medMax + 'u</div>';
+        html += '<div style="margin-top:6px;font-size:10px;color:#888;line-height:1.5">💡 2-4u 多 = 건강한 변동 / 12-20u 多 = 폭락 시장 / 2u 만 多 = 단방향 (HUNTER 한계)</div>';
+      }
+      html += '</div>';
+    }
+    
+    html += '<div class="def-info"><b>📐 사이클 정의:</b> 0u 상태 → 매수 진입 → 모든 티어 매도 후 0u 복귀 = 1 사이클<br><b>💡 의미:</b> 떨사 시스템의 "회차"와 동일! 실제 시드 투입/회수 1세트<br><b>🎯 승률:</b> 사이클 종료 시 cap 증가 = 승, 감소 = 패</div>';
+    html += '</div>';
+    html += '<div class="warmup-info">🔧 사용자 시작일(' + userStartDate + ')부터 <b>실제 거래 시작</b><br>· warmup ' + userStartIdx + '일 + 실거래 ' + (data.bars.length - userStartIdx) + '일</div>';
+    html += '</div>';
+    html += '<div class="card" style="font-size:12px;color:#aaa;line-height:1.7"><b style="color:#ffd">⚙️ 사용된 HUNTER 파라미터:</b><br>매도: +' + (params.top_p*100).toFixed(1) + '% / +' + (params.mid_p*100).toFixed(1) + '% / +' + (params.bot_p*100).toFixed(1) + '% (천/중/바)<br>기간: ' + params.top_d + ' / ' + params.mid_d + ' / ' + params.bot_d + '일 · Lookback ' + params.lookback + '일<br>파라미터: ' + paramSource + '</div>';
     
     resultEl.innerHTML = html;
     progressEl.innerHTML = '✅ 완료!';
-    
   } catch(e) {
     progressEl.innerHTML = '❌ ' + e.message;
     console.error(e);
@@ -570,7 +417,6 @@ async function runBacktest() {
 }
 
 async function runBacktestBasic() {
-  // 기본 SOXL 룰 강제 적용 (변동성 측정 스킵)
   window.autoParams = {
     top_p: 0.025, mid_p: 0.005, bot_p: 0.03,
     top_d: 7, mid_d: 7, bot_d: 10, lookback: 20,
@@ -580,14 +426,10 @@ async function runBacktestBasic() {
   window.autoParams = null;
 }
 
-// 🆕 가상 시드 비교 백테 (5가지 시뮬레이션 동시)
-// 🆕 가상 시드 펼침/접기 토글 (사이클 기준 + 한 번에 하나만)
-// 🆕 연도 클릭 시 월별 펼침/접기
 function toggleYearMonths(yKey) {
   const monthsRow = document.getElementById('months-' + yKey);
   const arrow = document.getElementById('year-arrow-' + yKey);
   if (!monthsRow) return;
-  
   const isHidden = monthsRow.style.display === 'none';
   monthsRow.style.display = isHidden ? 'table-row' : 'none';
   if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
@@ -596,59 +438,35 @@ function toggleYearMonths(yKey) {
 function toggleVsDetail(idx) {
   const detailRow = document.getElementById('vs-detail-' + idx);
   const contentDiv = document.getElementById('vs-detail-content-' + idx);
-  
   if (!detailRow || !contentDiv) return;
-  
   const wasOpen = detailRow.style.display === 'table-row';
-  
-  // 🆕 모든 펼침 먼저 닫기 (다른 행 클릭 시 이전 펼침 사라짐)
   for (let i = 0; i < 5; i++) {
     const otherRow = document.getElementById('vs-detail-' + i);
     if (otherRow) otherRow.style.display = 'none';
   }
-  
-  // 클릭한 행이 닫혀있었으면 열기 (이미 열려있었으면 닫힌 상태 유지)
   if (!wasOpen) {
     if (!contentDiv.innerHTML) {
       const r = window._vsResults[idx];
       const showMonthly = window._vsShowMonthly;
       const snapshots = r.periodSnapshots;
-      
       const boostLabel = r.boost === 0 ? '정상 (0%)' : '+' + (r.boost * 100).toFixed(0) + '%';
       const boostColor = r.boost === 0 ? '#888' : (r.boost === 0.05 ? '#22c55e' : (r.boost === 0.10 ? '#3b82f6' : (r.boost === 0.15 ? '#a78bfa' : '#f97316')));
-      
       let detailHtml = '<div style="font-size:14px;color:' + boostColor + ';font-weight:800;margin-bottom:12px">📊 ' + boostLabel + ' - ' + (showMonthly ? '월별' : '연도별') + ' 수익률 (사이클 기준)</div>';
-      
-      const keys = Object.keys(snapshots).filter(k => {
-        if (showMonthly) return k.length === 7;
-        else return k.length === 4;
-      }).sort();
-      
-      if (keys.length === 0) {
-        detailHtml += '<div style="color:#666;font-style:italic">데이터 없음</div>';
-      } else {
-        detailHtml += '<table style="width:100%;border-collapse:collapse;font-family:\'JetBrains Mono\',monospace;font-size:15px">';
+      const keys = Object.keys(snapshots).filter(k => { if (showMonthly) return k.length === 7; else return k.length === 4; }).sort();
+      if (keys.length === 0) detailHtml += '<div style="color:#666;font-style:italic">데이터 없음</div>';
+      else {
+        detailHtml += '<table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:15px">';
         detailHtml += '<thead><tr style="border-bottom:2px solid #333"><th style="padding:10px 8px;text-align:left;color:#888;font-size:13px">' + (showMonthly ? '월' : '년도') + '</th><th style="padding:10px 8px;text-align:right;color:#fbbf24;font-size:13px">수익률</th><th style="padding:10px 8px;text-align:right;color:#888;font-size:13px">MDD</th></tr></thead><tbody>';
-        
         for (const key of keys) {
           const snap = snapshots[key];
-          // 🆕 사이클 기준 수익률 = (endCap - startCap) / startCap × 100
           const ret = (snap.endCap - snap.startCap) / snap.startCap * 100;
           const cls = ret >= 0 ? '#22c55e' : '#ef4444';
-          
           const periodMdd = snap.mdd || 0;
           const mddCls = periodMdd < 0 ? '#ef4444' : '#888';
-          
-          detailHtml += '<tr style="border-bottom:1px solid #1a1a2a">';
-          detailHtml += '<td style="padding:12px 8px;color:#fff;font-weight:700;font-size:15px">' + key + '</td>';
-          detailHtml += '<td style="padding:12px 8px;text-align:right;font-weight:800;color:' + cls + ';font-size:18px">' + (ret >= 0 ? '+' : '') + ret.toFixed(1) + '%</td>';
-          detailHtml += '<td style="padding:12px 8px;text-align:right;color:' + mddCls + ';font-size:14px">' + (periodMdd < 0 ? periodMdd.toFixed(1) + '%' : '-') + '</td>';
-          detailHtml += '</tr>';
+          detailHtml += '<tr style="border-bottom:1px solid #1a1a2a"><td style="padding:12px 8px;color:#fff;font-weight:700;font-size:15px">' + key + '</td><td style="padding:12px 8px;text-align:right;font-weight:800;color:' + cls + ';font-size:18px">' + (ret >= 0 ? '+' : '') + ret.toFixed(1) + '%</td><td style="padding:12px 8px;text-align:right;color:' + mddCls + ';font-size:14px">' + (periodMdd < 0 ? periodMdd.toFixed(1) + '%' : '-') + '</td></tr>';
         }
-        
         detailHtml += '</tbody></table>';
       }
-      
       contentDiv.innerHTML = detailHtml;
     }
     detailRow.style.display = 'table-row';
@@ -659,95 +477,55 @@ async function runVirtualSeedCompare() {
   const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
   const userStartDate = document.getElementById('bt-start').value;
   const userEndDate = document.getElementById('bt-end').value;
-  
   if (!sym) { alert('종목 입력!'); return; }
   if (!userStartDate || !userEndDate) { alert('날짜 선택!'); return; }
-  
   const progressEl = document.getElementById('bt-progress');
   const resultEl = document.getElementById('result');
   progressEl.innerHTML = '⚡ 가상 시드 비교 백테 시작...';
   resultEl.innerHTML = '';
-  
   try {
-    // 기본 SOXL 룰 사용
-    const params = {
-      top_p: 0.025, mid_p: 0.005, bot_p: 0.03,
-      top_d: 7, mid_d: 7, bot_d: 10, lookback: 20
-    };
-    
-    // 데이터 가져오기
+    const params = { top_p: 0.025, mid_p: 0.005, bot_p: 0.03, top_d: 7, mid_d: 7, bot_d: 10, lookback: 20 };
     const warmupCalendarDays = Math.ceil(25 * 1.6) + 10;
     const fetchStartDate = new Date(userStartDate);
     fetchStartDate.setDate(fetchStartDate.getDate() - warmupCalendarDays);
     const fmt = d => d.toISOString().slice(0, 10);
     const fetchStartStr = fmt(fetchStartDate);
-    
     progressEl.innerHTML = '📥 데이터 가져오는 중...';
-    
     const res = await fetch('/api/history?symbol=' + sym + '&start=' + fetchStartStr + '&end=' + userEndDate);
     const data = await res.json();
-    
     if (data.error) { progressEl.innerHTML = '❌ ' + data.error; return; }
     if (!data.bars || data.bars.length < 30) { progressEl.innerHTML = '❌ 데이터 부족'; return; }
-    
     const userStartTs = new Date(userStartDate).getTime();
     let userStartIdx = -1;
     for (let i = 0; i < data.bars.length; i++) {
-      if (new Date(data.bars[i].date).getTime() >= userStartTs) {
-        userStartIdx = i;
-        break;
-      }
+      if (new Date(data.bars[i].date).getTime() >= userStartTs) { userStartIdx = i; break; }
     }
     if (userStartIdx < 0) { progressEl.innerHTML = '❌ 시작일 데이터 없음'; return; }
-    
     progressEl.innerHTML = '🔥 5가지 시뮬레이션 실행 중...';
-    
-    // 5가지 가상 시드 비율로 시뮬레이션
     const boosts = [0, 0.05, 0.10, 0.15, 0.20];
     const results = [];
     for (const boost of boosts) {
       const r = simulateHunter(data.bars, params, userStartIdx, boost);
       results.push({ boost: boost, ...r });
     }
-    
-    // Buy & Hold 계산
     const userStartPrice = data.bars[userStartIdx].close;
     const userEndPrice = data.bars[data.bars.length - 1].close;
     const buyHoldMult = userEndPrice / userStartPrice;
-    
-    // 결과 표시
     progressEl.innerHTML = '✅ 비교 완료!';
-    
-    const baseResult = results[0]; // 정상 (가상 +0%)
+    const baseResult = results[0];
     const baseMult = baseResult.mult;
-    
     let html = '<div class="cycle-card" style="margin-top:14px"><div class="cs-title">⚡ 가상 시드 비교 결과 (' + sym + ' / 기본 SOXL 룰)</div>';
-    
-    // 설정 기간 표시
     const totalDaysActual = data.bars.length - userStartIdx;
     const yearsDisplay = (totalDaysActual / 252).toFixed(2);
-    html += '<div style="background:#0a1a2a;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#3b82f6;font-weight:700;text-align:center">';
-    html += '📅 백테 기간: ' + userStartDate + ' ~ ' + userEndDate + ' (약 ' + yearsDisplay + '년 / ' + totalDaysActual + ' 거래일)';
-    html += '</div>';
-    
-    html += '<div style="background:#1a1a2a;border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.7">';
-    html += '<b style="color:#fbbf24">💡 가상 시드 시스템:</b><br>';
-    html += '• 0~14u: 가상 시드 풀 적용 (+X%)<br>';
-    html += '• 15u+: 정상 시드 (실전 매일 관리)<br>';
-    html += '• <span style="color:#fbbf24">📌 형님 운영: 보유 15u+ 시 v13 시드 $100K로 변경</span>';
-    html += '</div>';
-    
-    html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:\'JetBrains Mono\',monospace;font-size:14px">';
+    html += '<div style="background:#0a1a2a;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#3b82f6;font-weight:700;text-align:center">📅 백테 기간: ' + userStartDate + ' ~ ' + userEndDate + ' (약 ' + yearsDisplay + '년 / ' + totalDaysActual + ' 거래일)</div>';
+    html += '<div style="background:#1a1a2a;border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.7"><b style="color:#fbbf24">💡 가상 시드 시스템:</b><br>• 0~14u: 가상 시드 풀 적용 (+X%)<br>• 15u+: 정상 시드 (실전 매일 관리)<br>• <span style="color:#fbbf24">📌 형님 운영: 보유 15u+ 시 v13 시드 $100K로 변경</span></div>';
+    html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:14px">';
     html += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:12px 8px;text-align:left;color:#888;font-size:13px">가상비율</th><th style="padding:12px 8px;text-align:right;color:#fbbf24;font-size:13px">수익률</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">CAGR</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">MDD</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">vs정상</th></tr></thead><tbody>';
-    
     const totalDays = data.bars.length - userStartIdx;
     const years = totalDays / 252;
-    
     const showMonthly = years < 1.5;
-    
     window._vsResults = results;
     window._vsShowMonthly = showMonthly;
-    
     for (let idx = 0; idx < results.length; idx++) {
       const r = results[idx];
       const cagr = (Math.pow(r.mult, 1/years) - 1) * 100;
@@ -757,151 +535,86 @@ async function runVirtualSeedCompare() {
       const boostLabel = r.boost === 0 ? '정상' : '+' + (r.boost * 100).toFixed(0) + '%';
       const boostColor = r.boost === 0 ? '#888' : (r.boost === 0.05 ? '#22c55e' : (r.boost === 0.10 ? '#3b82f6' : (r.boost === 0.15 ? '#a78bfa' : '#f97316')));
       const periodCls = periodReturn >= 0 ? '#22c55e' : '#ef4444';
-      
-      html += '<tr style="border-bottom:1px solid #222;cursor:pointer" onclick="toggleVsDetail(' + idx + ')">';
-      html += '<td style="padding:14px 8px;color:' + boostColor + ';font-weight:800;font-size:15px">' + boostLabel + ' <span style="color:#666;font-size:11px">▼</span></td>';
-      html += '<td style="padding:14px 8px;text-align:right;font-weight:800;color:' + periodCls + ';font-size:15px">' + (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(0) + '%</td>';
-      html += '<td style="padding:14px 8px;text-align:right;color:#22c55e;font-size:13px">+' + cagr.toFixed(1) + '%</td>';
-      html += '<td style="padding:14px 8px;text-align:right;color:#ef4444;font-size:13px">' + r.mdd.toFixed(1) + '%</td>';
-      html += '<td style="padding:14px 8px;text-align:right;color:' + (vsBase > 1 ? '#22c55e' : (vsBase < 1 ? '#ef4444' : '#888')) + ';font-weight:700;font-size:14px">' + (vsBase >= 1 ? '+' : '') + vsBasePct + '%</td>';
-      html += '</tr>';
-      
+      html += '<tr style="border-bottom:1px solid #222;cursor:pointer" onclick="toggleVsDetail(' + idx + ')"><td style="padding:14px 8px;color:' + boostColor + ';font-weight:800;font-size:15px">' + boostLabel + ' <span style="color:#666;font-size:11px">▼</span></td><td style="padding:14px 8px;text-align:right;font-weight:800;color:' + periodCls + ';font-size:15px">' + (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(0) + '%</td><td style="padding:14px 8px;text-align:right;color:#22c55e;font-size:13px">+' + cagr.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:#ef4444;font-size:13px">' + r.mdd.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:' + (vsBase > 1 ? '#22c55e' : (vsBase < 1 ? '#ef4444' : '#888')) + ';font-weight:700;font-size:14px">' + (vsBase >= 1 ? '+' : '') + vsBasePct + '%</td></tr>';
       html += '<tr id="vs-detail-' + idx + '" style="display:none"><td colspan="5" style="padding:0;background:#0a0a14"><div id="vs-detail-content-' + idx + '" style="padding:14px"></div></td></tr>';
     }
-    
     html += '</tbody></table></div>';
-    
     html += '<div style="text-align:center;font-size:11px;color:#666;margin-top:8px">💡 각 행 클릭 시 연도별/월별 수익률 + MDD 펼쳐짐</div>';
-    
-    // 추천
     let bestIdx = 0;
     let bestScore = 0;
     for (let i = 0; i < results.length; i++) {
-      // 점수: 수익 - MDD 페널티
       const score = results[i].mult / baseMult - Math.abs(results[i].mdd / baseResult.mdd - 1) * 0.5;
       if (score > bestScore) { bestScore = score; bestIdx = i; }
     }
-    
     const recommended = results[bestIdx];
     const recBoost = recommended.boost;
     const recCagr = (Math.pow(recommended.mult, 1/years) - 1) * 100;
     const recPeriod = (recommended.mult - 1) * 100;
-    
-    html += '<div style="background:linear-gradient(135deg,#1a1a3a,#1a3a3a);border:2px solid #fbbf24;border-radius:12px;padding:16px;margin-top:16px">';
-    html += '<div style="font-size:15px;font-weight:800;color:#fbbf24;margin-bottom:8px">🏆 형님 추천: 가상 시드 ' + (recBoost === 0 ? '정상 (0%)' : '+' + (recBoost * 100).toFixed(0) + '%') + '</div>';
-    html += '<div style="font-size:13px;color:#fff;line-height:1.7">';
-    html += '• 누적 배수: <b>' + recommended.mult.toFixed(2) + 'x</b><br>';
-    html += '• <b style="color:#fbbf24">기간 수익률 (' + yearsDisplay + '년): ' + (recPeriod >= 0 ? '+' : '') + recPeriod.toFixed(1) + '%</b><br>';
-    html += '• 연환산 (CAGR): +' + recCagr.toFixed(1) + '%<br>';
-    html += '• 정상 대비: <b style="color:#22c55e">+' + ((recommended.mult / baseMult - 1) * 100).toFixed(1) + '%</b><br>';
-    html += '• MDD: ' + recommended.mdd.toFixed(1) + '%<br>';
-    html += '• Buy&Hold (' + buyHoldMult.toFixed(2) + 'x) 대비: <b>' + (recommended.mult / buyHoldMult).toFixed(2) + '배</b>';
-    html += '</div></div>';
-    
-    html += '<div style="margin-top:14px;font-size:12px;color:#888;line-height:1.7">';
-    html += '⚠️ <b>주의:</b><br>';
-    html += '• 가상 시드는 평소엔 시드 활용 ↑ (+수익)<br>';
-    html += '• But 풀 포지션 도달 시 = 안전 장치 작동 (정상 시드)<br>';
-    html += '• MDD 약간 ↑ 가능 (위험도)<br>';
-    html += '• 형님 결정: 수익 vs 위험 균형';
+    html += '<div style="background:linear-gradient(135deg,#1a1a3a,#1a3a3a);border:2px solid #fbbf24;border-radius:12px;padding:16px;margin-top:16px"><div style="font-size:15px;font-weight:800;color:#fbbf24;margin-bottom:8px">🏆 형님 추천: 가상 시드 ' + (recBoost === 0 ? '정상 (0%)' : '+' + (recBoost * 100).toFixed(0) + '%') + '</div><div style="font-size:13px;color:#fff;line-height:1.7">• 누적 배수: <b>' + recommended.mult.toFixed(2) + 'x</b><br>• <b style="color:#fbbf24">기간 수익률 (' + yearsDisplay + '년): ' + (recPeriod >= 0 ? '+' : '') + recPeriod.toFixed(1) + '%</b><br>• 연환산 (CAGR): +' + recCagr.toFixed(1) + '%<br>• 정상 대비: <b style="color:#22c55e">+' + ((recommended.mult / baseMult - 1) * 100).toFixed(1) + '%</b><br>• MDD: ' + recommended.mdd.toFixed(1) + '%<br>• Buy&Hold (' + buyHoldMult.toFixed(2) + 'x) 대비: <b>' + (recommended.mult / buyHoldMult).toFixed(2) + '배</b></div></div>';
+    html += '<div style="margin-top:14px;font-size:12px;color:#888;line-height:1.7">⚠️ <b>주의:</b><br>• 가상 시드는 평소엔 시드 활용 ↑ (+수익)<br>• But 풀 포지션 도달 시 = 안전 장치 작동 (정상 시드)<br>• MDD 약간 ↑ 가능 (위험도)<br>• 형님 결정: 수익 vs 위험 균형</div>';
     html += '</div>';
-    
-    html += '</div>';
-    
     resultEl.innerHTML = html;
-  } catch (e) {
-    progressEl.innerHTML = '❌ 에러: ' + e.message;
-  }
+  } catch (e) { progressEl.innerHTML = '❌ 에러: ' + e.message; }
 }
 
 function simulateHunter(bars, params, userStartIdx, virtualBoost) {
-  // virtualBoost: 0 (정상), 0.05 (+5%), 0.10 (+10%), 0.15 (+15%), 0.20 (+20%)
   virtualBoost = virtualBoost || 0;
-  
   const closes = bars.map(b => b.close);
   const dates = bars.map(b => b.date);
   const n = closes.length;
-  
   const minWarmup = Math.max(params.lookback + 5, 25);
   const warmup = Math.max(userStartIdx, minWarmup);
-  
   const TU = 20;
   let cap = 100;
   let pe = [], pu = [], pd = [], zones = [];
   let pk = 100, mdd = 0;
   let nBuys = 0, nSells = 0, tierWins = 0;
-  
-  // 가상 시드 통계
   let totalVirtualUnits = 0;
   let normalUnits = 0;
   let safetyTriggers = 0;
-  
   const cycles = [];
   let inCycle = false;
   let cycleStartCap = 100;
   let cycleStartIdx = warmup;
-  
-  // 🆕 연도별/월별 자본 추적 (사이클 기준!)
-  // periodSnapshots[year] = { startCap, endCap, peak, mdd, sellPnl }
+  let cycleMaxUnits = 0; // 🆕 사이클 최대 유닛
   const periodSnapshots = {};
   let lastYear = null;
   let lastMonth = null;
-  
-  // 🆕 사이클 기준 cap 추적 (보유 변경 X, 매도 손익만)
-  // capSnap = 매도가 발생할 때만 갱신되는 순수 cap
-  
   const calcTotalValue = (cl) => {
     let tv = cap;
-    for (let j = 0; j < pe.length; j++) {
-      tv *= (1 + (cl - pe[j]) / pe[j] * pu[j] / TU);
-    }
+    for (let j = 0; j < pe.length; j++) tv *= (1 + (cl - pe[j]) / pe[j] * pu[j] / TU);
     return tv;
   };
-  
   for (let i = warmup; i < n; i++) {
     const cl = closes[i];
     const prev = closes[i-1];
     const baseUnits = cl < prev ? 4 : 2;
-    
     const start = Math.max(0, i - params.lookback);
     const recentHigh = Math.max(...closes.slice(start, i+1));
     const dd = (cl - recentHigh) / recentHigh * 100;
-    
     let zone;
     if (dd >= -10) zone = 'top';
     else if (dd <= -15) zone = 'bot';
     else zone = 'mid';
-    
-    // 🆕 연도/월 변경 감지 (사이클 cap 기준 - 매도 손익만 반영)
     const dateStr = dates[i];
     const year = dateStr.slice(0, 4);
     const month = dateStr.slice(0, 7);
-    
     if (year !== lastYear) {
-      if (!periodSnapshots[year]) {
-        // cap = 매도/시작 시점 자본 (보유 X 평가 X)
-        periodSnapshots[year] = { startCap: cap, endCap: cap, peak: calcTotalValue(cl), mdd: 0 };
-      }
+      if (!periodSnapshots[year]) periodSnapshots[year] = { startCap: cap, endCap: cap, peak: calcTotalValue(cl), mdd: 0 };
       lastYear = year;
     }
     if (month !== lastMonth) {
-      if (!periodSnapshots[month]) {
-        periodSnapshots[month] = { startCap: cap, endCap: cap, peak: calcTotalValue(cl), mdd: 0 };
-      }
+      if (!periodSnapshots[month]) periodSnapshots[month] = { startCap: cap, endCap: cap, peak: calcTotalValue(cl), mdd: 0 };
       lastMonth = month;
     }
-    
-    // 1단계: 매도 처리
     const re = [], rd = [], ru = [], rz = [];
     for (let j = 0; j < pe.length; j++) {
       pd[j] += 1;
       const p = (cl - pe[j]) / pe[j];
-      
       let tp, fd;
       if (zones[j] === 'top') { tp = params.top_p; fd = params.top_d; }
       else if (zones[j] === 'bot') { tp = params.bot_p; fd = params.bot_d; }
       else { tp = params.mid_p; fd = params.mid_d; }
-      
       if (p >= tp || pd[j] >= fd) {
         cap *= (1 + p * pu[j] / TU);
         nSells++;
@@ -911,8 +624,6 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
       }
     }
     pe = re; pd = rd; pu = ru; zones = rz;
-    
-    // 2단계: 사이클 종료 체크
     if (inCycle && pe.length === 0) {
       const cyclePnl = (cap - cycleStartCap) / cycleStartCap * 100;
       cycles.push({
@@ -922,24 +633,20 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
         endDate: dates[i],
         duration: i - cycleStartIdx + 1,
         pnl: cyclePnl,
-        incomplete: false
+        incomplete: false,
+        maxUnits: cycleMaxUnits  // 🆕
       });
       inCycle = false;
     }
-    
-    // 3단계: 매수 처리 (가상 시드)
     const ti = pu.reduce((s, u) => s + u, 0);
     if (ti < TU && baseUnits > 0) {
       if (!inCycle) {
         inCycle = true;
         cycleStartCap = cap;
         cycleStartIdx = i;
+        cycleMaxUnits = 0;  // 🆕 새 사이클 시작
       }
-      
       let actualUnits;
-      // 🆕 형님 운영 룰: 단순 2단계 (실전 매일 관리)
-      // 0~14u: 풀 부스트 (+X%)
-      // 15u+: 정상 시드 (안전)
       if (virtualBoost > 0 && ti < 15) {
         actualUnits = Math.min(baseUnits * (1 + virtualBoost), TU - ti);
         totalVirtualUnits++;
@@ -947,16 +654,15 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
         actualUnits = Math.min(baseUnits, TU - ti);
         if (virtualBoost > 0) safetyTriggers++;
       }
-      
       pe.push(cl); pd.push(0); pu.push(actualUnits); zones.push(zone);
       nBuys++;
+      // 🆕 현재 총 유닛 추적
+      const currentTotalU = pu.reduce((s,u) => s+u, 0);
+      if (currentTotalU > cycleMaxUnits) cycleMaxUnits = Math.round(currentTotalU);
     }
-    
-    // 🆕 매일: cap이 갱신되면 기간별 endCap 갱신 (매도 시에만 변함)
-    // tv = 평가 자산 (보유 포함) - MDD 추적용
     const tv = calcTotalValue(cl);
     if (periodSnapshots[year]) {
-      periodSnapshots[year].endCap = cap; // 사이클 기준 (매도 손익만)
+      periodSnapshots[year].endCap = cap;
       if (tv > periodSnapshots[year].peak) periodSnapshots[year].peak = tv;
       const yearDd = (tv - periodSnapshots[year].peak) / periodSnapshots[year].peak * 100;
       if (yearDd < periodSnapshots[year].mdd) periodSnapshots[year].mdd = yearDd;
@@ -967,21 +673,13 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
       const monthDd = (tv - periodSnapshots[month].peak) / periodSnapshots[month].peak * 100;
       if (monthDd < periodSnapshots[month].mdd) periodSnapshots[month].mdd = monthDd;
     }
-    
-    // MDD
     if (tv > pk) pk = tv;
     const ddv = (tv - pk) / pk * 100;
     if (ddv < mdd) mdd = ddv;
   }
-  
-  // 최종 평가
   let final = cap;
   const lastClose = closes[n-1];
-  for (let j = 0; j < pe.length; j++) {
-    final *= (1 + (lastClose - pe[j]) / pe[j] * pu[j] / TU);
-  }
-  
-  // 진행 중인 사이클
+  for (let j = 0; j < pe.length; j++) final *= (1 + (lastClose - pe[j]) / pe[j] * pu[j] / TU);
   let incompleteCount = 0;
   if (inCycle) {
     incompleteCount = 1;
@@ -992,47 +690,31 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
       endDate: dates[n-1],
       duration: n - cycleStartIdx,
       pnl: (final - cycleStartCap) / cycleStartCap * 100,
-      incomplete: true
+      incomplete: true,
+      maxUnits: cycleMaxUnits  // 🆕
     });
   }
-  
-  // 통계 (완료 사이클만)
   const completed = cycles.filter(c => !c.incomplete);
   const cycleWins = completed.filter(c => c.pnl > 0).length;
   const cycleLosses = completed.length - cycleWins;
   const cycleWinRate = completed.length > 0 ? cycleWins / completed.length * 100 : 0;
   const avgCyclePnl = completed.length > 0 ? completed.reduce((s,c) => s+c.pnl, 0) / completed.length : 0;
-  
   const durations = completed.map(c => c.duration);
   const avgCycleDuration = durations.length > 0 ? durations.reduce((s,d) => s+d, 0) / durations.length : 0;
   const sortedDur = [...durations].sort((a,b) => a-b);
   const medianCycleDuration = sortedDur.length > 0 ? sortedDur[Math.floor(sortedDur.length / 2)] : 0;
-  
   let bestCycle = null, worstCycle = null;
   if (completed.length > 0) {
     bestCycle = completed.reduce((best, c) => c.pnl > best.pnl ? c : best);
     worstCycle = completed.reduce((worst, c) => c.pnl < worst.pnl ? c : worst);
   }
-  
   return {
-    mult: final / 100,
-    mdd: mdd,
-    nBuys: nBuys,
-    nSells: nSells,
-    tierWins: tierWins,
+    mult: final / 100, mdd: mdd, nBuys: nBuys, nSells: nSells, tierWins: tierWins,
     tierWinRate: nSells > 0 ? tierWins / nSells * 100 : 0,
-    cycles: cycles,
-    completedCycles: completed,
-    periodSnapshots: periodSnapshots,
-    cycleTotal: cycles.length,
-    cycleWins: cycleWins,
-    cycleLosses: cycleLosses,
-    cycleWinRate: cycleWinRate,
-    avgCyclePnl: avgCyclePnl,
-    avgCycleDuration: avgCycleDuration,
-    medianCycleDuration: medianCycleDuration,
-    bestCycle: bestCycle,
-    worstCycle: worstCycle,
+    cycles: cycles, completedCycles: completed, periodSnapshots: periodSnapshots,
+    cycleTotal: cycles.length, cycleWins: cycleWins, cycleLosses: cycleLosses,
+    cycleWinRate: cycleWinRate, avgCyclePnl: avgCyclePnl, avgCycleDuration: avgCycleDuration,
+    medianCycleDuration: medianCycleDuration, bestCycle: bestCycle, worstCycle: worstCycle,
     incompleteCount: incompleteCount
   };
 }
