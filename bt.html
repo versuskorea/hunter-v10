@@ -565,30 +565,32 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
   const minWarmup = Math.max(params.lookback + 5, 25);
   const warmup = Math.max(userStartIdx, minWarmup);
   const TU = 20;
-  let cap = 100;
-  // 🆕 자금 추적 (cap 단위로, seed=100 기준)
-  // unitPrice = seed/TU = 5 (cap 기준)
-  // 부스트 시 1u 가치 = 5 × (1+boost)
-  let pe = [], pu = [], pd = [], zones = [];
-  let pk = 100, mdd = 0;
+  
+  // 🆕 v6: 진짜 자금 추적 (실제 cash + shares)
+  const SEED = 100000;  // 실제 시드 $100K
+  const unitPrice = SEED / TU;  // 1u = $5K
+  let cash = SEED;
+  let pe = [], pu = [], pd = [], zones = [], ps = []; // ps = shares per tier
+  let pk = SEED, mdd = 0;
   let nBuys = 0, nSells = 0, tierWins = 0;
-  let totalVirtualUnits = 0;
-  let normalUnits = 0;
-  let safetyTriggers = 0;
-  let fundShortageCount = 0; // 🆕 자금 부족 발생 횟수
+  let fundShortageCount = 0;
+  let realized = 0;
   const cycles = [];
   let inCycle = false;
-  let cycleStartCap = 100;
+  let cycleStartCap = SEED;
   let cycleStartIdx = warmup;
   let cycleMaxUnits = 0;
   const periodSnapshots = {};
   let lastYear = null;
   let lastMonth = null;
+  
+  // 🆕 진짜 총 자산 = 현금 + 보유주식 평가액
   const calcTotalValue = (cl) => {
-    let tv = cap;
-    for (let j = 0; j < pe.length; j++) tv *= (1 + (cl - pe[j]) / pe[j] * pu[j] / TU);
-    return tv;
+    let assetValue = 0;
+    for (let j = 0; j < pe.length; j++) assetValue += ps[j] * cl;
+    return cash + assetValue;
   };
+  
   for (let i = warmup; i < n; i++) {
     const cl = closes[i];
     const prev = closes[i-1];
@@ -600,18 +602,27 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
     if (dd >= -10) zone = 'top';
     else if (dd <= -15) zone = 'bot';
     else zone = 'mid';
+    
     const dateStr = dates[i];
     const year = dateStr.slice(0, 4);
     const month = dateStr.slice(0, 7);
     if (year !== lastYear) {
-      if (!periodSnapshots[year]) periodSnapshots[year] = { startCap: cap, endCap: cap, peak: calcTotalValue(cl), mdd: 0 };
+      if (!periodSnapshots[year]) {
+        const tv = calcTotalValue(cl);
+        periodSnapshots[year] = { startCap: tv, endCap: tv, peak: tv, mdd: 0 };
+      }
       lastYear = year;
     }
     if (month !== lastMonth) {
-      if (!periodSnapshots[month]) periodSnapshots[month] = { startCap: cap, endCap: cap, peak: calcTotalValue(cl), mdd: 0 };
+      if (!periodSnapshots[month]) {
+        const tv = calcTotalValue(cl);
+        periodSnapshots[month] = { startCap: tv, endCap: tv, peak: tv, mdd: 0 };
+      }
       lastMonth = month;
     }
-    const re = [], rd = [], ru = [], rz = [];
+    
+    // 매도 처리 (진짜 cash 회수)
+    const re = [], rd = [], ru = [], rz = [], rs = [];
     for (let j = 0; j < pe.length; j++) {
       pd[j] += 1;
       const p = (cl - pe[j]) / pe[j];
@@ -620,93 +631,90 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
       else if (zones[j] === 'bot') { tp = params.bot_p; fd = params.bot_d; }
       else { tp = params.mid_p; fd = params.mid_d; }
       if (p >= tp || pd[j] >= fd) {
-        cap *= (1 + p * pu[j] / TU);
+        const sellValue = ps[j] * cl;
+        const buyValue = ps[j] * pe[j];
+        cash += sellValue;
+        realized += (sellValue - buyValue);
         nSells++;
         if (p > 0) tierWins++;
       } else {
-        re.push(pe[j]); rd.push(pd[j]); ru.push(pu[j]); rz.push(zones[j]);
+        re.push(pe[j]); rd.push(pd[j]); ru.push(pu[j]); rz.push(zones[j]); rs.push(ps[j]);
       }
     }
-    pe = re; pd = rd; pu = ru; zones = rz;
+    pe = re; pd = rd; pu = ru; zones = rz; ps = rs;
+    
     if (inCycle && pe.length === 0) {
-      const cyclePnl = (cap - cycleStartCap) / cycleStartCap * 100;
+      const tv = calcTotalValue(cl);
+      const cyclePnl = (tv - cycleStartCap) / cycleStartCap * 100;
       cycles.push({
-        startIdx: cycleStartIdx,
-        endIdx: i,
-        startDate: dates[cycleStartIdx],
-        endDate: dates[i],
-        duration: i - cycleStartIdx + 1,
-        pnl: cyclePnl,
-        incomplete: false,
-        maxUnits: cycleMaxUnits  // 🆕
+        startIdx: cycleStartIdx, endIdx: i,
+        startDate: dates[cycleStartIdx], endDate: dates[i],
+        duration: i - cycleStartIdx + 1, pnl: cyclePnl,
+        incomplete: false, maxUnits: cycleMaxUnits
       });
       inCycle = false;
     }
+    
+    // 매수 처리 (진짜 자금 체크 + 부분 매수)
     const ti = pu.reduce((s, u) => s + u, 0);
     if (ti < TU && baseUnits > 0) {
       if (!inCycle) {
         inCycle = true;
-        cycleStartCap = cap;
+        cycleStartCap = calcTotalValue(cl);
         cycleStartIdx = i;
         cycleMaxUnits = 0;
       }
       
-      // 🆕 자금 체크 (사이클 시작 cap 기준 - 시드 한도 시뮬)
-      // 정상 시드: 20u까지 매수 가능 (자금 부족 X)
-      // 부스트: 14u까지 1.2배 → 시드 1.2배 사용 → 풀 진입 시 부족 가능
-      const heldUnits = ti;
-      
-      let actualUnits;
-      let fundShortage = false;
-      
+      // 의도된 유닛 (부스트 적용)
+      let intendedUnits;
       if (virtualBoost > 0 && ti < 15) {
-        // 부스트 시도
-        const boostedUnits = Math.min(baseUnits * (1 + virtualBoost), TU - ti);
-        // 부스트된 누적 비율 체크
-        // pu = 모든 유닛 (부스트 포함). sum(pu) × 1유닛가치 = 사용 시드
-        // 부스트 시 1유닛 가치 = 정상 × (1+boost)
-        // 따라서: 사용된 cash 비율 ≈ sum(pu × boostMultiplier)
-        // 단순화: 누적 부스트 유닛 합이 TU (20u) 초과 시 자금 부족
-        const totalBoostedUnits = pu.reduce((s,u) => s+u, 0) + boostedUnits;
-        const seedUsageRatio = totalBoostedUnits / TU;
-        
-        if (seedUsageRatio > 1.0) {
-          // 자금 부족 → 정상 수량으로
-          actualUnits = Math.min(baseUnits, TU - ti);
-          // 정상도 시드 초과 시
-          const normalUsage = (pu.reduce((s,u) => s+u, 0) + actualUnits) / TU;
-          if (normalUsage > 1.0) {
-            actualUnits = Math.max(TU - pu.reduce((s,u) => s+u, 0), 0);
-          }
-          fundShortage = true;
-        } else {
-          actualUnits = boostedUnits;
-          totalVirtualUnits++;
-        }
+        intendedUnits = Math.min(baseUnits * (1 + virtualBoost), TU - ti);
       } else {
-        // 정상 시드 (자금 부족 X — 20u까지 매수 가능)
-        actualUnits = Math.min(baseUnits, TU - ti);
-        if (virtualBoost > 0) safetyTriggers++;
+        intendedUnits = Math.min(baseUnits, TU - ti);
       }
       
-      if (fundShortage) fundShortageCount++;
+      // 의도된 매수 금액
+      const intendedAmount = intendedUnits * unitPrice;
       
-      if (actualUnits >= 0.1) {
-        pe.push(cl); pd.push(0); pu.push(actualUnits); zones.push(zone);
+      // 🆕 진짜 자금 체크
+      let actualUnits, actualAmount, actualShares;
+      if (cash >= intendedAmount) {
+        // 자금 충분 → 의도대로 매수
+        actualUnits = intendedUnits;
+        actualAmount = intendedAmount;
+        actualShares = Math.floor(actualAmount / cl);
+      } else if (cash >= unitPrice * 0.5) {
+        // 부분 매수 (가능한 만큼)
+        actualAmount = cash * 0.95; // 5% 여유 남김
+        actualUnits = actualAmount / unitPrice;
+        actualShares = Math.floor(actualAmount / cl);
+        fundShortageCount++;
+      } else {
+        // 자금 너무 적음 → 매수 스킵
+        fundShortageCount++;
+        continue;
+      }
+      
+      if (actualShares > 0) {
+        const realCost = actualShares * cl;
+        cash -= realCost;
+        pe.push(cl); pd.push(0); pu.push(actualUnits); zones.push(zone); ps.push(actualShares);
         nBuys++;
         const currentTotalU = pu.reduce((s,u) => s+u, 0);
         if (currentTotalU > cycleMaxUnits) cycleMaxUnits = Math.round(currentTotalU);
       }
     }
+    
+    // 평가액 추적 (실제 자산)
     const tv = calcTotalValue(cl);
     if (periodSnapshots[year]) {
-      periodSnapshots[year].endCap = cap;
+      periodSnapshots[year].endCap = tv;
       if (tv > periodSnapshots[year].peak) periodSnapshots[year].peak = tv;
       const yearDd = (tv - periodSnapshots[year].peak) / periodSnapshots[year].peak * 100;
       if (yearDd < periodSnapshots[year].mdd) periodSnapshots[year].mdd = yearDd;
     }
     if (periodSnapshots[month]) {
-      periodSnapshots[month].endCap = cap;
+      periodSnapshots[month].endCap = tv;
       if (tv > periodSnapshots[month].peak) periodSnapshots[month].peak = tv;
       const monthDd = (tv - periodSnapshots[month].peak) / periodSnapshots[month].peak * 100;
       if (monthDd < periodSnapshots[month].mdd) periodSnapshots[month].mdd = monthDd;
@@ -715,23 +723,23 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
     const ddv = (tv - pk) / pk * 100;
     if (ddv < mdd) mdd = ddv;
   }
-  let final = cap;
+  
+  // 최종 평가
   const lastClose = closes[n-1];
-  for (let j = 0; j < pe.length; j++) final *= (1 + (lastClose - pe[j]) / pe[j] * pu[j] / TU);
+  const final = calcTotalValue(lastClose);
+  
   let incompleteCount = 0;
   if (inCycle) {
     incompleteCount = 1;
     cycles.push({
-      startIdx: cycleStartIdx,
-      endIdx: n-1,
-      startDate: dates[cycleStartIdx],
-      endDate: dates[n-1],
+      startIdx: cycleStartIdx, endIdx: n-1,
+      startDate: dates[cycleStartIdx], endDate: dates[n-1],
       duration: n - cycleStartIdx,
       pnl: (final - cycleStartCap) / cycleStartCap * 100,
-      incomplete: true,
-      maxUnits: cycleMaxUnits  // 🆕
+      incomplete: true, maxUnits: cycleMaxUnits
     });
   }
+  
   const completed = cycles.filter(c => !c.incomplete);
   const cycleWins = completed.filter(c => c.pnl > 0).length;
   const cycleLosses = completed.length - cycleWins;
@@ -746,15 +754,15 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
     bestCycle = completed.reduce((best, c) => c.pnl > best.pnl ? c : best);
     worstCycle = completed.reduce((worst, c) => c.pnl < worst.pnl ? c : worst);
   }
+  
   return {
-    mult: final / 100, mdd: mdd, nBuys: nBuys, nSells: nSells, tierWins: tierWins,
+    mult: final / SEED, mdd: mdd, nBuys: nBuys, nSells: nSells, tierWins: tierWins,
     tierWinRate: nSells > 0 ? tierWins / nSells * 100 : 0,
     cycles: cycles, completedCycles: completed, periodSnapshots: periodSnapshots,
     cycleTotal: cycles.length, cycleWins: cycleWins, cycleLosses: cycleLosses,
     cycleWinRate: cycleWinRate, avgCyclePnl: avgCyclePnl, avgCycleDuration: avgCycleDuration,
     medianCycleDuration: medianCycleDuration, bestCycle: bestCycle, worstCycle: worstCycle,
-    incompleteCount: incompleteCount,
-    fundShortageCount: fundShortageCount  // 🆕 자금 부족 횟수
+    incompleteCount: incompleteCount, fundShortageCount: fundShortageCount
   };
 }
 </script>
