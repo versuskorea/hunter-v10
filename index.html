@@ -394,7 +394,17 @@ function render(){
       h+='<tr '+(isForce?'style="background:rgba(239,68,68,0.08)"':'')+'><td><b>T'+(idx+1)+'</b></td><td>'+pp.d.slice(5)+'</td><td>$'+pp.e+'</td><td>'+pp.s+'</td><td>'+pp.u+'u</td><td>$'+sellPrice+'</td><td>~'+addBd(pp.d,pz.fd)+(isForce?'⚠️':'')+'</td><td class="'+pnlCls+'">'+(pnl>=0?'+':'')+pnl+'%</td></tr>';
     });
     if(p.pos.length===0){h+='<tr class="empty"><td colspan="8" style="padding:20px;color:var(--dim);font-style:italic">보유 티어 없음</td></tr>';}
-    h+='</tbody></table></div><div class="card"><div class="sb-row"><span class="k">보유 유닛</span><span class="v">'+totalU+'/'+TU+' ('+remU+'u 남음)</span></div><div class="sb-row"><span class="k">보유 주수</span><span class="v">'+p.pos.reduce((a,pp)=>a+pp.s,0)+'주</span></div><div class="sb-row"><span class="k">시드</span><span class="v" style="color:var(--green)">$'+p.seed.toLocaleString()+'</span></div><div class="sb-row"><span class="k">유닛 단가</span><span class="v">$'+(p.seed/TU).toFixed(0)+'</span></div></div><div class="note" style="margin-top:8px">💡 매수 체결은 <b style="color:var(--accent)">📋 주문 탭</b>에서 일지의 "체결" 버튼으로 입력하세요<br>💡 여기서는 매도만 가능 (티어 클릭 또는 "매도 기록")</div>';
+    h+='</tbody></table></div><div class="card">'+(()=>{
+      const totalShares=p.pos.reduce((a,pp)=>a+pp.s,0);
+      const totalCost=p.pos.reduce((a,pp)=>a+pp.s*pp.e,0);
+      const avgPrice=totalShares>0?totalCost/totalShares:0;
+      const curPrice=p.priceLive||p.priceClose||0;
+      const curValue=totalShares*curPrice;
+      const pl=curValue-totalCost;
+      const plPct=totalCost>0?(pl/totalCost)*100:0;
+      const plColor=pl>=0?'var(--green)':'var(--red)';
+      return '<div class="sb-row"><span class="k">총 투입금액</span><span class="v">$'+totalCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'</span></div><div class="sb-row"><span class="k">평단가</span><span class="v">$'+avgPrice.toFixed(2)+'</span></div><div class="sb-row"><span class="k">현재 평가액</span><span class="v">$'+curValue.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'</span></div><div class="sb-row"><span class="k">총 손익</span><span class="v" style="color:'+plColor+';font-weight:800">'+(pl>=0?'+':'')+'$'+pl.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')+' ('+(plPct>=0?'+':'')+plPct.toFixed(2)+'%)</span></div>';
+    })()+'<div class="sb-row"><span class="k">보유 유닛</span><span class="v">'+totalU+'/'+TU+' ('+remU+'u 남음)</span></div><div class="sb-row"><span class="k">보유 주수</span><span class="v">'+p.pos.reduce((a,pp)=>a+pp.s,0)+'주</span></div><div class="sb-row"><span class="k">시드</span><span class="v" style="color:var(--green)">$'+p.seed.toLocaleString()+'</span></div><div class="sb-row"><span class="k">유닛 단가</span><span class="v">$'+(p.seed/TU).toFixed(0)+'</span></div></div><div class="note" style="margin-top:8px">💡 매수 체결은 <b style="color:var(--accent)">📋 주문 탭</b>에서 일지의 "체결" 버튼으로 입력하세요<br>💡 여기서는 매도만 가능 (티어 클릭 또는 "매도 기록")</div>';
     if(p.pos.length>0){h+='<div class="card"><div class="ct">📉 매도</div><button class="btn btn-s" onclick="openSellModal()">매도 기록</button></div>';}
     h+='<div class="card"><div class="ct">📈 수동 매수 기록</div><div style="font-size:13px;color:var(--dim);margin-bottom:10px;line-height:1.6">매매일지에 없는 날 매수했을 때 사용<br>(예: 야후 데이터 지연, 같은 날 추가 매수 등)</div><button class="btn btn-b" onclick="openManualBuyModal()">+ 수동 매수 기록</button></div>';
   }
