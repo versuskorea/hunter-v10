@@ -567,8 +567,8 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
   const TU = 20;
   
   // 🆕 v6: 진짜 자금 추적 (실제 cash + shares)
-  const SEED = 100000;  // 실제 시드 $100K
-  const unitPrice = SEED / TU;  // 1u = $5K
+  let SEED = 100000;  // 실제 시드 $100K (사이클 종료 시 자동 증액)
+  let unitPrice = SEED / TU;  // 1u = $5K (시드 변경 시 자동 갱신)
   let cash = SEED;
   let pe = [], pu = [], pd = [], zones = [], ps = []; // ps = shares per tier
   let pk = SEED, mdd = 0;
@@ -653,6 +653,9 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
         incomplete: false, maxUnits: cycleMaxUnits
       });
       inCycle = false;
+      // 🆕 사이클 종료 = 시드 자동 증액 (복리)
+      SEED = cash;  // 매도 후 잔여 현금 = 새 시드
+      unitPrice = SEED / TU;  // 새 1u 단가
     }
     
     // 매수 처리 (진짜 자금 체크 + 부분 매수)
@@ -756,7 +759,7 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
   }
   
   return {
-    mult: final / SEED, mdd: mdd, nBuys: nBuys, nSells: nSells, tierWins: tierWins,
+    mult: final / 100000, mdd: mdd, nBuys: nBuys, nSells: nSells, tierWins: tierWins,
     tierWinRate: nSells > 0 ? tierWins / nSells * 100 : 0,
     cycles: cycles, completedCycles: completed, periodSnapshots: periodSnapshots,
     cycleTotal: cycles.length, cycleWins: cycleWins, cycleLosses: cycleLosses,
