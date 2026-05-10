@@ -127,6 +127,7 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
 <button class="btn btn-primary" onclick="runBacktest()">🚀 백테 실행!</button>
 <button class="btn" onclick="runBacktestBasic()" style="background:linear-gradient(135deg,#00c853,#00897b) !important;">🏹 기본 HUNTER로 백테! (SOXL용)</button>
 <button class="btn" onclick="runVirtualSeedCompare()" style="background:linear-gradient(135deg,#fbbf24,#f97316) !important;color:#000 !important;font-weight:800">⚡ 가상 시드 비교! (+0/+5/+10/+15/+20%)</button>
+<button class="btn" onclick="runRuleCompare()" style="background:linear-gradient(135deg,#a78bfa,#3b82f6) !important;font-weight:800">🎯 룰 비교! (매수 유닛 / 매도 % / 강제 기간)</button>
 
   <div class="progress" id="bt-progress"></div>
 </div>
@@ -557,6 +558,137 @@ async function runVirtualSeedCompare() {
   } catch (e) { progressEl.innerHTML = '❌ 에러: ' + e.message; }
 }
 
+async function runRuleCompare() {
+  const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
+  const userStartDate = document.getElementById('bt-start').value;
+  const userEndDate = document.getElementById('bt-end').value;
+  if (!sym) { alert('종목 입력!'); return; }
+  if (!userStartDate || !userEndDate) { alert('날짜 선택!'); return; }
+  const progressEl = document.getElementById('bt-progress');
+  const resultEl = document.getElementById('result');
+  progressEl.innerHTML = '🎯 룰 비교 백테 시작...';
+  resultEl.innerHTML = '';
+  try {
+    const fetchStartDate = new Date(userStartDate);
+    fetchStartDate.setDate(fetchStartDate.getDate() - 50);
+    const fmt = d => d.toISOString().slice(0, 10);
+    progressEl.innerHTML = '📥 데이터 가져오는 중...';
+    const res = await fetch('/api/history?symbol=' + sym + '&start=' + fmt(fetchStartDate) + '&end=' + userEndDate);
+    const data = await res.json();
+    if (data.error) { progressEl.innerHTML = '❌ ' + data.error; return; }
+    if (!data.bars || data.bars.length < 30) { progressEl.innerHTML = '❌ 데이터 부족'; return; }
+    const userStartTs = new Date(userStartDate).getTime();
+    let userStartIdx = -1;
+    for (let i = 0; i < data.bars.length; i++) {
+      if (new Date(data.bars[i].date).getTime() >= userStartTs) { userStartIdx = i; break; }
+    }
+    if (userStartIdx < 0) { progressEl.innerHTML = '❌ 시작일 데이터 없음'; return; }
+    
+    const totalDaysActual = data.bars.length - userStartIdx;
+    const yearsDisplay = (totalDaysActual / 252).toFixed(2);
+    
+    progressEl.innerHTML = '🔥 다양한 룰 시뮬 중... (총 21개 케이스)';
+    
+    // === 그룹 A: 매수 유닛 ===
+    const unitCases = [
+      { name: '1u/2u 보수', up:1, dn:2 },
+      { name: '1u/3u',      up:1, dn:3 },
+      { name: '2u/3u',      up:2, dn:3 },
+      { name: '2u/4u 현재', up:2, dn:4 },
+      { name: '2u/5u',      up:2, dn:5 },
+      { name: '3u/5u',      up:3, dn:5 },
+      { name: '3u/6u 공격', up:3, dn:6 }
+    ];
+    const unitResults = [];
+    for (const c of unitCases) {
+      const params = { up:c.up, dn:c.dn, top_p:0.025, mid_p:0.005, bot_p:0.030, top_d:7, mid_d:7, bot_d:10, lookback:20 };
+      const r = simulateHunter(data.bars, params, userStartIdx, 0);
+      unitResults.push({ name: c.name, ...r });
+    }
+    
+    // === 그룹 B: 매도 % ===
+    const sellCases = [
+      { name: '1.5/0.3/2.0 자주',  top_p:0.015, mid_p:0.003, bot_p:0.020 },
+      { name: '2.0/0.5/2.5',     top_p:0.020, mid_p:0.005, bot_p:0.025 },
+      { name: '2.5/0.5/3.0 현재', top_p:0.025, mid_p:0.005, bot_p:0.030 },
+      { name: '3.0/1.0/4.0',     top_p:0.030, mid_p:0.010, bot_p:0.040 },
+      { name: '4.0/1.5/5.0',     top_p:0.040, mid_p:0.015, bot_p:0.050 },
+      { name: '5.0/2.0/6.0 길게',  top_p:0.050, mid_p:0.020, bot_p:0.060 }
+    ];
+    const sellResults = [];
+    for (const c of sellCases) {
+      const params = { up:2, dn:4, top_p:c.top_p, mid_p:c.mid_p, bot_p:c.bot_p, top_d:7, mid_d:7, bot_d:10, lookback:20 };
+      const r = simulateHunter(data.bars, params, userStartIdx, 0);
+      sellResults.push({ name: c.name, ...r });
+    }
+    
+    // === 그룹 C: 강제 기간 ===
+    const periodCases = [
+      { name: '5/5/7일 빠름',    top_d:5,  mid_d:5,  bot_d:7 },
+      { name: '7/7/10일 현재',   top_d:7,  mid_d:7,  bot_d:10 },
+      { name: '10/10/14일',     top_d:10, mid_d:10, bot_d:14 },
+      { name: '14/14/20일',     top_d:14, mid_d:14, bot_d:20 },
+      { name: '20/20/30일 느림',  top_d:20, mid_d:20, bot_d:30 }
+    ];
+    const periodResults = [];
+    for (const c of periodCases) {
+      const params = { up:2, dn:4, top_p:0.025, mid_p:0.005, bot_p:0.030, top_d:c.top_d, mid_d:c.mid_d, bot_d:c.bot_d, lookback:20 };
+      const r = simulateHunter(data.bars, params, userStartIdx, 0);
+      periodResults.push({ name: c.name, ...r });
+    }
+    
+    // === 결과 표시 ===
+    const userStartPrice = data.bars[userStartIdx].close;
+    const userEndPrice = data.bars[data.bars.length - 1].close;
+    const buyHoldMult = userEndPrice / userStartPrice;
+    
+    let html = '<div class="cycle-card" style="margin-top:14px"><div class="cs-title">🎯 HUNTER 룰 비교 (' + sym + ')</div>';
+    html += '<div style="background:#0a1a2a;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#3b82f6;font-weight:700;text-align:center">📅 ' + userStartDate + ' ~ ' + userEndDate + ' (' + yearsDisplay + '년) · Buy&Hold ' + ((buyHoldMult-1)*100).toFixed(0) + '%</div>';
+    
+    const renderTable = (title, results, baseIdx) => {
+      const baseMult = results[baseIdx].mult;
+      let h = '<div style="margin-bottom:18px"><div style="font-size:14px;font-weight:800;color:#a78bfa;margin-bottom:8px">' + title + '</div>';
+      h += '<table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:13px">';
+      h += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:10px 6px;text-align:left;color:#888;font-size:12px">룰</th><th style="padding:10px 6px;text-align:right;color:#fbbf24;font-size:12px">수익률</th><th style="padding:10px 6px;text-align:right;color:#888;font-size:12px">CAGR</th><th style="padding:10px 6px;text-align:right;color:#888;font-size:12px">MDD</th><th style="padding:10px 6px;text-align:right;color:#22c55e;font-size:12px">vs현재</th></tr></thead><tbody>';
+      let bestIdx = 0;
+      let bestMult = 0;
+      results.forEach((r, idx) => { if (r.mult > bestMult) { bestMult = r.mult; bestIdx = idx; } });
+      results.forEach((r, idx) => {
+        const periodReturn = (r.mult - 1) * 100;
+        const cagr = (Math.pow(r.mult, 1 / parseFloat(yearsDisplay)) - 1) * 100;
+        const vsBase = ((r.mult / baseMult) - 1) * 100;
+        const isBest = idx === bestIdx;
+        const isBaseRow = idx === baseIdx;
+        const periodCls = periodReturn >= 0 ? '#22c55e' : '#ef4444';
+        const vsBaseCls = vsBase > 0 ? '#22c55e' : (vsBase < 0 ? '#ef4444' : '#888');
+        h += '<tr style="border-bottom:1px solid #222' + (isBest ? ';background:rgba(34,197,94,0.08)' : '') + '"><td style="padding:12px 6px;color:' + (isBaseRow ? '#fbbf24' : '#fff') + ';font-weight:' + (isBaseRow || isBest ? '800' : '600') + ';font-size:13px">' + (isBest ? '🏆 ' : '') + r.name + '</td><td style="padding:12px 6px;text-align:right;font-weight:800;color:' + periodCls + ';font-size:14px">' + (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(0) + '%</td><td style="padding:12px 6px;text-align:right;color:#888;font-size:12px">+' + cagr.toFixed(0) + '%</td><td style="padding:12px 6px;text-align:right;color:#ef4444;font-size:12px">' + r.mdd.toFixed(0) + '%</td><td style="padding:12px 6px;text-align:right;color:' + vsBaseCls + ';font-weight:700;font-size:13px">' + (vsBase > 0 ? '+' : '') + vsBase.toFixed(1) + '%</td></tr>';
+      });
+      h += '</tbody></table></div>';
+      return h;
+    };
+    
+    html += renderTable('━━━ A. 매수 유닛별 (매도 2.5/0.5/3% · 7/7/10일) ━━━', unitResults, 3);
+    html += renderTable('━━━ B. 매도 %별 (매수 2u/4u · 7/7/10일) ━━━', sellResults, 2);
+    html += renderTable('━━━ C. 강제 기간별 (매수 2u/4u · 매도 2.5/0.5/3%) ━━━', periodResults, 1);
+    
+    // 베스트 추천
+    const allResults = [...unitResults.map(r => ({...r, group: 'A'})), ...sellResults.map(r => ({...r, group: 'B'})), ...periodResults.map(r => ({...r, group: 'C'}))];
+    let bestOverall = allResults[0];
+    allResults.forEach(r => { if (r.mult > bestOverall.mult) bestOverall = r; });
+    const bestReturn = (bestOverall.mult - 1) * 100;
+    const bestCagr = (Math.pow(bestOverall.mult, 1 / parseFloat(yearsDisplay)) - 1) * 100;
+    
+    html += '<div style="background:linear-gradient(135deg,#1a1a3a,#1a3a3a);border:2px solid #fbbf24;border-radius:12px;padding:16px;margin-top:8px"><div style="font-size:15px;font-weight:800;color:#fbbf24;margin-bottom:8px">🏆 종합 1위: ' + bestOverall.name + ' (그룹 ' + bestOverall.group + ')</div><div style="font-size:13px;color:#fff;line-height:1.7">• 수익률 (' + yearsDisplay + '년): <b style="color:#22c55e">+' + bestReturn.toFixed(0) + '%</b><br>• CAGR: +' + bestCagr.toFixed(0) + '%<br>• MDD: ' + bestOverall.mdd.toFixed(1) + '%<br>• 누적: ' + bestOverall.mult.toFixed(2) + '배</div></div>';
+    html += '<div style="margin-top:12px;font-size:12px;color:#888;line-height:1.7">⚠️ 무한 자금 가정 백테 (실전 자금 부족 시 결과 다름)<br>💡 현재 룰(2u/4u · 2.5/0.5/3% · 7/7/10일)이 베이스라인</div>';
+    html += '</div>';
+    
+    resultEl.innerHTML = html;
+    progressEl.innerHTML = '✅ 룰 비교 완료!';
+  } catch (e) {
+    progressEl.innerHTML = '❌ 에러: ' + e.message;
+  }
+}
+
 function simulateHunter(bars, params, userStartIdx, virtualBoost) {
   virtualBoost = virtualBoost || 0;
   const closes = bars.map(b => b.close);
@@ -594,7 +726,9 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
   for (let i = warmup; i < n; i++) {
     const cl = closes[i];
     const prev = closes[i-1];
-    const baseUnits = cl < prev ? 4 : 2;
+    const UP = params.up || 2;
+    const DN = params.dn || 4;
+    const baseUnits = cl < prev ? DN : UP;
     const start = Math.max(0, i - params.lookback);
     const recentHigh = Math.max(...closes.slice(start, i+1));
     const dd = (cl - recentHigh) / recentHigh * 100;
