@@ -520,7 +520,7 @@ async function runVirtualSeedCompare() {
     html += '<div style="background:#0a1a2a;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#3b82f6;font-weight:700;text-align:center">📅 백테 기간: ' + userStartDate + ' ~ ' + userEndDate + ' (약 ' + yearsDisplay + '년 / ' + totalDaysActual + ' 거래일)</div>';
     html += '<div style="background:#1a1a2a;border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.7"><b style="color:#fbbf24">💡 가상 시드 시스템:</b><br>• 0~14u: 가상 시드 풀 적용 (+X%)<br>• 15u+: 정상 시드 (실전 매일 관리)<br>• <span style="color:#fbbf24">📌 형님 운영: 보유 15u+ 시 v13 시드 $100K로 변경</span></div>';
     html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:14px">';
-    html += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:12px 8px;text-align:left;color:#888;font-size:13px">가상비율</th><th style="padding:12px 8px;text-align:right;color:#fbbf24;font-size:13px">수익률</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">CAGR</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">MDD</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">vs정상</th></tr></thead><tbody>';
+    html += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:12px 8px;text-align:left;color:#888;font-size:13px">가상비율</th><th style="padding:12px 8px;text-align:right;color:#fbbf24;font-size:13px">수익률</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">CAGR</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">MDD</th><th style="padding:12px 8px;text-align:right;color:#ef4444;font-size:13px">자금부족</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">vs정상</th></tr></thead><tbody>';
     const totalDays = data.bars.length - userStartIdx;
     const years = totalDays / 252;
     const showMonthly = years < 1.5;
@@ -535,8 +535,8 @@ async function runVirtualSeedCompare() {
       const boostLabel = r.boost === 0 ? '정상' : '+' + (r.boost * 100).toFixed(0) + '%';
       const boostColor = r.boost === 0 ? '#888' : (r.boost === 0.05 ? '#22c55e' : (r.boost === 0.10 ? '#3b82f6' : (r.boost === 0.15 ? '#a78bfa' : '#f97316')));
       const periodCls = periodReturn >= 0 ? '#22c55e' : '#ef4444';
-      html += '<tr style="border-bottom:1px solid #222;cursor:pointer" onclick="toggleVsDetail(' + idx + ')"><td style="padding:14px 8px;color:' + boostColor + ';font-weight:800;font-size:15px">' + boostLabel + ' <span style="color:#666;font-size:11px">▼</span></td><td style="padding:14px 8px;text-align:right;font-weight:800;color:' + periodCls + ';font-size:15px">' + (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(0) + '%</td><td style="padding:14px 8px;text-align:right;color:#22c55e;font-size:13px">+' + cagr.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:#ef4444;font-size:13px">' + r.mdd.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:' + (vsBase > 1 ? '#22c55e' : (vsBase < 1 ? '#ef4444' : '#888')) + ';font-weight:700;font-size:14px">' + (vsBase >= 1 ? '+' : '') + vsBasePct + '%</td></tr>';
-      html += '<tr id="vs-detail-' + idx + '" style="display:none"><td colspan="5" style="padding:0;background:#0a0a14"><div id="vs-detail-content-' + idx + '" style="padding:14px"></div></td></tr>';
+      html += '<tr style="border-bottom:1px solid #222;cursor:pointer" onclick="toggleVsDetail(' + idx + ')"><td style="padding:14px 8px;color:' + boostColor + ';font-weight:800;font-size:15px">' + boostLabel + ' <span style="color:#666;font-size:11px">▼</span></td><td style="padding:14px 8px;text-align:right;font-weight:800;color:' + periodCls + ';font-size:15px">' + (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(0) + '%</td><td style="padding:14px 8px;text-align:right;color:#22c55e;font-size:13px">+' + cagr.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:#ef4444;font-size:13px">' + r.mdd.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:' + (r.fundShortageCount > 0 ? '#ef4444' : '#666') + ';font-size:13px;font-weight:' + (r.fundShortageCount > 0 ? '800' : '400') + '">' + (r.fundShortageCount || 0) + '회</td><td style="padding:14px 8px;text-align:right;color:' + (vsBase > 1 ? '#22c55e' : (vsBase < 1 ? '#ef4444' : '#888')) + ';font-weight:700;font-size:14px">' + (vsBase >= 1 ? '+' : '') + vsBasePct + '%</td></tr>';
+      html += '<tr id="vs-detail-' + idx + '" style="display:none"><td colspan="6" style="padding:0;background:#0a0a14"><div id="vs-detail-content-' + idx + '" style="padding:14px"></div></td></tr>';
     }
     html += '</tbody></table></div>';
     html += '<div style="text-align:center;font-size:11px;color:#666;margin-top:8px">💡 각 행 클릭 시 연도별/월별 수익률 + MDD 펼쳐짐</div>';
@@ -551,7 +551,7 @@ async function runVirtualSeedCompare() {
     const recCagr = (Math.pow(recommended.mult, 1/years) - 1) * 100;
     const recPeriod = (recommended.mult - 1) * 100;
     html += '<div style="background:linear-gradient(135deg,#1a1a3a,#1a3a3a);border:2px solid #fbbf24;border-radius:12px;padding:16px;margin-top:16px"><div style="font-size:15px;font-weight:800;color:#fbbf24;margin-bottom:8px">🏆 형님 추천: 가상 시드 ' + (recBoost === 0 ? '정상 (0%)' : '+' + (recBoost * 100).toFixed(0) + '%') + '</div><div style="font-size:13px;color:#fff;line-height:1.7">• 누적 배수: <b>' + recommended.mult.toFixed(2) + 'x</b><br>• <b style="color:#fbbf24">기간 수익률 (' + yearsDisplay + '년): ' + (recPeriod >= 0 ? '+' : '') + recPeriod.toFixed(1) + '%</b><br>• 연환산 (CAGR): +' + recCagr.toFixed(1) + '%<br>• 정상 대비: <b style="color:#22c55e">+' + ((recommended.mult / baseMult - 1) * 100).toFixed(1) + '%</b><br>• MDD: ' + recommended.mdd.toFixed(1) + '%<br>• Buy&Hold (' + buyHoldMult.toFixed(2) + 'x) 대비: <b>' + (recommended.mult / buyHoldMult).toFixed(2) + '배</b></div></div>';
-    html += '<div style="margin-top:14px;font-size:12px;color:#888;line-height:1.7">⚠️ <b>주의:</b><br>• 가상 시드는 평소엔 시드 활용 ↑ (+수익)<br>• But 풀 포지션 도달 시 = 안전 장치 작동 (정상 시드)<br>• MDD 약간 ↑ 가능 (위험도)<br>• 형님 결정: 수익 vs 위험 균형</div>';
+    html += '<div style="margin-top:14px;font-size:12px;color:#888;line-height:1.7">⚠️ <b>주의 (자금 체크 적용):</b><br>• 자금 부족 횟수 = 시드 한도로 매수 불가 발생<br>• +20% 부스트 시 14u 도달 시 시드 ~84% 사용<br>• 잔여 자금 부족 시 자동 감속 (정상 시드 또는 매수 스킵)<br>• <b style="color:#fbbf24">자금 부족 0회 = 안전 / 5회+ = 위험 (수익 X)</b><br>• 진짜 베스트: 자금 부족 0회 + 수익 최대인 옵션</div>';
     html += '</div>';
     resultEl.innerHTML = html;
   } catch (e) { progressEl.innerHTML = '❌ 에러: ' + e.message; }
@@ -566,17 +566,21 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
   const warmup = Math.max(userStartIdx, minWarmup);
   const TU = 20;
   let cap = 100;
+  // 🆕 자금 추적 (cap 단위로, seed=100 기준)
+  // unitPrice = seed/TU = 5 (cap 기준)
+  // 부스트 시 1u 가치 = 5 × (1+boost)
   let pe = [], pu = [], pd = [], zones = [];
   let pk = 100, mdd = 0;
   let nBuys = 0, nSells = 0, tierWins = 0;
   let totalVirtualUnits = 0;
   let normalUnits = 0;
   let safetyTriggers = 0;
+  let fundShortageCount = 0; // 🆕 자금 부족 발생 횟수
   const cycles = [];
   let inCycle = false;
   let cycleStartCap = 100;
   let cycleStartIdx = warmup;
-  let cycleMaxUnits = 0; // 🆕 사이클 최대 유닛
+  let cycleMaxUnits = 0;
   const periodSnapshots = {};
   let lastYear = null;
   let lastMonth = null;
@@ -644,21 +648,53 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
         inCycle = true;
         cycleStartCap = cap;
         cycleStartIdx = i;
-        cycleMaxUnits = 0;  // 🆕 새 사이클 시작
+        cycleMaxUnits = 0;
       }
+      
+      // 🆕 자금 추적 (cap 기준)
+      // unitPrice = cap / TU (현재 시드의 1u 가치)
+      // 보유 자산 합 = sum(pu[j]) × unitPrice
+      // 잔여 = cap - 보유
+      const unitPrice = cap / TU;
+      const heldUnits = ti;
+      const heldValue = heldUnits * unitPrice;
+      const remaining = cap - heldValue;
+      
       let actualUnits;
+      // 부스트 적용 검토
       if (virtualBoost > 0 && ti < 15) {
         actualUnits = Math.min(baseUnits * (1 + virtualBoost), TU - ti);
-        totalVirtualUnits++;
+        // 🆕 자금 체크 — 부스트 수량이 잔여 자금 초과 시 감속
+        const requiredFund = actualUnits * unitPrice;
+        if (requiredFund > remaining) {
+          // 자금 부족 → 가능한 만큼만 매수
+          actualUnits = Math.max(remaining / unitPrice, 0);
+          if (actualUnits < baseUnits) {
+            // 부스트 효과 X, 정상도 못 함 → 정상 시드 시도
+            actualUnits = Math.min(baseUnits, remaining / unitPrice);
+          }
+          fundShortageCount++;
+        } else {
+          totalVirtualUnits++;
+        }
       } else {
         actualUnits = Math.min(baseUnits, TU - ti);
+        // 🆕 정상 시드도 자금 체크
+        const requiredFund = actualUnits * unitPrice;
+        if (requiredFund > remaining) {
+          actualUnits = Math.max(remaining / unitPrice, 0);
+          fundShortageCount++;
+        }
         if (virtualBoost > 0) safetyTriggers++;
       }
-      pe.push(cl); pd.push(0); pu.push(actualUnits); zones.push(zone);
-      nBuys++;
-      // 🆕 현재 총 유닛 추적
-      const currentTotalU = pu.reduce((s,u) => s+u, 0);
-      if (currentTotalU > cycleMaxUnits) cycleMaxUnits = Math.round(currentTotalU);
+      
+      // 🆕 매수 실행 (수량 0 이상일 때만)
+      if (actualUnits >= 0.1) {
+        pe.push(cl); pd.push(0); pu.push(actualUnits); zones.push(zone);
+        nBuys++;
+        const currentTotalU = pu.reduce((s,u) => s+u, 0);
+        if (currentTotalU > cycleMaxUnits) cycleMaxUnits = Math.round(currentTotalU);
+      }
     }
     const tv = calcTotalValue(cl);
     if (periodSnapshots[year]) {
@@ -715,7 +751,8 @@ function simulateHunter(bars, params, userStartIdx, virtualBoost) {
     cycleTotal: cycles.length, cycleWins: cycleWins, cycleLosses: cycleLosses,
     cycleWinRate: cycleWinRate, avgCyclePnl: avgCyclePnl, avgCycleDuration: avgCycleDuration,
     medianCycleDuration: medianCycleDuration, bestCycle: bestCycle, worstCycle: worstCycle,
-    incompleteCount: incompleteCount
+    incompleteCount: incompleteCount,
+    fundShortageCount: fundShortageCount  // 🆕 자금 부족 횟수
   };
 }
 </script>
