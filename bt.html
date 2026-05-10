@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HUNTER 백테 v4 - 유닛 통계</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { background: #0f0f1e !important; color: #fff !important; color-scheme: dark !important; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; padding-bottom: 80px; max-width: 600px; margin: 0 auto; min-height: 100vh; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+h1 { font-size: 22px; font-weight: 700; color: #fff !important; }
+h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.back-btn { background: #1a1a2e !important; color: #fff !important; padding: 8px 14px; border-radius: 10px; text-decoration: none; font-size: 13px; border: 1px solid #333; }
+.card { background: #1a1a2e !important; border-radius: 14px; padding: 16px; margin-bottom: 14px; color: #fff !important; }
+.ct { font-weight: 700; font-size: 15px; margin-bottom: 12px; color: #667eea !important; }
+.ir { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; background: #2a2a3e !important; padding: 10px 14px; border-radius: 10px; }
+.ir label { font-size: 13px; color: #aaa !important; min-width: 50px; }
+.ir input, .ir select { flex: 1; background: transparent !important; border: none; color: #fff !important; font-size: 15px; outline: none; }
+.ir input::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.7; }
+.ir .u { color: #888 !important; font-size: 13px; }
+.btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px; color: #fff !important; }
+.btn-primary { background: linear-gradient(135deg, #667eea, #764ba2) !important; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+.btn-analyze { background: linear-gradient(135deg, #f093fb, #f5576c) !important; }
+.progress { text-align: center; margin-top: 14px; color: #667eea !important; font-size: 14px; min-height: 20px; }
+.result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.result-box { padding: 14px; border-radius: 12px; text-align: center; }
+.result-box.hold { background: #2a2a3e !important; }
+.result-box.hunter { background: linear-gradient(135deg, #667eea, #764ba2) !important; }
+.rb-label { font-size: 11px; opacity: 0.7; margin-bottom: 4px; }
+.rb-value { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+.rb-pct { font-size: 13px; opacity: 0.85; }
+.metric-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #2a2a3e; font-size: 13px; }
+.metric-row:last-child { border-bottom: none; }
+.metric-label { color: #aaa !important; }
+.metric-value { font-weight: 700; }
+.quick-sym { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.quick-sym button { background: #2a2a3e !important; color: #fff !important; border: 1px solid #333; padding: 6px 12px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+.tip { background: #1a1a2e !important; padding: 12px 14px; border-radius: 10px; font-size: 13px; color: #bbb !important; line-height: 1.6; margin-bottom: 14px; border: 1px solid #2a2a3e; }
+.cycle-badge { display: inline-block; background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff !important; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; margin-left: 6px; vertical-align: middle; }
+.vol-result { background: linear-gradient(135deg, #1a2a4e, #2a1a4e) !important; padding: 16px; border-radius: 14px; margin-bottom: 14px; }
+.vol-main { text-align: center; padding: 12px 0; }
+.vol-num { font-size: 40px; font-weight: 800; color: #ffdd44 !important; }
+.vol-cat { font-size: 15px; margin-top: 6px; }
+.param-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+.param-label { color: #bbb !important; }
+.param-value { color: #ffdd88 !important; font-weight: 700; }
+.warmup-info { background: rgba(0, 200, 83, 0.1); border: 1px solid rgba(0, 200, 83, 0.3); padding: 10px 12px; border-radius: 8px; margin-top: 10px; font-size: 12px; color: #8fe8b0 !important; line-height: 1.6; }
+.cycle-card { background: linear-gradient(135deg, #1a3a2e, #1a2a4e) !important; border: 1px solid rgba(245, 158, 11, 0.4); padding: 16px; border-radius: 14px; margin-top: 12px; }
+.cs-title { font-size: 14px; font-weight: 700; color: #fbbf24 !important; margin-bottom: 12px; }
+.cycle-main { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.cycle-big { background: rgba(0,0,0,0.4); padding: 14px; border-radius: 10px; text-align: center; }
+.cycle-big .lbl { font-size: 11px; color: #aaa !important; margin-bottom: 6px; }
+.cycle-big .big { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+.cycle-big .sub { font-size: 12px; color: #aaa !important; margin-top: 4px; }
+.cycle-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.cycle-mini { background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; text-align: center; }
+.cycle-mini .lbl { font-size: 10px; color: #999 !important; margin-bottom: 2px; }
+.cycle-mini .val { font-size: 14px; font-weight: 700; }
+.cycle-distribution { margin-top: 12px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; }
+.cycle-dist-row { display: flex; align-items: center; font-size: 11px; margin: 4px 0; color: #ddd !important; font-family: monospace; }
+.cycle-dist-row .dist-label { width: 95px; flex-shrink: 0; color: #aaa !important; font-size: 10px; }
+.cycle-dist-row .dist-bar { flex: 1; height: 14px; background: #2a2a3e; border-radius: 4px; margin: 0 8px; position: relative; overflow: hidden; display: block; min-width: 50px; }
+.cycle-dist-row .dist-fill { display: block; height: 100%; border-radius: 4px; min-width: 2px; transition: width 0.5s; }
+.cycle-dist-row .dist-cnt { width: 80px; flex-shrink: 0; text-align: right; font-size: 10px; }
+.def-info { background: rgba(0,0,0,0.25); padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 11px; color: #ccc !important; line-height: 1.7; }
+.def-info b { color: #fbbf24 !important; }
+.best-worst { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.bw-card { padding: 10px; border-radius: 8px; font-size: 11px; line-height: 1.5; }
+.bw-card.best { background: rgba(0, 255, 0, 0.08); border: 1px solid rgba(0, 255, 0, 0.3); }
+.bw-card.worst { background: rgba(255, 0, 0, 0.08); border: 1px solid rgba(255, 0, 0, 0.3); }
+.bw-card .bw-pnl { font-size: 18px; font-weight: 800; margin: 4px 0; }
+.bw-card.best .bw-pnl { color: #0f0 !important; }
+.bw-card.worst .bw-pnl { color: #f88 !important; }
+.bw-card .bw-date { color: #aaa !important; font-size: 10px; }
+.unit-stats { background: rgba(123, 97, 255, 0.1); border: 1px solid rgba(123, 97, 255, 0.4); padding: 12px; border-radius: 10px; margin-top: 12px; }
+.unit-stats-title { font-size: 12px; font-weight: 700; color: #a78bfa !important; margin-bottom: 8px; }
+.unit-row { display: flex; align-items: center; font-size: 11px; margin: 4px 0; color: #ddd !important; font-family: monospace; }
+.unit-row .ulbl { width: 60px; flex-shrink: 0; color: #aaa !important; font-size: 11px; }
+.unit-row .ubar { flex: 1; height: 16px; background: #2a2a3e; border-radius: 4px; margin: 0 8px; overflow: hidden; }
+.unit-row .ufill { display: block; height: 100%; border-radius: 4px; min-width: 2px; }
+.unit-row .ucnt { width: 90px; flex-shrink: 0; text-align: right; font-size: 11px; color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 <span class="grad">HUNTER</span> 백테<span class="cycle-badge">v4 유닛통계</span></h1>
+  <a href="/" class="back-btn">← 돌아가기</a>
+</div>
+
+<div class="tip">
+  💡 <b>v4:</b> 사이클 종료 시 최대 유닛 통계 추가!<br>
+  → 2u/4u/8u/12u/20u 종료 분포 = 시장 변동성 패턴 진단<br>
+  → 4u 종료 多 = 건강한 변동, 20u 多 = 폭락 시장, 2u 多 = 단방향 (HUNTER 한계)
+</div>
+
+<div class="card">
+  <div class="ct">🎯 백테 설정</div>
+  <div class="ir">
+    <label>종목</label>
+    <input type="text" id="bt-sym" value="SOXL" placeholder="SOXL, POET, TSLA..." style="text-transform:uppercase">
+    <span class="u">📊</span>
+  </div>
+  <div class="ir">
+    <label>시작</label>
+    <input type="date" id="bt-start" style="flex:1">
+  </div>
+  <div class="ir">
+    <label>종료</label>
+    <input type="date" id="bt-end" style="flex:1">
+  </div>
+
+  <div class="quick-sym">
+    <button onclick="setRange('ytd')">올해</button>
+    <button onclick="setRange(1)">1년</button>
+    <button onclick="setRange(2)">2년</button>
+    <button onclick="setRange(3)">3년</button>
+    <button onclick="setRange(5)">5년</button>
+    <button onclick="setRange(10)">10년</button>
+    <button onclick="setRange(20)">최대</button>
+  </div>
+
+  <div class="quick-sym" style="margin-top:12px" id="sym-buttons"></div>
+
+<button class="btn btn-analyze" onclick="analyzeVolatility()">📊 변동성 분석 & 자동 설정!</button>
+<button class="btn btn-primary" onclick="runBacktest()">🚀 백테 실행!</button>
+<button class="btn" onclick="runBacktestBasic()" style="background:linear-gradient(135deg,#00c853,#00897b) !important;">🏹 기본 HUNTER로 백테! (SOXL용)</button>
+<button class="btn" onclick="runRuleCompare()" style="background:linear-gradient(135deg,#a78bfa,#3b82f6) !important;font-weight:800">🎯 룰 비교! (매수 유닛 / 매도 % / 강제 기간)</button>
+<button class="btn" onclick="runRsiDynamicBoost()" style="background:linear-gradient(135deg,#22c55e,#16a34a) !important;font-weight:800">🤖 RSI 동적 부스트 강도별 비교! (정상/약/중/강/풀)</button>
+
+  <div class="progress" id="bt-progress"></div>
+</div>
+
+<div id="vol-panel"></div>
+<div id="result"></div>
+
+<script>
+const DEFAULT_SYMS = ['SOXL', 'TQQQ', 'POET', 'UCO', 'USO', 'TSLA', 'NVDA', 'AMD', 'AAPL', 'MSFT', 'GOOGL', 'SPY', 'QQQ'];
+
+function getRecentSyms() {
+  const stored = localStorage.getItem('bt-recent-syms');
+  if (stored) {
+    try { const arr = JSON.parse(stored); if (Array.isArray(arr) && arr.length > 0) return arr; } catch(e) {}
+  }
+  return DEFAULT_SYMS.slice();
+}
+function saveRecentSyms(syms) { localStorage.setItem('bt-recent-syms', JSON.stringify(syms.slice(0, 15))); }
+function addRecentSym(sym) {
+  if (!sym) return;
+  const u = sym.toUpperCase().trim();
+  if (!u) return;
+  let recent = getRecentSyms();
+  recent = recent.filter(s => s !== u);
+  recent.unshift(u);
+  recent = recent.slice(0, 15);
+  saveRecentSyms(recent);
+  renderSymButtons();
+}
+function renderSymButtons() {
+  const container = document.getElementById('sym-buttons');
+  if (!container) return;
+  const syms = getRecentSyms();
+  let html = '';
+  syms.forEach(s => { html += '<button onclick="setSym(\'' + s + '\')">' + s + '</button>'; });
+  container.innerHTML = html;
+}
+function setSym(s) { document.getElementById('bt-sym').value = s; addRecentSym(s); }
+function setRange(years) {
+  const end = new Date();
+  const start = new Date();
+  if (years === 'ytd') start.setMonth(0, 1);
+  else if (years === 20) start.setFullYear(2015, 0, 1);
+  else start.setFullYear(end.getFullYear() - years);
+  const fmt = d => d.toISOString().slice(0, 10);
+  document.getElementById('bt-start').value = fmt(start);
+  document.getElementById('bt-end').value = fmt(end);
+}
+
+window.addEventListener('DOMContentLoaded', () => { setRange(5); renderSymButtons(); });
+
+async function analyzeVolatility() {
+  const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
+  if (!sym) { alert('종목 입력!'); return; }
+  const progressEl = document.getElementById('bt-progress');
+  const volEl = document.getElementById('vol-panel');
+  progressEl.innerHTML = '📊 1년 데이터 다운로드...';
+  volEl.innerHTML = '';
+  try {
+    const end = new Date();
+    const start = new Date();
+    start.setFullYear(end.getFullYear() - 1);
+    const fmt = d => d.toISOString().slice(0, 10);
+    const url = '/api/history?symbol=' + sym + '&start=' + fmt(start) + '&end=' + fmt(end);
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) { progressEl.innerHTML = '❌ ' + data.error; return; }
+    if (!data.bars || data.bars.length < 30) { progressEl.innerHTML = '❌ 데이터 부족'; return; }
+    const closes = data.bars.map(b => b.close);
+    const returns = [];
+    for (let i = 1; i < closes.length; i++) returns.push((closes[i] - closes[i-1]) / closes[i-1] * 100);
+    const mean = returns.reduce((a,b) => a+b, 0) / returns.length;
+    const variance = returns.reduce((s,r) => s + Math.pow(r-mean, 2), 0) / returns.length;
+    const vol = Math.sqrt(variance);
+    const params = calcParams(vol);
+    const category = categorize(vol);
+    let html = '<div class="vol-result"><div class="ct" style="color:#ffd">🎯 ' + sym + ' 변동성 분석</div><div class="vol-main"><div class="vol-num">' + vol.toFixed(2) + '%</div><div class="vol-cat">' + category.emoji + ' ' + category.name + '</div></div><div style="background:rgba(0,0,0,0.3);padding:12px;border-radius:10px;margin-top:10px"><div style="font-weight:700;margin-bottom:8px;color:#ffd">💡 추천 HUNTER 설정:</div><div class="param-row"><span class="param-label">유닛</span><span class="param-value">2u / 4u / TU20</span></div><div class="param-row"><span class="param-label">매도 (천/중/바)</span><span class="param-value">+' + (params.top_p*100).toFixed(1) + '% / +' + (params.mid_p*100).toFixed(1) + '% / +' + (params.bot_p*100).toFixed(1) + '%</span></div><div class="param-row"><span class="param-label">강제 기간</span><span class="param-value">' + params.top_d + '/' + params.mid_d + '/' + params.bot_d + '일</span></div></div><div style="background:rgba(255,255,100,0.1);padding:10px;border-radius:8px;margin-top:10px;font-size:12px"><b>💡 ' + category.recommendation + '</b></div></div>';
+    volEl.innerHTML = html;
+    progressEl.innerHTML = '✅ 분석 완료! [🚀 백테 실행] 클릭!';
+    window.autoParams = params;
+  } catch(e) { progressEl.innerHTML = '❌ ' + e.message; }
+}
+
+function categorize(vol) {
+  if (vol < 1.0) return { emoji: '🟢', name: '안정주', recommendation: '변동성 너무 낮음! 단순 보유 추천!' };
+  if (vol < 1.5) return { emoji: '🔵', name: '지수 ETF', recommendation: 'Ultra Long HUNTER. 년 3~5회 매매!' };
+  if (vol < 2.5) return { emoji: '🟣', name: '안정 성장주', recommendation: 'Long HUNTER. 월 1~2회 매매!' };
+  if (vol < 4.0) return { emoji: '🟠', name: '변동 개별주', recommendation: 'Mid HUNTER. 주 1회 매매!' };
+  if (vol < 6.0) return { emoji: '🔴', name: '고변동 ETF', recommendation: 'Short-Mid HUNTER!' };
+  return { emoji: '🚨', name: '극변동', recommendation: '기본 HUNTER! 자동화 필수!' };
+}
+
+function calcParams(vol) {
+  const top_p = vol * 0.5 / 100;
+  const mid_p = vol * 0.3 / 100;
+  const bot_p = vol * 0.8 / 100;
+  let top_d, mid_d, bot_d, lookback;
+  if (vol >= 5) { top_d = 7; mid_d = 7; bot_d = 10; lookback = 20; }
+  else if (vol >= 3) { top_d = 10; mid_d = 10; bot_d = 14; lookback = 30; }
+  else if (vol >= 2) { top_d = 14; mid_d = 14; bot_d = 20; lookback = 40; }
+  else if (vol >= 1.5) { top_d = 18; mid_d = 18; bot_d = 27; lookback = 50; }
+  else { top_d = 25; mid_d = 25; bot_d = 40; lookback = 60; }
+  return { top_p, mid_p, bot_p, top_d, mid_d, bot_d, lookback };
+}
+
+async function runBacktest() {
+  const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
+  const userStartDate = document.getElementById('bt-start').value;
+  const userEndDate = document.getElementById('bt-end').value;
+  if (!sym) { alert('종목 입력!'); return; }
+  if (!userStartDate || !userEndDate) { alert('날짜 선택!'); return; }
+  addRecentSym(sym);
+  const progressEl = document.getElementById('bt-progress');
+  const resultEl = document.getElementById('result');
+  progressEl.innerHTML = '📥 데이터 가져오는 중...';
+  resultEl.innerHTML = '';
+  try {
+    let params = window.autoParams;
+    let paramSource = '자동';
+    let measuredVol = null;
+    if (params && params._forced) paramSource = params._forced;
+    if (!params) {
+      const end1y = new Date(userEndDate);
+      const start1y = new Date(end1y);
+      start1y.setFullYear(start1y.getFullYear() - 1);
+      const fmt = d => d.toISOString().slice(0, 10);
+      const volRes = await fetch('/api/history?symbol=' + sym + '&start=' + fmt(start1y) + '&end=' + fmt(end1y));
+      const volData = await volRes.json();
+      if (volData.error) { progressEl.innerHTML = '❌ ' + volData.error; return; }
+      const closes1y = volData.bars.map(b => b.close);
+      const rets = [];
+      for (let i = 1; i < closes1y.length; i++) rets.push((closes1y[i] - closes1y[i-1]) / closes1y[i-1] * 100);
+      const mean = rets.reduce((a,b) => a+b, 0) / rets.length;
+      const vr = rets.reduce((s,r) => s + Math.pow(r-mean, 2), 0) / rets.length;
+      const vol = Math.sqrt(vr);
+      measuredVol = vol;
+      params = calcParams(vol);
+      paramSource = '자동(측정값 ' + vol.toFixed(2) + '%)';
+    }
+    const warmupTradingDays = Math.max(params.lookback + 5, 25);
+    const warmupCalendarDays = Math.ceil(warmupTradingDays * 1.6) + 10;
+    const fetchStartDate = new Date(userStartDate);
+    fetchStartDate.setDate(fetchStartDate.getDate() - warmupCalendarDays);
+    const fmt = d => d.toISOString().slice(0, 10);
+    const fetchStartStr = fmt(fetchStartDate);
+    progressEl.innerHTML = '📥 데이터 가져오는 중...';
+    const res = await fetch('/api/history?symbol=' + sym + '&start=' + fetchStartStr + '&end=' + userEndDate);
+    const data = await res.json();
+    if (data.error) { progressEl.innerHTML = '❌ ' + data.error; return; }
+    if (!data.bars || data.bars.length < 30) { progressEl.innerHTML = '❌ 데이터 부족'; return; }
+    const userStartTs = new Date(userStartDate).getTime();
+    let userStartIdx = -1;
+    for (let i = 0; i < data.bars.length; i++) {
+      if (new Date(data.bars[i].date).getTime() >= userStartTs) { userStartIdx = i; break; }
+    }
+    if (userStartIdx < 0) { progressEl.innerHTML = '❌ 시작일 데이터 없음'; return; }
+    progressEl.innerHTML = '✅ 총 ' + data.bars.length + '일 (warmup ' + userStartIdx + '일 + 거래 ' + (data.bars.length - userStartIdx) + '일)';
+    const result = simulateHunter(data.bars, params, userStartIdx);
+    const userStartPrice = data.bars[userStartIdx].close;
+    const userEndPrice = data.bars[data.bars.length - 1].close;
+    const buyHoldMult = userEndPrice / userStartPrice;
+    const vsHold = result.mult / buyHoldMult;
+    
+    const dist = [
+      { label: '+10% 이상 🌟', min: 10, max: 999, color: '#0f0' },
+      { label: '+5%~+10%', min: 5, max: 10, color: '#0d8' },
+      { label: '+3%~+5%', min: 3, max: 5, color: '#0c6' },
+      { label: '+1%~+3%', min: 1, max: 3, color: '#0a4' },
+      { label: '0%~+1%', min: 0, max: 1, color: '#066' },
+      { label: '-3%~0%', min: -3, max: 0, color: '#a44' },
+      { label: '-5%~-3%', min: -5, max: -3, color: '#c33' },
+      { label: '-5% 이하 💀', min: -999, max: -5, color: '#f00' }
+    ];
+    const completed = result.cycles.filter(c => !c.incomplete);
+    const maxCnt = Math.max(...dist.map(d => completed.filter(c => c.pnl >= d.min && c.pnl < d.max).length), 1);
+    let distHtml = '';
+    dist.forEach(d => {
+      const cnt = completed.filter(c => c.pnl >= d.min && c.pnl < d.max).length;
+      const pct = completed.length > 0 ? cnt / completed.length * 100 : 0;
+      const barW = cnt / maxCnt * 100;
+      distHtml += '<div class="cycle-dist-row"><div class="dist-label">' + d.label + '</div><div class="dist-bar"><div class="dist-fill" style="width:' + barW + '%;background:' + d.color + '"></div></div><div class="dist-cnt">' + cnt + '회 (' + pct.toFixed(1) + '%)</div></div>';
+    });
+    
+    // 🆕 사이클 종료 유닛 통계
+    const unitBuckets = [
+      { label: '2u', min: 2, max: 2, color: '#22c55e' },
+      { label: '3-4u', min: 3, max: 4, color: '#3b82f6' },
+      { label: '5-6u', min: 5, max: 6, color: '#a78bfa' },
+      { label: '7-8u', min: 7, max: 8, color: '#f59e0b' },
+      { label: '9-12u', min: 9, max: 12, color: '#f97316' },
+      { label: '13-16u', min: 13, max: 16, color: '#ef4444' },
+      { label: '17-20u', min: 17, max: 20, color: '#dc2626' }
+    ];
+    const maxUnitCnt = Math.max(...unitBuckets.map(b => completed.filter(c => c.maxUnits >= b.min && c.maxUnits <= b.max).length), 1);
+    let unitHtml = '';
+    unitBuckets.forEach(b => {
+      const cnt = completed.filter(c => c.maxUnits >= b.min && c.maxUnits <= b.max).length;
+      if (cnt === 0) return;
+      const pct = completed.length > 0 ? cnt / completed.length * 100 : 0;
+      const barW = cnt / maxUnitCnt * 100;
+      unitHtml += '<div class="unit-row"><div class="ulbl">' + b.label + '</div><div class="ubar"><div class="ufill" style="width:' + barW + '%;background:' + b.color + '"></div></div><div class="ucnt">' + cnt + '회 (' + pct.toFixed(1) + '%)</div></div>';
+    });
+    
+    let html = '<div class="card">';
+    html += '<div class="ct">📈 ' + data.symbol + ' · ' + userStartDate + ' ~ ' + userEndDate + '</div>';
+    html += '<div class="result-grid"><div class="result-box hold"><div class="rb-label">📌 단순 보유</div><div class="rb-value" style="color:' + (buyHoldMult>=1?'#0f0':'#f44') + '">' + (buyHoldMult>=1?'+':'') + ((buyHoldMult-1)*100).toFixed(1) + '%</div><div class="rb-pct">' + buyHoldMult.toFixed(2) + '배</div></div><div class="result-box hunter"><div class="rb-label">🏹 HUNTER</div><div class="rb-value">+' + ((result.mult-1)*100).toFixed(1) + '%</div><div class="rb-pct">' + result.mult.toFixed(2) + '배</div></div></div>';
+    html += '<div class="metric-row"><span class="metric-label">HUNTER 추가 수익</span><span class="metric-value" style="color:' + (vsHold>1?'#0f0':'#f44') + ';font-size:16px">' + (vsHold>1?'+':'') + ((result.mult - buyHoldMult) * 100).toFixed(1) + '%p ' + (vsHold>1?'🚀':'📉') + '</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">vs 단순보유 배율</span><span class="metric-value" style="color:' + (vsHold>1?'#0f0':'#f44') + '">' + vsHold.toFixed(2) + '배</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">최대 낙폭 (MDD)</span><span class="metric-value" style="color:#f88">' + result.mdd.toFixed(1) + '%</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">매수 / 매도</span><span class="metric-value">' + result.nBuys + '회 / ' + result.nSells + '회</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">티어 승률 (참고)</span><span class="metric-value" style="color:#aaa">' + result.tierWinRate.toFixed(0) + '%</span></div>';
+    
+    // 연도별 (생략 - 기존과 동일)
+    const snapshots = result.periodSnapshots || {};
+    const yearKeys = Object.keys(snapshots).filter(k => k.length === 4).sort();
+    if (yearKeys.length > 0) {
+      let yearHtml = '<div class="card"><div class="ct">📊 연도별 수익률 + MDD (사이클 기준) · 행 클릭 시 월별 펼침</div>';
+      yearHtml += '<table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:14px">';
+      yearHtml += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:10px 8px;text-align:left;color:#888;font-size:12px">년도</th><th style="padding:10px 8px;text-align:right;color:#fbbf24;font-size:12px">수익률</th><th style="padding:10px 8px;text-align:right;color:#888;font-size:12px">MDD</th></tr></thead><tbody>';
+      for (const yKey of yearKeys) {
+        const snap = snapshots[yKey];
+        const yearReturn = snap.startCap > 0 ? ((snap.endCap - snap.startCap) / snap.startCap * 100) : 0;
+        const yearMdd = snap.mdd || 0;
+        const returnCls = yearReturn >= 0 ? '#22c55e' : '#ef4444';
+        yearHtml += '<tr style="border-bottom:1px solid #222;cursor:pointer" onclick="toggleYearMonths(\'' + yKey + '\')">';
+        yearHtml += '<td style="padding:12px 8px;color:#fff;font-weight:700">' + yKey + ' <span id="year-arrow-' + yKey + '" style="color:#666;font-size:11px">▼</span></td>';
+        yearHtml += '<td style="padding:12px 8px;text-align:right;font-weight:800;color:' + returnCls + ';font-size:15px">' + (yearReturn >= 0 ? '+' : '') + yearReturn.toFixed(1) + '%</td>';
+        yearHtml += '<td style="padding:12px 8px;text-align:right;color:#ef4444;font-size:13px">' + yearMdd.toFixed(1) + '%</td>';
+        yearHtml += '</tr>';
+        const monthKeys = Object.keys(snapshots).filter(k => k.length === 7 && k.startsWith(yKey)).sort();
+        if (monthKeys.length > 0) {
+          yearHtml += '<tr id="months-' + yKey + '" style="display:none"><td colspan="3" style="padding:0;background:#0a0a14"><div style="padding:10px"><table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:13px">';
+          yearHtml += '<thead><tr style="border-bottom:1px solid #333"><th style="padding:8px;text-align:left;color:#666;font-size:11px">월</th><th style="padding:8px;text-align:right;color:#888;font-size:11px">수익률</th><th style="padding:8px;text-align:right;color:#666;font-size:11px">MDD</th></tr></thead><tbody>';
+          for (const mKey of monthKeys) {
+            const mSnap = snapshots[mKey];
+            const mReturn = mSnap.startCap > 0 ? ((mSnap.endCap - mSnap.startCap) / mSnap.startCap * 100) : 0;
+            const mMdd = mSnap.mdd || 0;
+            const mCls = mReturn >= 0 ? '#22c55e' : '#ef4444';
+            const monthOnly = mKey.slice(5);
+            yearHtml += '<tr style="border-bottom:1px solid #1a1a1a"><td style="padding:8px;color:#aaa">' + monthOnly + '월</td><td style="padding:8px;text-align:right;color:' + mCls + ';font-weight:700">' + (mReturn >= 0 ? '+' : '') + mReturn.toFixed(1) + '%</td><td style="padding:8px;text-align:right;color:#ef4444">' + mMdd.toFixed(1) + '%</td></tr>';
+          }
+          yearHtml += '</tbody></table></div></td></tr>';
+        }
+      }
+      yearHtml += '</tbody></table></div>';
+      html += yearHtml;
+    }
+    
+    // 사이클 분석
+    html += '<div class="cycle-card">';
+    html += '<div class="cs-title">🏆 사이클 분석 (0u → 매수 → ... → 0u 복귀)</div>';
+    html += '<div class="cycle-main"><div class="cycle-big"><div class="lbl">🎯 사이클 승률</div><div class="big" style="color:' + (result.cycleWinRate>=80?'#0f0':result.cycleWinRate>=60?'#fbbf24':'#f88') + '">' + result.cycleWinRate.toFixed(1) + '%</div><div class="sub">' + result.cycleWins + '승 : ' + result.cycleLosses + '패</div></div><div class="cycle-big"><div class="lbl">📊 총 사이클</div><div class="big" style="color:#fbbf24">' + result.cycleTotal + '<span style="font-size:14px;color:#aaa">회</span></div><div class="sub">' + (result.incompleteCount > 0 ? '진행중 ' + result.incompleteCount + '회 포함' : '모두 완료') + '</div></div></div>';
+    html += '<div class="cycle-grid"><div class="cycle-mini"><div class="lbl">평균 수익</div><div class="val" style="color:' + (result.avgCyclePnl>=0?'#0f0':'#f88') + '">' + (result.avgCyclePnl>=0?'+':'') + result.avgCyclePnl.toFixed(2) + '%</div></div><div class="cycle-mini"><div class="lbl">평균 기간</div><div class="val">' + result.avgCycleDuration.toFixed(1) + '일</div></div><div class="cycle-mini"><div class="lbl">중앙값 기간</div><div class="val">' + result.medianCycleDuration + '일</div></div></div>';
+    
+    if (result.bestCycle && result.worstCycle) {
+      html += '<div class="best-worst"><div class="bw-card best"><div style="color:#0f0;font-weight:700">🌟 최고 사이클</div><div class="bw-pnl" style="color:' + (result.bestCycle.pnl>=0?'#0f0':'#f88') + ' !important">' + (result.bestCycle.pnl>=0?'+':'') + result.bestCycle.pnl.toFixed(2) + '%</div><div class="bw-date">' + result.bestCycle.startDate + '<br>→ ' + result.bestCycle.endDate + '<br>(' + result.bestCycle.duration + '일, max ' + result.bestCycle.maxUnits + 'u)</div></div><div class="bw-card worst"><div style="color:#f88;font-weight:700">💀 최악 사이클</div><div class="bw-pnl" style="color:' + (result.worstCycle.pnl>=0?'#0f0':'#f88') + ' !important">' + (result.worstCycle.pnl>=0?'+':'') + result.worstCycle.pnl.toFixed(2) + '%</div><div class="bw-date">' + result.worstCycle.startDate + '<br>→ ' + result.worstCycle.endDate + '<br>(' + result.worstCycle.duration + '일, max ' + result.worstCycle.maxUnits + 'u)</div></div></div>';
+    }
+    
+    html += '<div class="cycle-distribution"><div style="font-size:12px;font-weight:700;color:#fbbf24;margin-bottom:6px">📊 사이클 수익률 분포</div>' + distHtml + '</div>';
+    
+    // 🆕 사이클 종료 유닛 통계
+    if (unitHtml) {
+      html += '<div class="unit-stats"><div class="unit-stats-title">🎯 사이클 최대 유닛 분포 (얼마나 진입했나)</div>' + unitHtml;
+      // 평균/중앙값
+      const allMax = completed.map(c => c.maxUnits).filter(u => u > 0);
+      if (allMax.length > 0) {
+        const avgMax = allMax.reduce((s,u) => s+u, 0) / allMax.length;
+        const sortedMax = [...allMax].sort((a,b) => a-b);
+        const medMax = sortedMax[Math.floor(sortedMax.length/2)];
+        html += '<div style="margin-top:8px;font-size:11px;color:#aaa;text-align:center">평균 ' + avgMax.toFixed(1) + 'u · 중앙값 ' + medMax + 'u</div>';
+        html += '<div style="margin-top:6px;font-size:10px;color:#888;line-height:1.5">💡 2-4u 多 = 건강한 변동 / 12-20u 多 = 폭락 시장 / 2u 만 多 = 단방향 (HUNTER 한계)</div>';
+      }
+      html += '</div>';
+    }
+    
+    html += '<div class="def-info"><b>📐 사이클 정의:</b> 0u 상태 → 매수 진입 → 모든 티어 매도 후 0u 복귀 = 1 사이클<br><b>💡 의미:</b> 떨사 시스템의 "회차"와 동일! 실제 시드 투입/회수 1세트<br><b>🎯 승률:</b> 사이클 종료 시 cap 증가 = 승, 감소 = 패</div>';
+    html += '</div>';
+    html += '<div class="warmup-info">🔧 사용자 시작일(' + userStartDate + ')부터 <b>실제 거래 시작</b><br>· warmup ' + userStartIdx + '일 + 실거래 ' + (data.bars.length - userStartIdx) + '일</div>';
+    html += '</div>';
+    html += '<div class="card" style="font-size:12px;color:#aaa;line-height:1.7"><b style="color:#ffd">⚙️ 사용된 HUNTER 파라미터:</b><br>매도: +' + (params.top_p*100).toFixed(1) + '% / +' + (params.mid_p*100).toFixed(1) + '% / +' + (params.bot_p*100).toFixed(1) + '% (천/중/바)<br>기간: ' + params.top_d + ' / ' + params.mid_d + ' / ' + params.bot_d + '일 · Lookback ' + params.lookback + '일<br>파라미터: ' + paramSource + '</div>';
+    
+    resultEl.innerHTML = html;
+    progressEl.innerHTML = '✅ 완료!';
+  } catch(e) {
+    progressEl.innerHTML = '❌ ' + e.message;
+    console.error(e);
+  }
+}
+
+async function runBacktestBasic() {
+  window.autoParams = {
+    top_p: 0.025, mid_p: 0.005, bot_p: 0.03,
+    top_d: 7, mid_d: 7, bot_d: 10, lookback: 20,
+    _forced: '기본 SOXL (7/7/10일)'
+  };
+  await runBacktest();
+  window.autoParams = null;
+}
+
+function toggleYearMonths(yKey) {
+  const monthsRow = document.getElementById('months-' + yKey);
+  const arrow = document.getElementById('year-arrow-' + yKey);
+  if (!monthsRow) return;
+  const isHidden = monthsRow.style.display === 'none';
+  monthsRow.style.display = isHidden ? 'table-row' : 'none';
+  if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
+}
+
+function toggleVsDetail(idx) {
+  const detailRow = document.getElementById('vs-detail-' + idx);
+  const contentDiv = document.getElementById('vs-detail-content-' + idx);
+  if (!detailRow || !contentDiv) return;
+  const wasOpen = detailRow.style.display === 'table-row';
+  for (let i = 0; i < 5; i++) {
+    const otherRow = document.getElementById('vs-detail-' + i);
+    if (otherRow) otherRow.style.display = 'none';
+  }
+  if (!wasOpen) {
+    if (!contentDiv.innerHTML) {
+      const r = window._vsResults[idx];
+      const showMonthly = window._vsShowMonthly;
+      const snapshots = r.periodSnapshots;
+      const boostLabel = r.boost === 0 ? '정상 (0%)' : '+' + (r.boost * 100).toFixed(0) + '%';
+      const boostColor = r.boost === 0 ? '#888' : (r.boost === 0.10 ? '#22c55e' : (r.boost === 0.20 ? '#3b82f6' : (r.boost === 0.30 ? '#a78bfa' : (r.boost === 0.50 ? '#f97316' : '#ef4444'))));
+      let detailHtml = '<div style="font-size:14px;color:' + boostColor + ';font-weight:800;margin-bottom:12px">📊 ' + boostLabel + ' - ' + (showMonthly ? '월별' : '연도별') + ' 수익률 (사이클 기준)</div>';
+      const keys = Object.keys(snapshots).filter(k => { if (showMonthly) return k.length === 7; else return k.length === 4; }).sort();
+      if (keys.length === 0) detailHtml += '<div style="color:#666;font-style:italic">데이터 없음</div>';
+      else {
+        detailHtml += '<table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:15px">';
+        detailHtml += '<thead><tr style="border-bottom:2px solid #333"><th style="padding:10px 8px;text-align:left;color:#888;font-size:13px">' + (showMonthly ? '월' : '년도') + '</th><th style="padding:10px 8px;text-align:right;color:#fbbf24;font-size:13px">수익률</th><th style="padding:10px 8px;text-align:right;color:#888;font-size:13px">MDD</th></tr></thead><tbody>';
+        for (const key of keys) {
+          const snap = snapshots[key];
+          const ret = (snap.endCap - snap.startCap) / snap.startCap * 100;
+          const cls = ret >= 0 ? '#22c55e' : '#ef4444';
+          const periodMdd = snap.mdd || 0;
+          const mddCls = periodMdd < 0 ? '#ef4444' : '#888';
+          detailHtml += '<tr style="border-bottom:1px solid #1a1a2a"><td style="padding:12px 8px;color:#fff;font-weight:700;font-size:15px">' + key + '</td><td style="padding:12px 8px;text-align:right;font-weight:800;color:' + cls + ';font-size:18px">' + (ret >= 0 ? '+' : '') + ret.toFixed(1) + '%</td><td style="padding:12px 8px;text-align:right;color:' + mddCls + ';font-size:14px">' + (periodMdd < 0 ? periodMdd.toFixed(1) + '%' : '-') + '</td></tr>';
+        }
+        detailHtml += '</tbody></table>';
+      }
+      contentDiv.innerHTML = detailHtml;
+    }
+    detailRow.style.display = 'table-row';
+  }
+}
+
+async function runVirtualSeedCompare() {
+  const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
+  const userStartDate = document.getElementById('bt-start').value;
+  const userEndDate = document.getElementById('bt-end').value;
+  if (!sym) { alert('종목 입력!'); return; }
+  if (!userStartDate || !userEndDate) { alert('날짜 선택!'); return; }
+  const progressEl = document.getElementById('bt-progress');
+  const resultEl = document.getElementById('result');
+  progressEl.innerHTML = '⚡ 가상 시드 비교 백테 시작...';
+  resultEl.innerHTML = '';
+  try {
+    const params = { top_p: 0.025, mid_p: 0.005, bot_p: 0.03, top_d: 7, mid_d: 7, bot_d: 10, lookback: 20 };
+    const warmupCalendarDays = Math.ceil(25 * 1.6) + 10;
+    const fetchStartDate = new Date(userStartDate);
+    fetchStartDate.setDate(fetchStartDate.getDate() - warmupCalendarDays);
+    const fmt = d => d.toISOString().slice(0, 10);
+    const fetchStartStr = fmt(fetchStartDate);
+    progressEl.innerHTML = '📥 데이터 가져오는 중...';
+    const res = await fetch('/api/history?symbol=' + sym + '&start=' + fetchStartStr + '&end=' + userEndDate);
+    const data = await res.json();
+    if (data.error) { progressEl.innerHTML = '❌ ' + data.error; return; }
+    if (!data.bars || data.bars.length < 30) { progressEl.innerHTML = '❌ 데이터 부족'; return; }
+    const userStartTs = new Date(userStartDate).getTime();
+    let userStartIdx = -1;
+    for (let i = 0; i < data.bars.length; i++) {
+      if (new Date(data.bars[i].date).getTime() >= userStartTs) { userStartIdx = i; break; }
+    }
+    if (userStartIdx < 0) { progressEl.innerHTML = '❌ 시작일 데이터 없음'; return; }
+    progressEl.innerHTML = '🔥 5가지 시뮬레이션 실행 중...';
+    const boosts = [0, 0.10, 0.20, 0.30, 0.50, 1.00];
+    const results = [];
+    for (const boost of boosts) {
+      const r = simulateHunter(data.bars, params, userStartIdx, boost);
+      results.push({ boost: boost, ...r });
+    }
+    const userStartPrice = data.bars[userStartIdx].close;
+    const userEndPrice = data.bars[data.bars.length - 1].close;
+    const buyHoldMult = userEndPrice / userStartPrice;
+    progressEl.innerHTML = '✅ 비교 완료!';
+    const baseResult = results[0];
+    const baseMult = baseResult.mult;
+    let html = '<div class="cycle-card" style="margin-top:14px"><div class="cs-title">⚡ 가상 시드 비교 결과 (' + sym + ' / 기본 SOXL 룰)</div>';
+    const totalDaysActual = data.bars.length - userStartIdx;
+    const yearsDisplay = (totalDaysActual / 252).toFixed(2);
+    html += '<div style="background:#0a1a2a;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#3b82f6;font-weight:700;text-align:center">📅 백테 기간: ' + userStartDate + ' ~ ' + userEndDate + ' (약 ' + yearsDisplay + '년 / ' + totalDaysActual + ' 거래일)</div>';
+    html += '<div style="background:#1a1a2a;border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.7"><b style="color:#fbbf24">💡 가상 시드 시스템:</b><br>• 0~14u: 가상 시드 풀 적용 (+X%)<br>• 15u+: 정상 시드 (실전 매일 관리)<br>• <span style="color:#fbbf24">📌 형님 운영: 보유 15u+ 시 v13 시드 $100K로 변경</span></div>';
+    html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:14px">';
+    html += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:12px 8px;text-align:left;color:#888;font-size:13px">가상비율</th><th style="padding:12px 8px;text-align:right;color:#fbbf24;font-size:13px">수익률</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">CAGR</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">MDD</th><th style="padding:12px 8px;text-align:right;color:#ef4444;font-size:13px">자금부족</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">vs정상</th></tr></thead><tbody>';
+    const totalDays = data.bars.length - userStartIdx;
+    const years = totalDays / 252;
+    const showMonthly = years < 1.5;
+    window._vsResults = results;
+    window._vsShowMonthly = showMonthly;
+    for (let idx = 0; idx < results.length; idx++) {
+      const r = results[idx];
+      const cagr = (Math.pow(r.mult, 1/years) - 1) * 100;
+      const periodReturn = (r.mult - 1) * 100;
+      const vsBase = r.mult / baseMult;
+      const vsBasePct = ((vsBase - 1) * 100).toFixed(1);
+      const boostLabel = r.boost === 0 ? '정상' : '+' + (r.boost * 100).toFixed(0) + '%';
+      const boostColor = r.boost === 0 ? '#888' : (r.boost === 0.10 ? '#22c55e' : (r.boost === 0.20 ? '#3b82f6' : (r.boost === 0.30 ? '#a78bfa' : (r.boost === 0.50 ? '#f97316' : '#ef4444'))));
+      const periodCls = periodReturn >= 0 ? '#22c55e' : '#ef4444';
+      html += '<tr style="border-bottom:1px solid #222;cursor:pointer" onclick="toggleVsDetail(' + idx + ')"><td style="padding:14px 8px;color:' + boostColor + ';font-weight:800;font-size:15px">' + boostLabel + ' <span style="color:#666;font-size:11px">▼</span></td><td style="padding:14px 8px;text-align:right;font-weight:800;color:' + periodCls + ';font-size:15px">' + (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(0) + '%</td><td style="padding:14px 8px;text-align:right;color:#22c55e;font-size:13px">+' + cagr.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:#ef4444;font-size:13px">' + r.mdd.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:' + (r.fundShortageCount > 0 ? '#ef4444' : '#666') + ';font-size:13px;font-weight:' + (r.fundShortageCount > 0 ? '800' : '400') + '">' + (r.fundShortageCount || 0) + '회</td><td style="padding:14px 8px;text-align:right;color:' + (vsBase > 1 ? '#22c55e' : (vsBase < 1 ? '#ef4444' : '#888')) + ';font-weight:700;font-size:14px">' + (vsBase >= 1 ? '+' : '') + vsBasePct + '%</td></tr>';
+      html += '<tr id="vs-detail-' + idx + '" style="display:none"><td colspan="6" style="padding:0;background:#0a0a14"><div id="vs-detail-content-' + idx + '" style="padding:14px"></div></td></tr>';
+    }
+    html += '</tbody></table></div>';
+    html += '<div style="text-align:center;font-size:11px;color:#666;margin-top:8px">💡 각 행 클릭 시 연도별/월별 수익률 + MDD 펼쳐짐</div>';
+    let bestIdx = 0;
+    let bestScore = 0;
+    for (let i = 0; i < results.length; i++) {
+      const score = results[i].mult / baseMult - Math.abs(results[i].mdd / baseResult.mdd - 1) * 0.5;
+      if (score > bestScore) { bestScore = score; bestIdx = i; }
+    }
+    const recommended = results[bestIdx];
+    const recBoost = recommended.boost;
+    const recCagr = (Math.pow(recommended.mult, 1/years) - 1) * 100;
+    const recPeriod = (recommended.mult - 1) * 100;
+    html += '<div style="background:linear-gradient(135deg,#1a1a3a,#1a3a3a);border:2px solid #fbbf24;border-radius:12px;padding:16px;margin-top:16px"><div style="font-size:15px;font-weight:800;color:#fbbf24;margin-bottom:8px">🏆 형님 추천: 가상 시드 ' + (recBoost === 0 ? '정상 (0%)' : '+' + (recBoost * 100).toFixed(0) + '%') + '</div><div style="font-size:13px;color:#fff;line-height:1.7">• 누적 배수: <b>' + recommended.mult.toFixed(2) + 'x</b><br>• <b style="color:#fbbf24">기간 수익률 (' + yearsDisplay + '년): ' + (recPeriod >= 0 ? '+' : '') + recPeriod.toFixed(1) + '%</b><br>• 연환산 (CAGR): +' + recCagr.toFixed(1) + '%<br>• 정상 대비: <b style="color:#22c55e">+' + ((recommended.mult / baseMult - 1) * 100).toFixed(1) + '%</b><br>• MDD: ' + recommended.mdd.toFixed(1) + '%<br>• Buy&Hold (' + buyHoldMult.toFixed(2) + 'x) 대비: <b>' + (recommended.mult / buyHoldMult).toFixed(2) + '배</b></div></div>';
+    html += '<div style="margin-top:14px;font-size:12px;color:#888;line-height:1.7">⚠️ <b>주의 (자금 체크 적용):</b><br>• 자금 부족 횟수 = 시드 한도로 매수 불가 발생<br>• +20% 부스트 시 14u 도달 시 시드 ~84% 사용<br>• 잔여 자금 부족 시 자동 감속 (정상 시드 또는 매수 스킵)<br>• <b style="color:#fbbf24">자금 부족 0회 = 안전 / 5회+ = 위험 (수익 X)</b><br>• 진짜 베스트: 자금 부족 0회 + 수익 최대인 옵션</div>';
+    html += '</div>';
+    resultEl.innerHTML = html;
+  } catch (e) { progressEl.innerHTML = '❌ 에러: ' + e.message; }
+}
+
+async function runRuleCompare() {
+  const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
+  const userStartDate = document.getElementById('bt-start').value;
+  const userEndDate = document.getElementById('bt-end').value;
+  if (!sym) { alert('종목 입력!'); return; }
+  if (!userStartDate || !userEndDate) { alert('날짜 선택!'); return; }
+  const progressEl = document.getElementById('bt-progress');
+  const resultEl = document.getElementById('result');
+  progressEl.innerHTML = '🎯 룰 비교 백테 시작...';
+  resultEl.innerHTML = '';
+  try {
+    const fetchStartDate = new Date(userStartDate);
+    fetchStartDate.setDate(fetchStartDate.getDate() - 50);
+    const fmt = d => d.toISOString().slice(0, 10);
+    progressEl.innerHTML = '📥 데이터 가져오는 중...';
+    const res = await fetch('/api/history?symbol=' + sym + '&start=' + fmt(fetchStartDate) + '&end=' + userEndDate);
+    const data = await res.json();
+    if (data.error) { progressEl.innerHTML = '❌ ' + data.error; return; }
+    if (!data.bars || data.bars.length < 30) { progressEl.innerHTML = '❌ 데이터 부족'; return; }
+    const userStartTs = new Date(userStartDate).getTime();
+    let userStartIdx = -1;
+    for (let i = 0; i < data.bars.length; i++) {
+      if (new Date(data.bars[i].date).getTime() >= userStartTs) { userStartIdx = i; break; }
+    }
+    if (userStartIdx < 0) { progressEl.innerHTML = '❌ 시작일 데이터 없음'; return; }
+    
+    const totalDaysActual = data.bars.length - userStartIdx;
+    const yearsDisplay = (totalDaysActual / 252).toFixed(2);
+    
+    progressEl.innerHTML = '🔥 다양한 룰 시뮬 중... (총 21개 케이스)';
+    
+    // === 그룹 A: 매수 유닛 ===
+    const unitCases = [
+      { name: '1u/2u 보수', up:1, dn:2 },
+      { name: '1u/3u',      up:1, dn:3 },
+      { name: '2u/3u',      up:2, dn:3 },
+      { name: '2u/4u 현재', up:2, dn:4 },
+      { name: '2u/5u',      up:2, dn:5 },
+      { name: '3u/5u',      up:3, dn:5 },
+      { name: '3u/6u 공격', up:3, dn:6 }
+    ];
+    const unitResults = [];
+    for (const c of unitCases) {
+      const params = { up:c.up, dn:c.dn, top_p:0.025, mid_p:0.005, bot_p:0.030, top_d:7, mid_d:7, bot_d:10, lookback:20 };
+      const r = simulateHunter(data.bars, params, userStartIdx, 0);
+      unitResults.push({ name: c.name, ...r });
+    }
+    
+    // === 그룹 B: 매도 % ===
+    const sellCases = [
+      { name: '1.5/0.3/2.0 자주',  top_p:0.015, mid_p:0.003, bot_p:0.020 },
+      { name: '2.0/0.5/2.5',     top_p:0.020, mid_p:0.005, bot_p:0.025 },
+      { name: '2.5/0.5/3.0 현재', top_p:0.025, mid_p:0.005, bot_p:0.030 },
+      { name: '3.0/1.0/4.0',     top_p:0.030, mid_p:0.010, bot_p:0.040 },
+      { name: '4.0/1.5/5.0',     top_p:0.040, mid_p:0.015, bot_p:0.050 },
+      { name: '5.0/2.0/6.0 길게',  top_p:0.050, mid_p:0.020, bot_p:0.060 }
+    ];
+    const sellResults = [];
+    for (const c of sellCases) {
+      const params = { up:2, dn:4, top_p:c.top_p, mid_p:c.mid_p, bot_p:c.bot_p, top_d:7, mid_d:7, bot_d:10, lookback:20 };
+      const r = simulateHunter(data.bars, params, userStartIdx, 0);
+      sellResults.push({ name: c.name, ...r });
+    }
+    
+    // === 그룹 C: 강제 기간 ===
+    const periodCases = [
+      { name: '5/5/7일 빠름',    top_d:5,  mid_d:5,  bot_d:7 },
+      { name: '7/7/10일 현재',   top_d:7,  mid_d:7,  bot_d:10 },
+      { name: '10/10/14일',     top_d:10, mid_d:10, bot_d:14 },
+      { name: '14/14/20일',     top_d:14, mid_d:14, bot_d:20 },
+      { name: '20/20/30일 느림',  top_d:20, mid_d:20, bot_d:30 }
+    ];
+    const periodResults = [];
+    for (const c of periodCases) {
+      const params = { up:2, dn:4, top_p:0.025, mid_p:0.005, bot_p:0.030, top_d:c.top_d, mid_d:c.mid_d, bot_d:c.bot_d, lookback:20 };
+      const r = simulateHunter(data.bars, params, userStartIdx, 0);
+      periodResults.push({ name: c.name, ...r });
+    }
+    
+    // === 결과 표시 ===
+    const userStartPrice = data.bars[userStartIdx].close;
+    const userEndPrice = data.bars[data.bars.length - 1].close;
+    const buyHoldMult = userEndPrice / userStartPrice;
+    
+    let html = '<div class="cycle-card" style="margin-top:14px"><div class="cs-title">🎯 HUNTER 룰 비교 (' + sym + ')</div>';
+    html += '<div style="background:#0a1a2a;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#3b82f6;font-weight:700;text-align:center">📅 ' + userStartDate + ' ~ ' + userEndDate + ' (' + yearsDisplay + '년) · Buy&Hold ' + ((buyHoldMult-1)*100).toFixed(0) + '%</div>';
+    
+    const renderTable = (title, results, baseIdx) => {
+      const baseMult = results[baseIdx].mult;
+      let h = '<div style="margin-bottom:18px"><div style="font-size:14px;font-weight:800;color:#a78bfa;margin-bottom:8px">' + title + '</div>';
+      h += '<table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:13px">';
+      h += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:10px 6px;text-align:left;color:#888;font-size:12px">룰</th><th style="padding:10px 6px;text-align:right;color:#fbbf24;font-size:12px">수익률</th><th style="padding:10px 6px;text-align:right;color:#888;font-size:12px">CAGR</th><th style="padding:10px 6px;text-align:right;color:#888;font-size:12px">MDD</th><th style="padding:10px 6px;text-align:right;color:#22c55e;font-size:12px">vs현재</th></tr></thead><tbody>';
+      let bestIdx = 0;
+      let bestMult = 0;
+      results.forEach((r, idx) => { if (r.mult > bestMult) { bestMult = r.mult; bestIdx = idx; } });
+      results.forEach((r, idx) => {
+        const periodReturn = (r.mult - 1) * 100;
+        const cagr = (Math.pow(r.mult, 1 / parseFloat(yearsDisplay)) - 1) * 100;
+        const vsBase = ((r.mult / baseMult) - 1) * 100;
+        const isBest = idx === bestIdx;
+        const isBaseRow = idx === baseIdx;
+        const periodCls = periodReturn >= 0 ? '#22c55e' : '#ef4444';
+        const vsBaseCls = vsBase > 0 ? '#22c55e' : (vsBase < 0 ? '#ef4444' : '#888');
+        h += '<tr style="border-bottom:1px solid #222' + (isBest ? ';background:rgba(34,197,94,0.08)' : '') + '"><td style="padding:12px 6px;color:' + (isBaseRow ? '#fbbf24' : '#fff') + ';font-weight:' + (isBaseRow || isBest ? '800' : '600') + ';font-size:13px">' + (isBest ? '🏆 ' : '') + r.name + '</td><td style="padding:12px 6px;text-align:right;font-weight:800;color:' + periodCls + ';font-size:14px">' + (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(0) + '%</td><td style="padding:12px 6px;text-align:right;color:#888;font-size:12px">+' + cagr.toFixed(0) + '%</td><td style="padding:12px 6px;text-align:right;color:#ef4444;font-size:12px">' + r.mdd.toFixed(0) + '%</td><td style="padding:12px 6px;text-align:right;color:' + vsBaseCls + ';font-weight:700;font-size:13px">' + (vsBase > 0 ? '+' : '') + vsBase.toFixed(1) + '%</td></tr>';
+      });
+      h += '</tbody></table></div>';
+      return h;
+    };
+    
+    html += renderTable('━━━ A. 매수 유닛별 (매도 2.5/0.5/3% · 7/7/10일) ━━━', unitResults, 3);
+    html += renderTable('━━━ B. 매도 %별 (매수 2u/4u · 7/7/10일) ━━━', sellResults, 2);
+    html += renderTable('━━━ C. 강제 기간별 (매수 2u/4u · 매도 2.5/0.5/3%) ━━━', periodResults, 1);
+    
+    // 베스트 추천
+    const allResults = [...unitResults.map(r => ({...r, group: 'A'})), ...sellResults.map(r => ({...r, group: 'B'})), ...periodResults.map(r => ({...r, group: 'C'}))];
+    let bestOverall = allResults[0];
+    allResults.forEach(r => { if (r.mult > bestOverall.mult) bestOverall = r; });
+    const bestReturn = (bestOverall.mult - 1) * 100;
+    const bestCagr = (Math.pow(bestOverall.mult, 1 / parseFloat(yearsDisplay)) - 1) * 100;
+    
+    html += '<div style="background:linear-gradient(135deg,#1a1a3a,#1a3a3a);border:2px solid #fbbf24;border-radius:12px;padding:16px;margin-top:8px"><div style="font-size:15px;font-weight:800;color:#fbbf24;margin-bottom:8px">🏆 종합 1위: ' + bestOverall.name + ' (그룹 ' + bestOverall.group + ')</div><div style="font-size:13px;color:#fff;line-height:1.7">• 수익률 (' + yearsDisplay + '년): <b style="color:#22c55e">+' + bestReturn.toFixed(0) + '%</b><br>• CAGR: +' + bestCagr.toFixed(0) + '%<br>• MDD: ' + bestOverall.mdd.toFixed(1) + '%<br>• 누적: ' + bestOverall.mult.toFixed(2) + '배</div></div>';
+    html += '<div style="margin-top:12px;font-size:12px;color:#888;line-height:1.7">⚠️ 무한 자금 가정 백테 (실전 자금 부족 시 결과 다름)<br>💡 현재 룰(2u/4u · 2.5/0.5/3% · 7/7/10일)이 베이스라인</div>';
+    html += '</div>';
+    
+    resultEl.innerHTML = html;
+    progressEl.innerHTML = '✅ 룰 비교 완료!';
+  } catch (e) {
+    progressEl.innerHTML = '❌ 에러: ' + e.message;
+  }
+}
+
+async function runRsiDynamicBoost() {
+  const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
+  const userStartDate = document.getElementById('bt-start').value;
+  const userEndDate = document.getElementById('bt-end').value;
+  if (!sym) { alert('종목 입력!'); return; }
+  if (!userStartDate || !userEndDate) { alert('날짜 선택!'); return; }
+  const progressEl = document.getElementById('bt-progress');
+  const resultEl = document.getElementById('result');
+  progressEl.innerHTML = '🤖 RSI 동적 부스트 강도별 비교...';
+  resultEl.innerHTML = '';
+  
+  try {
+    const params = { top_p: 0.025, mid_p: 0.005, bot_p: 0.03, top_d: 7, mid_d: 7, bot_d: 10, lookback: 20 };
+    const warmupCalendarDays = Math.ceil(25 * 1.6) + 30;
+    const fetchStartDate = new Date(userStartDate);
+    fetchStartDate.setDate(fetchStartDate.getDate() - warmupCalendarDays);
+    const fmt = d => d.toISOString().slice(0, 10);
+    progressEl.innerHTML = '📥 데이터 가져오는 중...';
+    const res = await fetch('/api/history?symbol=' + sym + '&start=' + fmt(fetchStartDate) + '&end=' + userEndDate);
+    const data = await res.json();
+    if (data.error) { progressEl.innerHTML = '❌ ' + data.error; return; }
+    if (!data.bars || data.bars.length < 30) { progressEl.innerHTML = '❌ 데이터 부족'; return; }
+    
+    const userStartTs = new Date(userStartDate).getTime();
+    let userStartIdx = -1;
+    for (let i = 0; i < data.bars.length; i++) {
+      if (new Date(data.bars[i].date).getTime() >= userStartTs) { userStartIdx = i; break; }
+    }
+    if (userStartIdx < 0) { progressEl.innerHTML = '❌ 시작일 데이터 없음'; return; }
+    
+    progressEl.innerHTML = '🔥 5가지 동적 부스트 시뮬 중...';
+    
+    // 동적 부스트 강도별 함수 생성기
+    const makeDynamicFn = (max) => {
+      return (rsi, prevRsi) => {
+        if (rsi >= 70 || rsi < 30) return 0;
+        const falling = rsi < prevRsi;
+        const rising = rsi > prevRsi;
+        if (falling) {
+          if (rsi >= 40 && rsi < 55) return max;
+          if (rsi >= 55 && rsi < 65) return max * 0.67;
+          if (rsi >= 65 && rsi < 70) return max * 0.33;
+        }
+        if (rising) {
+          if (rsi >= 30 && rsi < 40) return 0;
+          if (rsi >= 40 && rsi < 50) return max * 0.33;
+          if (rsi >= 50 && rsi < 60) return max * 0.67;
+          if (rsi >= 60 && rsi < 70) return max * 0.5;
+        }
+        return max * 0.33;
+      };
+    };
+    
+    // 5가지 강도 백테
+    const intensities = [
+      { name: '정상 시드', max: 0, color: '#888' },
+      { name: '약 (max +20%)', max: 0.20, color: '#22c55e' },
+      { name: '중 (max +30%) ⭐', max: 0.30, color: '#3b82f6' },
+      { name: '강 (max +50%)', max: 0.50, color: '#a78bfa' },
+      { name: '풀 (max +100%)', max: 1.00, color: '#f97316' }
+    ];
+    
+    const results = intensities.map(i => {
+      if (i.max === 0) return { ...i, result: simulateHunter(data.bars, params, userStartIdx, 0) };
+      return { ...i, result: simulateHunterDynamic(data.bars, params, userStartIdx, makeDynamicFn(i.max)) };
+    });
+    
+    const userStartPrice = data.bars[userStartIdx].close;
+    const userEndPrice = data.bars[data.bars.length - 1].close;
+    const totalDaysActual = data.bars.length - userStartIdx;
+    const yearsDisplay = (totalDaysActual / 252).toFixed(2);
+    const years = totalDaysActual / 252;
+    const baseMult = results[0].result.mult;
+    
+    let html = '<div class="cycle-card" style="margin-top:14px"><div class="cs-title">🤖 RSI 동적 부스트 강도별 비교</div>';
+    html += '<div style="background:#0a1a2a;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#3b82f6;font-weight:700;text-align:center">📅 ' + userStartDate + ' ~ ' + userEndDate + ' (' + yearsDisplay + '년)</div>';
+    
+    html += '<div style="background:#1a1a2a;border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.7"><b style="color:#22c55e">💡 동적 부스트 룰 (max 기준):</b><br>• <b>하락 중 RSI 40-55</b> → max 부스트 ⭐<br>• <b>하락 중 55-65 / 상승 중 50-60</b> → max × 0.67<br>• <b>하락 중 65-70 / 상승 중 40-50</b> → max × 0.33<br>• <b style="color:#ef4444">RSI ≥70 / &lt;30</b> → 정상 (위험 차단)<br>📊 강도가 클수록 베스트 구간에서 더 공격적</div>';
+    
+    // 결과 테이블
+    html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:14px">';
+    html += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:12px 8px;text-align:left;color:#888;font-size:13px">강도</th><th style="padding:12px 8px;text-align:right;color:#fbbf24;font-size:13px">수익률</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">CAGR</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:13px">MDD</th><th style="padding:12px 8px;text-align:right;color:#ef4444;font-size:13px">자금부족</th><th style="padding:12px 8px;text-align:right;color:#22c55e;font-size:13px">vs정상</th></tr></thead><tbody>';
+    
+    results.forEach(item => {
+      const r = item.result;
+      const cagr = (Math.pow(r.mult, 1/years) - 1) * 100;
+      const periodReturn = (r.mult - 1) * 100;
+      const vsBase = ((r.mult / baseMult) - 1) * 100;
+      const periodCls = periodReturn >= 0 ? '#22c55e' : '#ef4444';
+      html += '<tr style="border-bottom:1px solid #222"><td style="padding:14px 8px;color:' + item.color + ';font-weight:800;font-size:15px">' + item.name + '</td><td style="padding:14px 8px;text-align:right;font-weight:800;color:' + periodCls + ';font-size:15px">' + (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(0) + '%</td><td style="padding:14px 8px;text-align:right;color:#22c55e;font-size:13px">+' + cagr.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:#ef4444;font-size:13px">' + r.mdd.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:' + (r.fundShortageCount > 0 ? '#ef4444' : '#666') + ';font-size:13px">' + (r.fundShortageCount || 0) + '회</td><td style="padding:14px 8px;text-align:right;color:' + (vsBase > 0 ? '#22c55e' : (vsBase < 0 ? '#ef4444' : '#888')) + ';font-weight:700;font-size:14px">' + (vsBase >= 0 ? '+' : '') + vsBase.toFixed(1) + '%</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    
+    // 베스트 찾기
+    let bestIdx = 0;
+    for (let i = 1; i < results.length; i++) {
+      if (results[i].result.mult > results[bestIdx].result.mult) bestIdx = i;
+    }
+    const best = results[bestIdx];
+    const bestPeriod = (best.result.mult - 1) * 100;
+    const bestCagr = (Math.pow(best.result.mult, 1/years) - 1) * 100;
+    const bestVsNormal = ((best.result.mult / baseMult) - 1) * 100;
+    
+    html += '<div style="background:linear-gradient(135deg,#1a3a1a,#1a3a3a);border:2px solid ' + best.color + ';border-radius:12px;padding:16px;margin-top:14px"><div style="font-size:15px;font-weight:800;color:' + best.color + ';margin-bottom:8px">🏆 베스트: ' + best.name + '</div><div style="font-size:13px;color:#fff;line-height:1.7">• 누적: <b>' + best.result.mult.toFixed(2) + 'x</b><br>• 기간 수익률: <b style="color:#fbbf24">' + (bestPeriod >= 0 ? '+' : '') + bestPeriod.toFixed(1) + '%</b><br>• CAGR: +' + bestCagr.toFixed(1) + '%<br>• MDD: ' + best.result.mdd.toFixed(1) + '%<br>• 정상 대비: <b style="color:#22c55e">+' + bestVsNormal.toFixed(1) + '%p</b><br>• 자금 부족: ' + (best.result.fundShortageCount || 0) + '회</div></div>';
+    
+    // 부스트 통계 (베스트 기준)
+    if (best.result.boostStats) {
+      const s = best.result.boostStats;
+      html += '<div style="margin-top:14px;padding:14px;background:#0a1a2a;border-radius:10px"><div style="font-size:13px;font-weight:700;color:#22c55e;margin-bottom:10px">📊 ' + best.name + ' 부스트 통계</div>';
+      html += '<div style="font-size:12px;line-height:1.8;color:#ddd">';
+      html += '• 정상 적용 (RSI 위험): <b>' + (s.normalDays || 0) + '일</b><br>';
+      html += '• 부스트 작은~중간: <b>' + ((s.boost10Days||0) + (s.boost15Days||0) + (s.boost20Days||0)) + '일</b><br>';
+      html += '• 부스트 큰: <b>' + ((s.boost30Days||0)) + '일</b><br>';
+      html += '• 평균 부스트: <b>' + (s.avgBoost ? (s.avgBoost * 100).toFixed(1) : 0) + '%</b>';
+      html += '</div></div>';
+    }
+    
+    html += '</div>';
+    resultEl.innerHTML = html;
+    progressEl.innerHTML = '✅ 비교 완료!';
+  } catch (e) {
+    progressEl.innerHTML = '❌ ' + e.message;
+    console.error(e);
+  }
+}
+
+// RSI 계산 함수
+function calcRsi(closes, period) {
+  if (closes.length < period + 1) return 50;
+  let gains = 0, losses = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = closes[i] - closes[i-1];
+    if (d > 0) gains += d;
+    else losses -= d;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  for (let i = period + 1; i < closes.length; i++) {
+    const d = closes[i] - closes[i-1];
+    if (d > 0) {
+      avgGain = (avgGain * (period - 1) + d) / period;
+      avgLoss = (avgLoss * (period - 1)) / period;
+    } else {
+      avgGain = (avgGain * (period - 1)) / period;
+      avgLoss = (avgLoss * (period - 1) - d) / period;
+    }
+  }
+  if (avgLoss === 0) return 100;
+  return 100 - 100 / (1 + avgGain / avgLoss);
+}
+
+// RSI 동적 부스트 시뮬레이션
+function simulateHunterDynamic(bars, params, userStartIdx, boostFn) {
+  const closes = bars.map(b => b.close);
+  const dates = bars.map(b => b.date);
+  const n = closes.length;
+  const minWarmup = Math.max(params.lookback + 15, 25);
+  const warmup = Math.max(userStartIdx, minWarmup);
+  const TU = 20;
+  
+  let SEED = 100000;
+  let unitPrice = SEED / TU;
+  let cash = SEED;
+  let pe = [], pu = [], pd = [], zones = [], ps = [];
+  let pk = SEED, mdd = 0;
+  let nBuys = 0, nSells = 0, tierWins = 0;
+  let fundShortageCount = 0;
+  const cycles = [];
+  let inCycle = false;
+  let cycleStartCap = SEED;
+  let cycleStartIdx = warmup;
+  let cycleMaxUnits = 0;
+  
+  // 부스트 통계
+  const boostStats = { normalDays: 0, boost10Days: 0, boost15Days: 0, boost20Days: 0, boost30Days: 0, totalBoost: 0, days: 0 };
+  
+  const calcTotalValue = (cl) => {
+    let assetValue = 0;
+    for (let j = 0; j < pe.length; j++) assetValue += ps[j] * cl;
+    return cash + assetValue;
+  };
+  
+  for (let i = warmup; i < n; i++) {
+    const cl = closes[i];
+    const prev = closes[i-1];
+    const UP = params.up || 2;
+    const DN = params.dn || 4;
+    const baseUnits = cl < prev ? DN : UP;
+    
+    // 🆕 RSI 계산 (오늘/어제)
+    const todayRsi = calcRsi(closes.slice(0, i+1), 14);
+    const prevRsi = calcRsi(closes.slice(0, i), 14);
+    const currentBoost = boostFn(todayRsi, prevRsi);
+    
+    // 통계
+    boostStats.days++;
+    boostStats.totalBoost += currentBoost;
+    if (currentBoost === 0) boostStats.normalDays++;
+    else if (currentBoost === 0.10) boostStats.boost10Days++;
+    else if (currentBoost === 0.15) boostStats.boost15Days++;
+    else if (currentBoost === 0.20) boostStats.boost20Days++;
+    else if (currentBoost === 0.30) boostStats.boost30Days++;
+    
+    const start = Math.max(0, i - params.lookback);
+    const recentHigh = Math.max(...closes.slice(start, i+1));
+    const dd = (cl - recentHigh) / recentHigh * 100;
+    let zone;
+    if (dd >= -10) zone = 'top';
+    else if (dd <= -15) zone = 'bot';
+    else zone = 'mid';
+    
+    // 매도
+    const re=[], rd=[], ru=[], rz=[], rs=[];
+    for (let j = 0; j < pe.length; j++) {
+      pd[j] += 1;
+      const p = (cl - pe[j]) / pe[j];
+      let tp, fd;
+      if (zones[j] === 'top') { tp = params.top_p; fd = params.top_d; }
+      else if (zones[j] === 'bot') { tp = params.bot_p; fd = params.bot_d; }
+      else { tp = params.mid_p; fd = params.mid_d; }
+      if (p >= tp || pd[j] >= fd) {
+        cash += ps[j] * cl;
+        nSells++;
+        if (p > 0) tierWins++;
+      } else { re.push(pe[j]); rd.push(pd[j]); ru.push(pu[j]); rz.push(zones[j]); rs.push(ps[j]); }
+    }
+    pe = re; pd = rd; pu = ru; zones = rz; ps = rs;
+    
+    if (inCycle && pe.length === 0) {
+      const tv = calcTotalValue(cl);
+      const cyclePnl = (tv - cycleStartCap) / cycleStartCap * 100;
+      cycles.push({ startIdx: cycleStartIdx, endIdx: i, startDate: dates[cycleStartIdx], endDate: dates[i], duration: i - cycleStartIdx + 1, pnl: cyclePnl, incomplete: false, maxUnits: cycleMaxUnits });
+      inCycle = false;
+      SEED = cash;
+      unitPrice = SEED / TU;
+    }
+    
+    // 매수 (RSI 기반 동적 부스트)
+    const ti = pu.reduce((s, u) => s + u, 0);
+    if (ti < TU && baseUnits > 0) {
+      if (!inCycle) { inCycle = true; cycleStartCap = calcTotalValue(cl); cycleStartIdx = i; cycleMaxUnits = 0; }
+      
+      let intendedUnits;
+      if (currentBoost > 0 && ti < 15) intendedUnits = Math.min(baseUnits * (1 + currentBoost), TU - ti);
+      else intendedUnits = Math.min(baseUnits, TU - ti);
+      
+      const intendedAmount = intendedUnits * unitPrice;
+      let actualUnits, actualShares;
+      
+      if (cash >= intendedAmount) {
+        actualUnits = intendedUnits;
+        actualShares = Math.floor(intendedAmount / cl);
+      } else if (cash >= unitPrice * 0.5) {
+        const amt = cash * 0.95;
+        actualUnits = amt / unitPrice;
+        actualShares = Math.floor(amt / cl);
+        fundShortageCount++;
+      } else {
+        fundShortageCount++;
+        continue;
+      }
+      
+      if (actualShares > 0) {
+        cash -= actualShares * cl;
+        pe.push(cl); pd.push(0); pu.push(actualUnits); zones.push(zone); ps.push(actualShares);
+        nBuys++;
+        const currentTotalU = pu.reduce((s,u) => s+u, 0);
+        if (currentTotalU > cycleMaxUnits) cycleMaxUnits = Math.round(currentTotalU);
+      }
+    }
+    
+    const tv = calcTotalValue(cl);
+    if (tv > pk) pk = tv;
+    const ddv = (tv - pk) / pk * 100;
+    if (ddv < mdd) mdd = ddv;
+  }
+  
+  const lastClose = closes[n-1];
+  const final = calcTotalValue(lastClose);
+  
+  boostStats.avgBoost = boostStats.days > 0 ? boostStats.totalBoost / boostStats.days : 0;
+  
+  return {
+    mult: final / 100000, mdd: mdd, nBuys: nBuys, nSells: nSells, tierWins: tierWins,
+    tierWinRate: nSells > 0 ? tierWins / nSells * 100 : 0,
+    cycles: cycles, cycleTotal: cycles.length,
+    fundShortageCount: fundShortageCount,
+    boostStats: boostStats
+  };
+}
+
+function simulateHunter(bars, params, userStartIdx, virtualBoost) {
+  virtualBoost = virtualBoost || 0;
+  const closes = bars.map(b => b.close);
+  const dates = bars.map(b => b.date);
+  const n = closes.length;
+  const minWarmup = Math.max(params.lookback + 5, 25);
+  const warmup = Math.max(userStartIdx, minWarmup);
+  const TU = 20;
+  
+  // 🆕 v6: 진짜 자금 추적 (실제 cash + shares)
+  let SEED = 100000;  // 실제 시드 $100K (사이클 종료 시 자동 증액)
+  let unitPrice = SEED / TU;  // 1u = $5K (시드 변경 시 자동 갱신)
+  let cash = SEED;
+  let pe = [], pu = [], pd = [], zones = [], ps = []; // ps = shares per tier
+  let pk = SEED, mdd = 0;
+  let nBuys = 0, nSells = 0, tierWins = 0;
+  let fundShortageCount = 0;
+  let realized = 0;
+  const cycles = [];
+  let inCycle = false;
+  let cycleStartCap = SEED;
+  let cycleStartIdx = warmup;
+  let cycleMaxUnits = 0;
+  const periodSnapshots = {};
+  let lastYear = null;
+  let lastMonth = null;
+  
+  // 🆕 진짜 총 자산 = 현금 + 보유주식 평가액
+  const calcTotalValue = (cl) => {
+    let assetValue = 0;
+    for (let j = 0; j < pe.length; j++) assetValue += ps[j] * cl;
+    return cash + assetValue;
+  };
+  
+  for (let i = warmup; i < n; i++) {
+    const cl = closes[i];
+    const prev = closes[i-1];
+    const UP = params.up || 2;
+    const DN = params.dn || 4;
+    const baseUnits = cl < prev ? DN : UP;
+    const start = Math.max(0, i - params.lookback);
+    const recentHigh = Math.max(...closes.slice(start, i+1));
+    const dd = (cl - recentHigh) / recentHigh * 100;
+    let zone;
+    if (dd >= -10) zone = 'top';
+    else if (dd <= -15) zone = 'bot';
+    else zone = 'mid';
+    
+    const dateStr = dates[i];
+    const year = dateStr.slice(0, 4);
+    const month = dateStr.slice(0, 7);
+    if (year !== lastYear) {
+      if (!periodSnapshots[year]) {
+        const tv = calcTotalValue(cl);
+        periodSnapshots[year] = { startCap: tv, endCap: tv, peak: tv, mdd: 0 };
+      }
+      lastYear = year;
+    }
+    if (month !== lastMonth) {
+      if (!periodSnapshots[month]) {
+        const tv = calcTotalValue(cl);
+        periodSnapshots[month] = { startCap: tv, endCap: tv, peak: tv, mdd: 0 };
+      }
+      lastMonth = month;
+    }
+    
+    // 매도 처리 (진짜 cash 회수)
+    const re = [], rd = [], ru = [], rz = [], rs = [];
+    for (let j = 0; j < pe.length; j++) {
+      pd[j] += 1;
+      const p = (cl - pe[j]) / pe[j];
+      let tp, fd;
+      if (zones[j] === 'top') { tp = params.top_p; fd = params.top_d; }
+      else if (zones[j] === 'bot') { tp = params.bot_p; fd = params.bot_d; }
+      else { tp = params.mid_p; fd = params.mid_d; }
+      if (p >= tp || pd[j] >= fd) {
+        const sellValue = ps[j] * cl;
+        const buyValue = ps[j] * pe[j];
+        cash += sellValue;
+        realized += (sellValue - buyValue);
+        nSells++;
+        if (p > 0) tierWins++;
+      } else {
+        re.push(pe[j]); rd.push(pd[j]); ru.push(pu[j]); rz.push(zones[j]); rs.push(ps[j]);
+      }
+    }
+    pe = re; pd = rd; pu = ru; zones = rz; ps = rs;
+    
+    if (inCycle && pe.length === 0) {
+      const tv = calcTotalValue(cl);
+      const cyclePnl = (tv - cycleStartCap) / cycleStartCap * 100;
+      cycles.push({
+        startIdx: cycleStartIdx, endIdx: i,
+        startDate: dates[cycleStartIdx], endDate: dates[i],
+        duration: i - cycleStartIdx + 1, pnl: cyclePnl,
+        incomplete: false, maxUnits: cycleMaxUnits
+      });
+      inCycle = false;
+      // 🆕 사이클 종료 = 시드 자동 증액 (복리)
+      SEED = cash;  // 매도 후 잔여 현금 = 새 시드
+      unitPrice = SEED / TU;  // 새 1u 단가
+    }
+    
+    // 매수 처리 (진짜 자금 체크 + 부분 매수)
+    const ti = pu.reduce((s, u) => s + u, 0);
+    if (ti < TU && baseUnits > 0) {
+      if (!inCycle) {
+        inCycle = true;
+        cycleStartCap = calcTotalValue(cl);
+        cycleStartIdx = i;
+        cycleMaxUnits = 0;
+      }
+      
+      // 의도된 유닛 (부스트 적용)
+      let intendedUnits;
+      if (virtualBoost > 0 && ti < 15) {
+        intendedUnits = Math.min(baseUnits * (1 + virtualBoost), TU - ti);
+      } else {
+        intendedUnits = Math.min(baseUnits, TU - ti);
+      }
+      
+      // 의도된 매수 금액
+      const intendedAmount = intendedUnits * unitPrice;
+      
+      // 🆕 진짜 자금 체크
+      let actualUnits, actualAmount, actualShares;
+      if (cash >= intendedAmount) {
+        // 자금 충분 → 의도대로 매수
+        actualUnits = intendedUnits;
+        actualAmount = intendedAmount;
+        actualShares = Math.floor(actualAmount / cl);
+      } else if (cash >= unitPrice * 0.5) {
+        // 부분 매수 (가능한 만큼)
+        actualAmount = cash * 0.95; // 5% 여유 남김
+        actualUnits = actualAmount / unitPrice;
+        actualShares = Math.floor(actualAmount / cl);
+        fundShortageCount++;
+      } else {
+        // 자금 너무 적음 → 매수 스킵
+        fundShortageCount++;
+        continue;
+      }
+      
+      if (actualShares > 0) {
+        const realCost = actualShares * cl;
+        cash -= realCost;
+        pe.push(cl); pd.push(0); pu.push(actualUnits); zones.push(zone); ps.push(actualShares);
+        nBuys++;
+        const currentTotalU = pu.reduce((s,u) => s+u, 0);
+        if (currentTotalU > cycleMaxUnits) cycleMaxUnits = Math.round(currentTotalU);
+      }
+    }
+    
+    // 평가액 추적 (실제 자산)
+    const tv = calcTotalValue(cl);
+    if (periodSnapshots[year]) {
+      periodSnapshots[year].endCap = tv;
+      if (tv > periodSnapshots[year].peak) periodSnapshots[year].peak = tv;
+      const yearDd = (tv - periodSnapshots[year].peak) / periodSnapshots[year].peak * 100;
+      if (yearDd < periodSnapshots[year].mdd) periodSnapshots[year].mdd = yearDd;
+    }
+    if (periodSnapshots[month]) {
+      periodSnapshots[month].endCap = tv;
+      if (tv > periodSnapshots[month].peak) periodSnapshots[month].peak = tv;
+      const monthDd = (tv - periodSnapshots[month].peak) / periodSnapshots[month].peak * 100;
+      if (monthDd < periodSnapshots[month].mdd) periodSnapshots[month].mdd = monthDd;
+    }
+    if (tv > pk) pk = tv;
+    const ddv = (tv - pk) / pk * 100;
+    if (ddv < mdd) mdd = ddv;
+  }
+  
+  // 최종 평가
+  const lastClose = closes[n-1];
+  const final = calcTotalValue(lastClose);
+  
+  let incompleteCount = 0;
+  if (inCycle) {
+    incompleteCount = 1;
+    cycles.push({
+      startIdx: cycleStartIdx, endIdx: n-1,
+      startDate: dates[cycleStartIdx], endDate: dates[n-1],
+      duration: n - cycleStartIdx,
+      pnl: (final - cycleStartCap) / cycleStartCap * 100,
+      incomplete: true, maxUnits: cycleMaxUnits
+    });
+  }
+  
+  const completed = cycles.filter(c => !c.incomplete);
+  const cycleWins = completed.filter(c => c.pnl > 0).length;
+  const cycleLosses = completed.length - cycleWins;
+  const cycleWinRate = completed.length > 0 ? cycleWins / completed.length * 100 : 0;
+  const avgCyclePnl = completed.length > 0 ? completed.reduce((s,c) => s+c.pnl, 0) / completed.length : 0;
+  const durations = completed.map(c => c.duration);
+  const avgCycleDuration = durations.length > 0 ? durations.reduce((s,d) => s+d, 0) / durations.length : 0;
+  const sortedDur = [...durations].sort((a,b) => a-b);
+  const medianCycleDuration = sortedDur.length > 0 ? sortedDur[Math.floor(sortedDur.length / 2)] : 0;
+  let bestCycle = null, worstCycle = null;
+  if (completed.length > 0) {
+    bestCycle = completed.reduce((best, c) => c.pnl > best.pnl ? c : best);
+    worstCycle = completed.reduce((worst, c) => c.pnl < worst.pnl ? c : worst);
+  }
+  
+  return {
+    mult: final / 100000, mdd: mdd, nBuys: nBuys, nSells: nSells, tierWins: tierWins,
+    tierWinRate: nSells > 0 ? tierWins / nSells * 100 : 0,
+    cycles: cycles, completedCycles: completed, periodSnapshots: periodSnapshots,
+    cycleTotal: cycles.length, cycleWins: cycleWins, cycleLosses: cycleLosses,
+    cycleWinRate: cycleWinRate, avgCyclePnl: avgCyclePnl, avgCycleDuration: avgCycleDuration,
+    medianCycleDuration: medianCycleDuration, bestCycle: bestCycle, worstCycle: worstCycle,
+    incompleteCount: incompleteCount, fundShortageCount: fundShortageCount
+  };
+}
+</script>
+
+</body>
+</html>
