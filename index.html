@@ -175,7 +175,7 @@ const db=(a,b)=>{try{if(!a||!b)return 0;const d1=new Date(a),d2=new Date(b);if(i
 const addBd=(dateStr,n)=>{try{const d=new Date(dateStr);let added=0;while(added<n){d.setDate(d.getDate()+1);if(d.getDay()!==0&&d.getDay()!==6)added++;}return (d.getMonth()+1)+'/'+d.getDate();}catch(e){return '';}};
 function getZoneFor(close,high20){if(!close||!high20)return 'top';const dd=(close-high20)/high20*100;if(dd>=TOP_TH)return 'top';if(dd<=BOT_TH)return 'bot';return 'mid';}
 function getZone(){const p=curPort();return getZoneFor(p.priceClose,p.high20);}
-function switchSymbol(sym){save();activeSymbol=sym;if(!portfolios[sym])portfolios[sym]={seed:100000,startDate:'',priceClose:0,priceLive:0,high20:0,priceDate:'',diary:[],pos:[],hist:[]};save();render();}
+function switchSymbol(sym){save();activeSymbol=sym;if(!portfolios[sym])portfolios[sym]={seed:100000,startDate:'',priceClose:0,priceLive:0,high20:0,priceDate:'',diary:[],pos:[],hist:[]};save();render();fetchLivePrice();}
 function addSymbol(){if(Object.keys(portfolios).length>=2){alert('⚠️ 집중을 위해 최대 2종목까지만 가능합니다.\n기존 종목을 삭제 후 추가하세요.');return;}const sym=prompt('종목 코드:');if(!sym)return;const u=sym.toUpperCase().trim();if(!u)return;if(portfolios[u]){alert('이미 있음');return;}portfolios[u]={seed:100000,startDate:'',priceClose:0,priceLive:0,high20:0,priceDate:'',diary:[],pos:[],hist:[]};save();switchSymbol(u);}
 function removeSymbol(sym){if(Object.keys(portfolios).length<=1){alert('최소 1개 필요');return;}if(!confirm(sym+' 삭제?'))return;delete portfolios[sym];save();if(sym===activeSymbol)activeSymbol=Object.keys(portfolios)[0];render();}
 function renderTickers(){
@@ -304,7 +304,14 @@ function render(){
         let sharesDisplay;
         if(filledInPos){sharesDisplay=filledInPos.s+'주';}
         else if(filledInHist){sharesDisplay=filledInHist.s+'주';}
-        else{const uw=p.seed/TU;sharesDisplay=Math.floor(d.units*uw/d.close)+'주';}
+        else{
+          const uw=p.seed/TU;
+          const vBoost=p.virtualBoost||0;
+          const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+          const useV=vBoost>0&&totalU<15;
+          const bm=useV?(1+vBoost):1;
+          sharesDisplay=Math.floor(d.units*uw*bm/d.close)+'주'+(useV?' ⚡':'');
+        }
         
         // ─── v14: 참조일은 체결 버튼 X, 거래일만 체결 가능 ───
         let actionBtn;
@@ -330,10 +337,13 @@ function render(){
       const lastClose=last.close;
       const nextUnits=last.units;
       const uw=p.seed/TU;
+      const vBoost=p.virtualBoost||0;
+      const useVirtual=vBoost>0&&totalU<15;
+      const boostMult=useVirtual?(1+vBoost):1;
       const loc1Price=(lastClose*1.15).toFixed(2);
       const loc2Price=(lastClose-0.01).toFixed(2);
-      const loc1Shares=Math.floor(UP*uw/lastClose);
-      const loc2Shares=Math.floor(DN*uw/lastClose)-loc1Shares;
+      const loc1Shares=Math.floor(UP*uw*boostMult/lastClose);
+      const loc2Shares=Math.floor(DN*uw*boostMult/lastClose)-loc1Shares;
       const lastDate=new Date(last.date);
       let nextDate=new Date(lastDate);
       nextDate.setDate(nextDate.getDate()+1);
@@ -367,7 +377,7 @@ function render(){
       }else{
         h+='<tr><td colspan="5" style="color:var(--red);font-weight:700;padding:12px">⚠️ 풀 포지션 ('+TU+'u) - 매수 LOC 없음</td></tr>';
       }
-      h+='</tbody></table><div class="note" style="margin-top:8px">💡 매수①: 전날×1.15 (상승 대응 '+UP+'u)<br>💡 매수②: 전날-$0.01 (하락 추가 '+(DN-UP)+'u, 하락일만 체결)<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X<br>🚨 <b style="color:var(--red)">MOC = 강제청산일! 시장가 매도 필수 (시스템 룰)</b></div></div>';
+      h+='</tbody></table><div class="note" style="margin-top:8px">'+(useVirtual?'<div style="background:linear-gradient(135deg,#fbbf24,#f97316);color:#000;padding:6px 10px;border-radius:6px;font-weight:800;margin-bottom:8px;text-align:center">⚡ 가상 시드 +'+(vBoost*100).toFixed(0)+'% 적용 중 (수량 ↑) · 15u+ 시 자동 정상</div>':'')+'💡 매수①: 전날×1.15 (상승 대응 '+UP+'u)<br>💡 매수②: 전날-$0.01 (하락 추가 '+(DN-UP)+'u, 하락일만 체결)<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X<br>🚨 <b style="color:var(--red)">MOC = 강제청산일! 시장가 매도 필수 (시스템 룰)</b></div></div>';
     }
   }
   if(tab==='t'){
@@ -410,6 +420,15 @@ function render(){
   }
   if(tab==='s'){
     h+='<div class="card"><div class="ct">⚙️ 기본 설정</div><div class="ir"><label>시드</label><input type="number" id="seed-in" value="'+p.seed+'" onchange="updSeed()"><span class="u">$</span></div><div class="note">시드 변경 시 유닛 크기도 함께 변경됨 ($시드/20)</div></div>';
+    const vb=p.virtualBoost||0;
+    h+='<div class="card" style="border:1px solid #fbbf24"><div class="ct" style="color:#fbbf24">⚡ 가상 시드 (수익 부스트)</div><div style="font-size:12px;color:var(--dim);margin-bottom:10px;line-height:1.6">0~14u 보유 시 매수 수량 ↑ → 시드 활용도 ↑.<br>15u+ 도달 시 자동 정상 시드 (안전 장치).</div><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px">'+
+      [0,0.05,0.10,0.15,0.20].map(b=>{
+        const lbl=b===0?'정상':'+'+(b*100).toFixed(0)+'%';
+        const sel=Math.abs(vb-b)<0.001;
+        const col=b===0?'#888':(b===0.05?'#22c55e':(b===0.10?'#3b82f6':(b===0.15?'#a78bfa':'#f97316')));
+        return '<button onclick="setVirtualBoost('+b+')" style="background:'+(sel?col:'transparent')+';color:'+(sel?'#000':col)+';border:1px solid '+col+';padding:10px 6px;border-radius:8px;font-weight:800;cursor:pointer;font-size:12px">'+lbl+'</button>';
+      }).join('')+
+    '</div><div class="note" style="margin-top:6px;font-size:11px">현재: <b style="color:#fbbf24">'+(vb===0?'정상':'+'+(vb*100).toFixed(0)+'%')+'</b>'+(vb>0?' · 백테에서 검증 후 사용 권장':'')+'</div></div>';
     h+='<div class="card"><div class="ct">📅 매매일지 시작일</div><div class="ir"><label>시작일</label><input type="date" id="start-date-in" value="'+(p.startDate||td())+'" max="'+td()+'" onchange="setStartDate()"><span class="u">📅</span></div><div class="note">시작일 변경 시 일지 다시 갱신 필요</div></div>';
     h+='<div class="card"><div class="ct">💵 시드 재설정</div><button class="btn btn-g" onclick="promptSeedReset()">시드 변경</button></div>';
     h+='<div class="card"><div class="danger-zone"><div class="title">⚠️ 위험 영역</div><div style="color:var(--dim);font-size:13px;margin-bottom:8px">'+activeSymbol+' 데이터 초기화 (시드/일지/티어/기록 모두)</div><button class="btn btn-r" onclick="confirmFullReset()">💀 '+activeSymbol+' 초기화</button></div></div>';
@@ -445,7 +464,11 @@ function quickFillBuy(date,close,units){
   if(p.pos.find(pp=>pp.d===date)){if(!confirm(date+'에 이미 매수 기록 있음. 추가로 더 기록할까요?'))return;}
   const zone=diaryEntry.zone;
   const uw=p.seed/TU;
-  const shares=Math.floor(units*uw/close);
+  const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+  const vBoost=p.virtualBoost||0;
+  const useV=vBoost>0&&totalU<15;
+  const bm=useV?(1+vBoost):1;
+  const shares=Math.floor(units*uw*bm/close);
   showModal('<h3>📈 '+date+' 체결 기록</h3><div class="desc">백테 기준: <b>$'+close+'</b> · '+units+'u<br>형님 실제 체결가가 다르면 수정하세요.<br><span style="color:var(--green)">매도점은 일지 종가 기준으로 고정됩니다 ($'+(close*(1+ZONES[zone].tp)).toFixed(2)+')</span></div><div class="ir"><label>매수 날짜</label><input type="date" id="qf-date" value="'+date+'"><span class="u">📅</span></div><div class="ir"><label>실제 체결가</label><input type="number" step="0.01" id="qf-price" value="'+close+'" onchange="recalcQfShares()"><span class="u">$</span></div><div class="ir"><label>유닛</label><input type="number" id="qf-units" value="'+units+'" min="1" max="20" onchange="recalcQfShares()" style="background:#0a0a14;color:var(--accent)"><span class="u">u</span></div><div class="ir"><label>실제 주수</label><input type="number" id="qf-shares" value="'+shares+'"><span class="u">주</span></div><div class="note" style="margin-top:8px">💡 매도 LOC = <b style="color:var(--green)">$'+(close*(1+ZONES[zone].tp)).toFixed(2)+'</b> (일지 종가 기준 고정)<br>💡 다른 가격에 사도 매도점은 일지 기준 유지<br>💡 <b style="color:var(--accent)">유닛 변경 가능</b>: 건너뛴 날 보충하려면 4u→8u 등으로 늘리기<br><div id="qf-warn" style="margin-top:6px;font-family:\'JetBrains Mono\',monospace;font-size:12px"></div></div><div class="btn-row"><button class="btn btn-d" onclick="closeModal()">취소</button><button class="btn btn-b" onclick="confirmQuickFill(\''+date+'\','+close+',\''+zone+'\')">체결 기록</button></div>');
 }
 function recalcQfShares(){
@@ -454,7 +477,11 @@ function recalcQfShares(){
   const price=parseFloat($('qf-price').value)||0;
   if(units>0&&price>0){
     const uw=p.seed/TU;
-    const newShares=Math.floor(units*uw/price);
+    const totalU0=p.pos.reduce((s,pp)=>s+pp.u,0);
+    const vBoost=p.virtualBoost||0;
+    const useV=vBoost>0&&totalU0<15;
+    const bm=useV?(1+vBoost):1;
+    const newShares=Math.floor(units*uw*bm/price);
     $('qf-shares').value=newShares;
     // 경고 표시
     const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
@@ -542,6 +569,30 @@ function deleteFill(date,posIdx,histIdx){
   render();
 }
 function toggleLivePrice(){window._showLivePrice=!window._showLivePrice;render();if(window._showLivePrice){setTimeout(()=>{const el=$('cp-live-quick');if(el)el.focus();},100);}}
+function setVirtualBoost(b){
+  const p=curPort();p.virtualBoost=b;save();render();
+  if(b>0){
+    const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+    if(totalU>=15){
+      alert('⚠️ 보유 '+totalU+'u (15u+)\n가상 시드 +'+(b*100).toFixed(0)+'% 설정됐지만\n안전 장치로 정상 시드 적용됩니다.');
+    }
+  }
+}
+async function fetchLivePrice(){
+  const p=curPort();const sym=activeSymbol;
+  try{
+    const r=await fetch('/api/quote?symbol='+sym);
+    if(!r.ok)throw new Error('fetch fail');
+    const d=await r.json();
+    const px=d.price||d.regularMarketPrice||d.last;
+    if(px){p.priceLive=Number(px);save();render();}
+  }catch(e){console.log('실시간 가격 fetch 실패:',e);}
+}
+function startLivePriceAutoUpdate(){
+  if(window._livePriceTimer)clearInterval(window._livePriceTimer);
+  fetchLivePrice();
+  window._livePriceTimer=setInterval(fetchLivePrice,60000);
+}
 function updPriceLiveQuick(){
   const v=gv('cp-live-quick');curPort().priceLive=v;save();
   const p=curPort();const livePrice=p.priceLive||p.priceClose||0;
@@ -713,6 +764,7 @@ function showModal(html){$('modal-container').innerHTML='<div class="modal-bg" o
 function closeModal(){$('modal-container').innerHTML='';}
 render();
 setInterval(()=>{const usEl=$('us-status');if(usEl)usEl.innerHTML=getUSMarketStatus();},60000);
+startLivePriceAutoUpdate();
 </script>
 </body>
 </html>
