@@ -148,6 +148,7 @@ for(const sym in portfolios){
   const p=portfolios[sym];
   p.seed=Number(p.seed)||100000;p.startDate=p.startDate||'';p.priceClose=Number(p.priceClose)||0;p.priceLive=Number(p.priceLive)||0;p.high20=Number(p.high20)||0;p.priceDate=p.priceDate||'';
   p.diary=Array.isArray(p.diary)?p.diary:[];p.pos=Array.isArray(p.pos)?p.pos:[];p.hist=Array.isArray(p.hist)?p.hist:[];
+  p.virtualBoost=Number(p.virtualBoost)||0;
 }
 const $=id=>document.getElementById(id);
 const gv=id=>parseFloat($(id).value)||0;
