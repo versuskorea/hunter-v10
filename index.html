@@ -308,7 +308,7 @@ function render(){
         else{
           const uw=p.seed/TU;
           const vBoost=p.virtualBoost||0;
-          const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+          const totalU=p.pos.reduce((s,pp)=>s+(pp.u||0),0);
           const useV=vBoost>0&&totalU<15;
           const bm=useV?(1+vBoost):1;
           sharesDisplay=Math.floor(d.units*uw*bm/d.close)+'주'+(useV?' ⚡':'');
@@ -338,6 +338,7 @@ function render(){
       const lastClose=last.close;
       const nextUnits=last.units;
       const uw=p.seed/TU;
+      const totalU=p.pos.reduce((s,pp)=>s+(pp.u||0),0);
       const vBoost=p.virtualBoost||0;
       const useVirtual=vBoost>0&&totalU<15;
       const boostMult=useVirtual?(1+vBoost):1;
@@ -350,7 +351,7 @@ function render(){
       nextDate.setDate(nextDate.getDate()+1);
       while(nextDate.getDay()===0||nextDate.getDay()===6){nextDate.setDate(nextDate.getDate()+1);}
       const nextDateDisplay=(nextDate.getMonth()+1)+'월 '+nextDate.getDate()+'일';
-      const totalU=p.pos.reduce((a,pp)=>a+pp.u,0);
+      const totalU=p.pos.reduce((a,pp)=>a+(pp.u||0),0);
       const remU=TU-totalU;
       
       // ─── v14: 주문표 상단에 "전날 종가 참조" 배너 ───
@@ -390,7 +391,7 @@ function render(){
       h+='<div class="card" style="border:1px solid var(--accent)"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div class="ct" style="color:var(--accent);margin:0">⚡ 실시간 현재가</div><button onclick="toggleLivePrice()" style="background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer">▲</button></div><div class="ir"><label>현재가</label><input type="number" step="0.01" id="cp-live-quick" value="'+(p.priceLive||'')+'" oninput="updPriceLiveQuick()" placeholder="장중 가격" autofocus><span class="u">$</span></div></div>';
     }
     const livePrice=p.priceLive||p.priceClose;
-    const totalU=p.pos.reduce((a,pp)=>a+pp.u,0);
+    const totalU=p.pos.reduce((a,pp)=>a+(pp.u||0),0);
     const remU=TU-totalU;
     h+='<div class="card" style="padding:0"><div style="padding:12px 14px 6px"><div class="ct" style="margin:0">📦 보유 현황 '+(p.priceLive?'(실시간)':'(전날종가)')+'</div></div><table class="tier-table"><thead><tr><th>티어</th><th>매수일</th><th>매수가</th><th>수량</th><th>유닛</th><th>매도점</th><th>강제청산</th><th>손익</th></tr></thead><tbody>';
     const sortedPosT=[...p.pos].sort((a,b)=>a.d.localeCompare(b.d));
@@ -405,17 +406,17 @@ function render(){
       h+='<tr '+(isForce?'style="background:rgba(239,68,68,0.08)"':'')+'><td><b>T'+(idx+1)+'</b></td><td>'+pp.d.slice(5)+'</td><td>$'+pp.e+'</td><td>'+pp.s+'</td><td>'+pp.u+'u</td><td>$'+sellPrice+'</td><td>~'+addBd(pp.d,pz.fd)+(isForce?'⚠️':'')+'</td><td class="'+pnlCls+'">'+(pnl>=0?'+':'')+pnl+'%</td></tr>';
     });
     if(p.pos.length===0){h+='<tr class="empty"><td colspan="8" style="padding:20px;color:var(--dim);font-style:italic">보유 티어 없음</td></tr>';}
-    h+='</tbody></table></div><div class="card">'+(()=>{
-      const totalShares=p.pos.reduce((a,pp)=>a+pp.s,0);
-      const totalCost=p.pos.reduce((a,pp)=>a+pp.s*pp.e,0);
-      const avgPrice=totalShares>0?totalCost/totalShares:0;
-      const curPrice=p.priceLive||p.priceClose||0;
-      const curValue=totalShares*curPrice;
-      const pl=curValue-totalCost;
-      const plPct=totalCost>0?(pl/totalCost)*100:0;
-      const plColor=pl>=0?'var(--green)':'var(--red)';
-      return '<div class="sb-row"><span class="k">총 투입금액</span><span class="v">$'+totalCost.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'</span></div><div class="sb-row"><span class="k">평단가</span><span class="v">$'+avgPrice.toFixed(2)+'</span></div><div class="sb-row"><span class="k">현재 평가액</span><span class="v">$'+curValue.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')+'</span></div><div class="sb-row"><span class="k">총 손익</span><span class="v" style="color:'+plColor+';font-weight:800">'+(pl>=0?'+':'')+'$'+pl.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',')+' ('+(plPct>=0?'+':'')+plPct.toFixed(2)+'%)</span></div>';
-    })()+'<div class="sb-row"><span class="k">보유 유닛</span><span class="v">'+totalU+'/'+TU+' ('+remU+'u 남음)</span></div><div class="sb-row"><span class="k">보유 주수</span><span class="v">'+p.pos.reduce((a,pp)=>a+pp.s,0)+'주</span></div><div class="sb-row"><span class="k">시드</span><span class="v" style="color:var(--green)">$'+p.seed.toLocaleString()+'</span></div><div class="sb-row"><span class="k">유닛 단가</span><span class="v">$'+(p.seed/TU).toFixed(0)+'</span></div></div><div class="note" style="margin-top:8px">💡 매수 체결은 <b style="color:var(--accent)">📋 주문 탭</b>에서 일지의 "체결" 버튼으로 입력하세요<br>💡 여기서는 매도만 가능 (티어 클릭 또는 "매도 기록")</div>';
+    h+='</tbody></table></div>';
+    const totalShares=p.pos.reduce((a,pp)=>a+pp.s,0);
+    const totalCost=p.pos.reduce((a,pp)=>a+pp.s*pp.e,0);
+    const avgPrice=totalShares>0?totalCost/totalShares:0;
+    const curPrice=p.priceLive||p.priceClose||0;
+    const curValue=totalShares*curPrice;
+    const pl=curValue-totalCost;
+    const plPct=totalCost>0?(pl/totalCost)*100:0;
+    const plColor=pl>=0?'var(--green)':'var(--red)';
+    const fmtN=n=>Math.round(n).toLocaleString();
+    h+='<div class="card"><div class="sb-row"><span class="k">총 투입금액</span><span class="v">$'+fmtN(totalCost)+'</span></div><div class="sb-row"><span class="k">평단가</span><span class="v">$'+avgPrice.toFixed(2)+'</span></div><div class="sb-row"><span class="k">현재 평가액</span><span class="v">$'+fmtN(curValue)+'</span></div><div class="sb-row"><span class="k">총 손익</span><span class="v" style="color:'+plColor+';font-weight:800">'+(pl>=0?'+':'')+'$'+fmtN(pl)+' ('+(plPct>=0?'+':'')+plPct.toFixed(2)+'%)</span></div><div class="sb-row"><span class="k">보유 유닛</span><span class="v">'+totalU+'/'+TU+' ('+remU+'u 남음)</span></div><div class="sb-row"><span class="k">보유 주수</span><span class="v">'+totalShares+'주</span></div><div class="sb-row"><span class="k">시드</span><span class="v" style="color:var(--green)">$'+p.seed.toLocaleString()+'</span></div><div class="sb-row"><span class="k">유닛 단가</span><span class="v">$'+(p.seed/TU).toFixed(0)+'</span></div></div><div class="note" style="margin-top:8px">💡 매수 체결은 <b style="color:var(--accent)">📋 주문 탭</b>에서 일지의 "체결" 버튼으로 입력하세요<br>💡 여기서는 매도만 가능 (티어 클릭 또는 "매도 기록")</div>';
     if(p.pos.length>0){h+='<div class="card"><div class="ct">📉 매도</div><button class="btn btn-s" onclick="openSellModal()">매도 기록</button></div>';}
     h+='<div class="card"><div class="ct">📈 수동 매수 기록</div><div style="font-size:13px;color:var(--dim);margin-bottom:10px;line-height:1.6">매매일지에 없는 날 매수했을 때 사용<br>(예: 야후 데이터 지연, 같은 날 추가 매수 등)</div><button class="btn btn-b" onclick="openManualBuyModal()">+ 수동 매수 기록</button></div>';
   }
@@ -465,7 +466,7 @@ function quickFillBuy(date,close,units){
   if(p.pos.find(pp=>pp.d===date)){if(!confirm(date+'에 이미 매수 기록 있음. 추가로 더 기록할까요?'))return;}
   const zone=diaryEntry.zone;
   const uw=p.seed/TU;
-  const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+  const totalU=p.pos.reduce((s,pp)=>s+(pp.u||0),0);
   const vBoost=p.virtualBoost||0;
   const useV=vBoost>0&&totalU<15;
   const bm=useV?(1+vBoost):1;
@@ -478,14 +479,14 @@ function recalcQfShares(){
   const price=parseFloat($('qf-price').value)||0;
   if(units>0&&price>0){
     const uw=p.seed/TU;
-    const totalU0=p.pos.reduce((s,pp)=>s+pp.u,0);
+    const totalU0=p.pos.reduce((s,pp)=>s+(pp.u||0),0);
     const vBoost=p.virtualBoost||0;
     const useV=vBoost>0&&totalU0<15;
     const bm=useV?(1+vBoost):1;
     const newShares=Math.floor(units*uw*bm/price);
     $('qf-shares').value=newShares;
     // 경고 표시
-    const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+    const totalU=p.pos.reduce((s,pp)=>s+(pp.u||0),0);
     const newTotal=totalU+units;
     const warnEl=$('qf-warn');
     if(warnEl){
@@ -508,7 +509,7 @@ function confirmQuickFill(diaryDate,diaryClose,zone){
   if(!actualShares||actualShares<=0)return alert('주수 입력');
   if(!units)return alert('유닛 입력');
   // TU 초과 경고
-  const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+  const totalU=p.pos.reduce((s,pp)=>s+(pp.u||0),0);
   const newTotal=totalU+units;
   if(newTotal>TU){
     if(!confirm('⚠️ 총 '+newTotal+'u가 됩니다 (TU '+TU+' 초과)\n시드 부족 위험이 있습니다.\n\n그래도 진행하시겠습니까?'))return;
@@ -573,7 +574,7 @@ function toggleLivePrice(){window._showLivePrice=!window._showLivePrice;render()
 function setVirtualBoost(b){
   const p=curPort();p.virtualBoost=b;save();render();
   if(b>0){
-    const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+    const totalU=p.pos.reduce((s,pp)=>s+(pp.u||0),0);
     if(totalU>=15){
       alert('⚠️ 보유 '+totalU+'u (15u+)\n가상 시드 +'+(b*100).toFixed(0)+'% 설정됐지만\n안전 장치로 정상 시드 적용됩니다.');
     }
@@ -607,7 +608,7 @@ function updPriceLiveQuick(){
 }
 function openManualBuyModal(){
   const p=curPort();
-  const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+  const totalU=p.pos.reduce((s,pp)=>s+(pp.u||0),0);
   const remU=TU-totalU;
   // 마지막 일지 종가 또는 현재가 추정
   const refPrice=(p.diary&&p.diary.length>0)?p.diary[p.diary.length-1].close:(p.priceLive||p.priceClose||100);
@@ -625,7 +626,7 @@ function recalcMbShares(){
     const uw=p.seed/TU;
     const newShares=Math.floor(units*uw/price);
     $('mb-shares').value=newShares;
-    const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+    const totalU=p.pos.reduce((s,pp)=>s+(pp.u||0),0);
     const newTotal=totalU+units;
     const warnEl=$('mb-warn');
     if(warnEl){
@@ -654,7 +655,7 @@ function confirmManualBuy(){
   if(!shares||shares<=0)return alert('주수 입력');
   if(!zone)return alert('구간 선택');
   // TU 초과 경고
-  const totalU=p.pos.reduce((s,pp)=>s+pp.u,0);
+  const totalU=p.pos.reduce((s,pp)=>s+(pp.u||0),0);
   const newTotal=totalU+units;
   if(newTotal>TU){
     if(!confirm('⚠️ 총 '+newTotal+'u가 됩니다 (TU '+TU+' 초과)\n시드 부족 위험.\n계속?'))return;
