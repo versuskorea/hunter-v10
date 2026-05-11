@@ -426,68 +426,55 @@ function render(){
   }
   if(tab==='s'){
     h+='<div class="card"><div class="ct">⚙️ 기본 설정</div><div class="ir"><label>시드</label><input type="number" id="seed-in" value="'+p.seed+'" onchange="updSeed()"><span class="u">$</span></div><div class="note">시드 변경 시 유닛 크기도 함께 변경됨 ($시드/20)</div></div>';
-    const vb=p.virtualBoost||0;
-    h+='<div class="card" style="border:1px solid #fbbf24"><div class="ct" style="color:#fbbf24">⚡ 가상 시드 (수익 부스트)</div><div style="font-size:12px;color:var(--dim);margin-bottom:10px;line-height:1.6">0~14u 보유 시 매수 수량 ↑ → 시드 활용도 ↑.<br>15u+ 도달 시 자동 정상 시드 (안전 장치).</div><div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px">'+
-      [0,0.05,0.10,0.15,0.20].map(b=>{
-        const lbl=b===0?'정상':'+'+(b*100).toFixed(0)+'%';
-        const sel=Math.abs(vb-b)<0.001;
-        const col=b===0?'#888':(b===0.05?'#22c55e':(b===0.10?'#3b82f6':(b===0.15?'#a78bfa':'#f97316')));
-        return '<button onclick="setVirtualBoost('+b+')" style="background:'+(sel?col:'transparent')+';color:'+(sel?'#000':col)+';border:1px solid '+col+';padding:10px 6px;border-radius:8px;font-weight:800;cursor:pointer;font-size:12px">'+lbl+'</button>';
-      }).join('')+
-    '</div><div class="note" style="margin-top:6px;font-size:11px">현재: <b style="color:#fbbf24">'+(vb===0?'정상':'+'+(vb*100).toFixed(0)+'%')+'</b>'+(vb>0?' · 백테에서 검증 후 사용 권장':'')+'</div></div>';
     
-    // 🆕 HYBRID 강 자동 (비중 6단계 + 부스트 4단계)
+    // 비중조절 자동 (6단계 - 부스트 X)
     const todayRsi=p.todayRsi||0;
     const prevRsi=p.prevRsi||0;
     const rsiUpdated=p.rsiUpdated;
     const rsiAge=rsiUpdated?Math.round((Date.now()-new Date(rsiUpdated).getTime())/3600000):999;
     const hybrid=p.hybrid;
+    const curWeight=p.virtualWeight||1.0;
     
-    h+='<div class="card" style="border:2px solid #fbbf24;background:linear-gradient(135deg,#1a1a2a,#2a1a2a)"><div class="ct" style="color:#fbbf24">💎 HYBRID 강 자동 (비중조절 + 강세 부스트)</div>';
+    h+='<div class="card" style="border:2px solid #3b82f6;background:linear-gradient(135deg,#0a1a2a,#1a1a2a)"><div class="ct" style="color:#3b82f6">⚙️ 비중조절 자동 (V자 폭락 안전)</div>';
     
     if(hybrid&&hybrid.weight!==undefined){
       // 현재 추세 상태 표시
       const weightColor=hybrid.weight>=1.0?'#22c55e':(hybrid.weight>=0.9?'#84cc16':(hybrid.weight>=0.6?'#fbbf24':(hybrid.weight>=0.4?'#f97316':'#ef4444')));
-      const boostColor=hybrid.boost===0?'#888':(hybrid.boost<=0.10?'#22c55e':(hybrid.boost<=0.30?'#3b82f6':'#fbbf24'));
       
       // 추세 라벨
       h+='<div style="padding:12px;background:#0a0a14;border-radius:10px;margin-bottom:10px;text-align:center"><div style="font-size:12px;color:var(--dim);margin-bottom:4px">현재 시장 상태</div><div style="font-size:16px;font-weight:800;color:'+weightColor+';margin-bottom:4px">'+hybrid.trendLabel+'</div><div style="font-size:11px;color:var(--dim)">50MA: $'+hybrid.ma50.toFixed(2)+' · 200MA: $'+hybrid.ma200.toFixed(2)+'</div></div>';
       
-      // 비중 + 부스트
-      h+='<div style="display:flex;gap:8px;margin-bottom:10px">';
-      h+='<div style="flex:1;padding:14px;background:rgba(34,197,94,0.08);border:2px solid '+weightColor+';border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--dim);margin-bottom:4px">🎯 비중</div><div style="font-size:28px;font-weight:800;color:'+weightColor+';font-family:JetBrains Mono,monospace">'+(hybrid.weight*100).toFixed(0)+'%</div></div>';
-      h+='<div style="flex:1;padding:14px;background:rgba(251,191,36,0.08);border:2px solid '+boostColor+';border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--dim);margin-bottom:4px">⚡ 부스트</div><div style="font-size:28px;font-weight:800;color:'+boostColor+';font-family:JetBrains Mono,monospace">'+(hybrid.boost>0?'+'+(hybrid.boost*100).toFixed(0)+'%':'X')+'</div></div>';
-      h+='</div>';
+      // 비중만 (부스트 X)
+      h+='<div style="padding:18px;background:rgba(59,130,246,0.08);border:2px solid '+weightColor+';border-radius:10px;text-align:center;margin-bottom:10px"><div style="font-size:12px;color:var(--dim);margin-bottom:6px">🎯 매수 비중</div><div style="font-size:42px;font-weight:800;color:'+weightColor+';font-family:JetBrains Mono,monospace">'+(hybrid.weight*100).toFixed(0)+'%</div><div style="font-size:11px;color:var(--dim);margin-top:6px">부스트: X (V자 폭락 안전)</div></div>';
       
       // 적용 상태
-      const isMatchW=Math.abs(vWeight-hybrid.weight)<0.001;
-      const isMatchB=Math.abs(vb-hybrid.boost)<0.001;
-      const isAllMatch=isMatchW&&isMatchB;
+      const isMatchW=Math.abs(curWeight-hybrid.weight)<0.001;
       
-      if(!isAllMatch){
-        h+='<button onclick="applyHybrid()" style="width:100%;background:linear-gradient(135deg,#fbbf24,#f97316);color:#000;border:none;border-radius:8px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:8px">✨ HYBRID 강 적용 (비중 '+(hybrid.weight*100).toFixed(0)+'% · 부스트 '+(hybrid.boost>0?'+'+(hybrid.boost*100).toFixed(0)+'%':'X')+')</button>';
-        h+='<div style="font-size:11px;color:var(--dim);text-align:center;margin-bottom:8px">현재 설정: 비중 '+(vWeight*100).toFixed(0)+'% · 부스트 '+(vb>0?'+'+(vb*100).toFixed(0)+'%':'X')+'</div>';
+      if(!isMatchW){
+        h+='<button onclick="applyHybrid()" style="width:100%;background:linear-gradient(135deg,#3b82f6,#22c55e);color:#fff;border:none;border-radius:8px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:8px">✨ 비중조절 적용 ('+(hybrid.weight*100).toFixed(0)+'%)</button>';
+        h+='<div style="font-size:11px;color:var(--dim);text-align:center;margin-bottom:8px">현재 설정: '+(curWeight*100).toFixed(0)+'%</div>';
       }else{
-        h+='<div style="padding:10px;background:#0a1a0a;border-radius:8px;text-align:center;color:#22c55e;font-size:13px;font-weight:700;margin-bottom:8px">✅ HYBRID 강 자동 적용 중</div>';
+        h+='<div style="padding:10px;background:#0a1a0a;border-radius:8px;text-align:center;color:#22c55e;font-size:13px;font-weight:700;margin-bottom:8px">✅ 비중조절 자동 적용 중</div>';
       }
       
       h+='<div style="font-size:11px;color:var(--dim);text-align:center;margin-bottom:8px">⏱️ '+(rsiAge<1?'방금 갱신':rsiAge<24?rsiAge+'시간 전':Math.floor(rsiAge/24)+'일 전')+'</div>';
     }else{
-      h+='<div style="padding:14px;background:#0a0a14;border-radius:8px;text-align:center;color:var(--dim);font-size:13px;margin-bottom:10px">HYBRID 데이터 없음<br><small>아래 버튼으로 자동 가져오기</small></div>';
+      h+='<div style="padding:14px;background:#0a0a14;border-radius:8px;text-align:center;color:var(--dim);font-size:13px;margin-bottom:10px">비중조절 데이터 없음<br><small>아래 버튼으로 자동 가져오기</small></div>';
     }
     
-    h+='<button class="btn btn-fetch" onclick="autoUpdateRsi()">🔄 야후에서 자동 가져오기 + HYBRID 적용</button>';
+    h+='<button class="btn btn-fetch" onclick="autoUpdateRsi()">🔄 야후에서 자동 가져오기 + 적용</button>';
     
-    // 6단계 룰 표시
-    h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:#fbbf24;font-weight:700">💡 HYBRID 강 6단계 룰 보기</summary><div style="margin-top:8px;padding:10px;background:#0a0a14;border-radius:8px;font-size:11px;line-height:1.8;color:var(--text)">';
-    h+='<b style="color:#22c55e">🟢 강세 강</b> (trend>5% + gap>0): 비중 100% / 부스트 +50%<br>';
-    h+='<b style="color:#84cc16">🟢 강세 약</b> (trend>0%): 비중 90% / 부스트 +30%<br>';
-    h+='<b style="color:#fbbf24">🟡 중립</b> (trend>-5%): 비중 60% / 부스트 +10%<br>';
-    h+='<b style="color:#f97316">🟠 약세</b> (trend>-10%): 비중 40% / 부스트 X<br>';
-    h+='<b style="color:#3b82f6">🔵 바닥 역발상</b> (gap<-30%): 비중 50% / 부스트 X<br>';
-    h+='<b style="color:#ef4444">🔴 폭락</b> (else): 비중 30% / 부스트 X<br>';
-    h+='<br>📌 매일 자동 판단 · 5년 백테 검증<br>🎯 +422% / MDD -45% (2년 강세장)';
+    // 6단계 룰 표시 (부스트 X)
+    h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:#3b82f6;font-weight:700">💡 비중조절 6단계 룰 보기</summary><div style="margin-top:8px;padding:10px;background:#0a0a14;border-radius:8px;font-size:11px;line-height:1.8;color:var(--text)">';
+    h+='<b style="color:#22c55e">🟢 강세 강</b> (trend>5% + gap>0): 비중 100%<br>';
+    h+='<b style="color:#84cc16">🟢 강세 약</b> (trend>0%): 비중 90%<br>';
+    h+='<b style="color:#fbbf24">🟡 중립</b> (trend>-5%): 비중 60%<br>';
+    h+='<b style="color:#f97316">🟠 약세</b> (trend>-10%): 비중 40%<br>';
+    h+='<b style="color:#3b82f6">🔵 바닥 역발상</b> (gap<-30%): 비중 50%<br>';
+    h+='<b style="color:#ef4444">🔴 폭락</b> (else): 비중 30%<br>';
+    h+='<br>📌 부스트 X (V자 폭락 시 안전)<br>📌 11년 백테 검증 (강화1 PANIC 자동 감지)<br>🎯 단순함 + MDD 통제';
     h+='</div></details></div>';
+    
     h+='<div class="card"><div class="ct">📅 매매일지 시작일</div><div class="ir"><label>시작일</label><input type="date" id="start-date-in" value="'+(p.startDate||td())+'" max="'+td()+'" onchange="setStartDate()"><span class="u">📅</span></div><div class="note">시작일 변경 시 일지 다시 갱신 필요</div></div>';
     h+='<div class="card"><div class="ct">💵 시드 재설정</div><button class="btn btn-g" onclick="promptSeedReset()">시드 변경</button></div>';
     h+='<div class="card"><div class="danger-zone"><div class="title">⚠️ 위험 영역</div><div style="color:var(--dim);font-size:13px;margin-bottom:8px">'+activeSymbol+' 데이터 초기화 (시드/일지/티어/기록 모두)</div><button class="btn btn-r" onclick="confirmFullReset()">💀 '+activeSymbol+' 초기화</button></div></div>';
@@ -522,19 +509,18 @@ async function autoUpdateRsi(){
   const btn=event.target;
   if(btn){btn.disabled=true;btn.textContent='⏳ 가져오는 중...';}
   const r=await fetchAndApplyRsi(false);
-  if(btn){btn.disabled=false;btn.textContent='🔄 야후에서 자동 가져오기 + HYBRID 적용';}
+  if(btn){btn.disabled=false;btn.textContent='🔄 야후에서 자동 가져오기 + 적용';}
   if(r&&r.hybrid){
     const h=r.hybrid;
-    const msg='💎 HYBRID 강 추천!\n\n'+
+    const msg='⚙️ 비중조절 추천!\n\n'+
       '📊 상태: '+h.trendLabel+'\n'+
       '   50MA: $'+h.ma50.toFixed(2)+' / 200MA: $'+h.ma200.toFixed(2)+'\n'+
       '   trend: '+h.trend.toFixed(1)+'% / gap: '+h.gap.toFixed(1)+'%\n\n'+
       '🎯 비중: '+(h.weight*100).toFixed(0)+'%\n'+
-      '⚡ 부스트: '+(h.boost>0?'+'+(h.boost*100).toFixed(0)+'%':'X (방어 모드)')+'\n\n'+
+      '⚙️ 부스트: X (V자 폭락 안전)\n\n'+
       '바로 적용할까요?';
     const apply=confirm(msg);
     if(apply){
-      curPort().virtualBoost=h.boost;
       curPort().virtualWeight=h.weight;
       save();render();
     }
@@ -544,8 +530,8 @@ async function autoUpdateRsi(){
 function applyHybrid(){
   const p=curPort();
   if(!p.hybrid){alert('먼저 야후에서 데이터 가져오세요');return;}
-  p.virtualBoost=p.hybrid.boost;
   p.virtualWeight=p.hybrid.weight;
+  p.virtualBoost=0;  // 비중조절만 (부스트 X)
   save();render();
 }
 function quickFillBuy(date,close,units){
@@ -878,7 +864,8 @@ async function fetchAndApplyRsi(autoApply){
     p.rsiRecommend=rec;
     
     if(autoApply){
-      p.virtualBoost=hybrid.boost;
+      p.virtualBoost=0;  // 부스트 X (V자 폭락 안전)
+      p.virtualWeight=hybrid.weight;
     }
     
     save();render();
