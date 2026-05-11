@@ -1283,17 +1283,48 @@ async function runPanicHybrid() {
       return { weight: 0.3, boost: 0 };
     };
     
-    // 4가지 모드 비교 (진입 일수별)
+    // 5가지 PANIC 조건 비교 (모두 3일 후 진입 = S2)
     const modes = [
-      { name: '기본 HUNTER (PANIC X)', color: '#888', fn: hybridStrongFn, panic: false, panicWait: 0 },
-      { name: '🚨 PANIC 1일 후 매수 (S1)', color: '#22c55e', fn: hybridStrongFn, panic: true, panicUnits: 4, panicWait: 1 },
-      { name: '🚨 PANIC 2일 후 매수', color: '#fbbf24', fn: hybridStrongFn, panic: true, panicUnits: 4, panicWait: 2 },
-      { name: '🚨 PANIC 3일 후 매수 (S2)', color: '#ef4444', fn: hybridStrongFn, panic: true, panicUnits: 4, panicWait: 3 }
+      { 
+        name: '기본 HUNTER (PANIC X)', 
+        color: '#888', panic: false, 
+        cond: null 
+      },
+      { 
+        name: '🚨 기본 (-5% + 거래량 1.3)', 
+        color: '#ef4444', panic: true,
+        cond: { dropPct: -5, volRatio: 1.3 }
+      },
+      { 
+        name: '🟡 강화1 (-7% + 거래량 1.5)', 
+        color: '#f97316', panic: true,
+        cond: { dropPct: -7, volRatio: 1.5 }
+      },
+      { 
+        name: '🟠 강화2 (-7% + 거래량 2.0 + 200MA↓)', 
+        color: '#fbbf24', panic: true,
+        cond: { dropPct: -7, volRatio: 2.0, requireBelowMA200: true }
+      },
+      { 
+        name: '🔵 강화3 (-5% + RSI<35 + 200MA↓)', 
+        color: '#3b82f6', panic: true,
+        cond: { dropPct: -5, volRatio: 1.3, requireBelowMA200: true, requireRsiLow: 35 }
+      },
+      { 
+        name: '🟣 강화4 (-7% + 2일연속 -3% + 거래량 1.5)', 
+        color: '#a78bfa', panic: true,
+        cond: { dropPct: -7, volRatio: 1.5, require2DayDrop: -3 }
+      },
+      { 
+        name: '⭐ 극단 (-10% + 거래량 2.0 + RSI<30)', 
+        color: '#22c55e', panic: true,
+        cond: { dropPct: -10, volRatio: 2.0, requireRsiLow: 30 }
+      }
     ];
     
     const results = modes.map(m => ({
       ...m,
-      result: simulatePanicHybrid(data.bars, params, userStartIdx, m.fn, m.panic, m.panicUnits || 4, m.panicWait || 1)
+      result: simulatePanicHybrid(data.bars, params, userStartIdx, hybridStrongFn, m.panic, 4, 3, m.cond)
     }));
     
     const totalDaysActual = data.bars.length - userStartIdx;
@@ -1305,7 +1336,7 @@ async function runPanicHybrid() {
     let html = '<div class="cycle-card" style="margin-top:14px"><div class="cs-title">🚨 PANIC 전환 백테: HYBRID + PANIC 통합</div>';
     html += '<div style="background:#0a1a2a;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#ef4444;font-weight:700;text-align:center">📅 ' + userStartDate + ' ~ ' + userEndDate + ' (' + yearsDisplay + '년)</div>';
     
-    html += '<div style="background:linear-gradient(135deg,#2a1a1a,#3a0a0a);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.7"><b style="color:#fbbf24">💡 PANIC 진입 일수 비교:</b><br>• <b style="color:#888">기본</b>: PANIC X (HYBRID 강만)<br>• <b style="color:#22c55e">1일 후 (S1)</b>: 시그널 다음날 시초가 매수<br>• <b style="color:#fbbf24">2일 후</b>: 시그널 2일 후 시초가 매수<br>• <b style="color:#ef4444">3일 후 (S2)</b>: 시그널 3일 후 시초가 매수<br>📌 <b style="color:#fbbf24">갭다운 회피 효과 검증</b><br>📌 룰: 🎯+20% / 🛑-3% 스탑 / 📉-2% 트레일</div>';
+    html += '<div style="background:linear-gradient(135deg,#2a1a1a,#3a0a0a);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.7"><b style="color:#fbbf24">💡 PANIC 조건 강화 비교 (모두 3일 후 진입):</b><br>• <b style="color:#ef4444">기본</b>: -5% + 거래량 1.3<br>• <b style="color:#f97316">강화1</b>: -7% + 거래량 1.5<br>• <b style="color:#fbbf24">강화2</b>: -7% + 거래량 2.0 + 200MA 아래<br>• <b style="color:#3b82f6">강화3</b>: -5% + RSI<35 + 200MA 아래<br>• <b style="color:#a78bfa">강화4</b>: -7% + 이틀 연속 -3% + 거래량 1.5<br>• <b style="color:#22c55e">극단</b>: -10% + 거래량 2.0 + RSI<30<br>📌 까다로운 조건 = 진입 ↓ 승률 ↑ 가설</div>';
     
     // 결과 테이블
     html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:13px">';
@@ -1380,8 +1411,9 @@ function togglePanicDetail(idx) {
 }
 
 // HYBRID + PANIC 통합 시뮬레이션
-function simulatePanicHybrid(bars, params, userStartIdx, hybridFn, panicEnabled, panicMaxUnits, panicWait) {
+function simulatePanicHybrid(bars, params, userStartIdx, hybridFn, panicEnabled, panicMaxUnits, panicWait, panicCondition) {
   panicWait = panicWait || 1; // 기본 1일 후
+  panicCondition = panicCondition || { dropPct: -5, volRatio: 1.3 };
   const closes = bars.map(b => b.close);
   const dates = bars.map(b => b.date);
   const opens = bars.map(b => b.open || b.close);
@@ -1554,7 +1586,46 @@ function simulatePanicHybrid(bars, params, userStartIdx, hybridFn, panicEnabled,
     // ===== PANIC 시그널 감지 =====
     if (panicEnabled && panicSignalDay < 0 && !panicMode) {
       const totalU = pu.reduce((s, u) => s + u, 0);
-      const hasSignal = todayChange <= -5 && volRatio >= 1.3;
+      
+      // 기본 조건
+      let hasSignal = todayChange <= panicCondition.dropPct && volRatio >= panicCondition.volRatio;
+      
+      // 추가 조건들
+      if (hasSignal && panicCondition.requireBelowMA200) {
+        // 200MA 아래 (약세 확인)
+        if (cl >= ma200) hasSignal = false;
+      }
+      
+      if (hasSignal && panicCondition.require2DayDrop) {
+        // 이틀 연속 -X% 폭락
+        if (i >= 2) {
+          const prevChange = (closes[i-1] - closes[i-2]) / closes[i-2] * 100;
+          if (prevChange > panicCondition.require2DayDrop) hasSignal = false;
+        }
+      }
+      
+      if (hasSignal && panicCondition.requireRsiLow) {
+        // RSI 30 이하 (과매도 확인)
+        // 간단한 RSI 계산
+        let gains = 0, losses = 0;
+        const rsiLen = 14;
+        if (i >= rsiLen) {
+          for (let k = i - rsiLen + 1; k <= i; k++) {
+            const ch = closes[k] - closes[k-1];
+            if (ch > 0) gains += ch; else losses -= ch;
+          }
+          const avgG = gains / rsiLen;
+          const avgL = losses / rsiLen;
+          const rsi = avgL === 0 ? 100 : 100 - 100 / (1 + avgG / avgL);
+          if (rsi >= panicCondition.requireRsiLow) hasSignal = false;
+        }
+      }
+      
+      if (hasSignal && panicCondition.requireGap20) {
+        // 200MA 대비 -20% 이상 떨어짐 (큰 폭락)
+        const gap = (cl - ma200) / ma200 * 100;
+        if (gap >= -20) hasSignal = false;
+      }
       
       if (hasSignal && totalU <= panicMaxUnits) {
         // 시그널 감지!
