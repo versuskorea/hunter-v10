@@ -464,6 +464,21 @@ function render(){
     
     h+='<button class="btn btn-fetch" onclick="autoUpdateRsi()">🔄 야후에서 자동 가져오기 + 적용</button>';
     
+    // 🆕 수동 비중 선택
+    h+='<div style="margin-top:14px;padding:12px;background:#0a0a14;border-radius:10px"><div style="font-size:12px;color:#fbbf24;font-weight:700;margin-bottom:8px">🎯 수동 비중 선택 (자동 추천 무시)</div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">';
+    const weights=[0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0];
+    const wColors=['#ef4444','#f97316','#3b82f6','#fbbf24','#84cc16','#84cc16','#22c55e','#22c55e'];
+    for(let i=0;i<weights.length;i++){
+      const w=weights[i];
+      const c=wColors[i];
+      const sel=Math.abs(curWeight-w)<0.001;
+      h+='<button onclick="setVirtualWeight('+w+')" style="background:'+(sel?c:'transparent')+';color:'+(sel?'#000':c)+';border:1px solid '+c+';padding:10px 4px;border-radius:8px;font-weight:800;cursor:pointer;font-size:13px">'+(w*100).toFixed(0)+'%</button>';
+    }
+    h+='</div>';
+    h+='<div style="font-size:10px;color:var(--dim);margin-top:6px;text-align:center">현재: <b style="color:#fbbf24">'+(curWeight*100).toFixed(0)+'%</b> · 부스트 항상 X</div>';
+    h+='</div>';
+    
     // 6단계 룰 표시 (부스트 X)
     h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:#3b82f6;font-weight:700">💡 비중조절 6단계 룰 보기</summary><div style="margin-top:8px;padding:10px;background:#0a0a14;border-radius:8px;font-size:11px;line-height:1.8;color:var(--text)">';
     h+='<b style="color:#22c55e">🟢 강세 강</b> (trend>5% + gap>0): 비중 100%<br>';
@@ -656,6 +671,13 @@ function setVirtualBoost(b){
       alert('⚠️ 보유 '+totalU+'u (15u+)\n가상 시드 +'+(b*100).toFixed(0)+'% 설정됐지만\n안전 장치로 정상 시드 적용됩니다.');
     }
   }
+}
+// 🆕 수동 비중 선택 (자동 추천 무시하고 직접 선택)
+function setVirtualWeight(w){
+  const p=curPort();
+  p.virtualWeight=w;
+  p.virtualBoost=0;  // 부스트 항상 X
+  save();render();
 }
 // RSI 기반 동적 부스트 추천
 // 🆕 HYBRID 추천: 추세 비중 + 강세장 부스트
