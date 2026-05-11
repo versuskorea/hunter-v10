@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -1284,17 +1283,17 @@ async function runPanicHybrid() {
       return { weight: 0.3, boost: 0 };
     };
     
-    // 4가지 모드 비교
+    // 4가지 모드 비교 (진입 일수별)
     const modes = [
-      { name: '기본 HUNTER', color: '#888', fn: () => ({ weight: 1.0, boost: 0 }), panic: false },
-      { name: 'HYBRID 강 (PANIC X)', color: '#a78bfa', fn: hybridStrongFn, panic: false },
-      { name: '🚨 HYBRID + PANIC (≤4u) ⭐', color: '#ef4444', fn: hybridStrongFn, panic: true, panicUnits: 4 },
-      { name: '🔥 HYBRID + PANIC (≤2u)', color: '#f97316', fn: hybridStrongFn, panic: true, panicUnits: 2 }
+      { name: '기본 HUNTER (PANIC X)', color: '#888', fn: hybridStrongFn, panic: false, panicWait: 0 },
+      { name: '🚨 PANIC 1일 후 매수 (S1)', color: '#22c55e', fn: hybridStrongFn, panic: true, panicUnits: 4, panicWait: 1 },
+      { name: '🚨 PANIC 2일 후 매수', color: '#fbbf24', fn: hybridStrongFn, panic: true, panicUnits: 4, panicWait: 2 },
+      { name: '🚨 PANIC 3일 후 매수 (S2)', color: '#ef4444', fn: hybridStrongFn, panic: true, panicUnits: 4, panicWait: 3 }
     ];
     
     const results = modes.map(m => ({
       ...m,
-      result: simulatePanicHybrid(data.bars, params, userStartIdx, m.fn, m.panic, m.panicUnits || 4)
+      result: simulatePanicHybrid(data.bars, params, userStartIdx, m.fn, m.panic, m.panicUnits || 4, m.panicWait || 1)
     }));
     
     const totalDaysActual = data.bars.length - userStartIdx;
@@ -1306,11 +1305,11 @@ async function runPanicHybrid() {
     let html = '<div class="cycle-card" style="margin-top:14px"><div class="cs-title">🚨 PANIC 전환 백테: HYBRID + PANIC 통합</div>';
     html += '<div style="background:#0a1a2a;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#ef4444;font-weight:700;text-align:center">📅 ' + userStartDate + ' ~ ' + userEndDate + ' (' + yearsDisplay + '년)</div>';
     
-    html += '<div style="background:linear-gradient(135deg,#2a1a1a,#3a0a0a);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.7"><b style="color:#fbbf24">💡 통합 운용 룰:</b><br>• <b style="color:#22c55e">평상시</b>: HYBRID 강 자동<br>• <b style="color:#ef4444">폭락 시그널</b>: 일 -5%+ AND 보유 ≤ 4u<br>• <b style="color:#f97316">전환</b>: HUNTER 전액 매도 → PANIC 매수<br>• <b style="color:#3b82f6">PANIC 룰</b>: 🎯+20% 목표 / 🛑-3% 스탑 / 📉-2% 트레일 (시간 제한 X)<br>📌 무조건 3가지 중 하나로 종료 → HUNTER 복귀</div>';
+    html += '<div style="background:linear-gradient(135deg,#2a1a1a,#3a0a0a);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.7"><b style="color:#fbbf24">💡 PANIC 진입 일수 비교:</b><br>• <b style="color:#888">기본</b>: PANIC X (HYBRID 강만)<br>• <b style="color:#22c55e">1일 후 (S1)</b>: 시그널 다음날 시초가 매수<br>• <b style="color:#fbbf24">2일 후</b>: 시그널 2일 후 시초가 매수<br>• <b style="color:#ef4444">3일 후 (S2)</b>: 시그널 3일 후 시초가 매수<br>📌 <b style="color:#fbbf24">갭다운 회피 효과 검증</b><br>📌 룰: 🎯+20% / 🛑-3% 스탑 / 📉-2% 트레일</div>';
     
     // 결과 테이블
     html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:13px">';
-    html += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:12px 8px;text-align:left;color:#888;font-size:12px">전략</th><th style="padding:12px 8px;text-align:right;color:#fbbf24;font-size:12px">수익률</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:12px">CAGR</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:12px">MDD</th><th style="padding:12px 8px;text-align:right;color:#22c55e;font-size:12px">vs기본</th><th style="padding:12px 8px;text-align:right;color:#ef4444;font-size:12px">PANIC</th></tr></thead><tbody>';
+    html += '<thead><tr style="border-bottom:2px solid #444"><th style="padding:12px 8px;text-align:left;color:#888;font-size:12px">전략</th><th style="padding:12px 8px;text-align:right;color:#fbbf24;font-size:12px">수익률</th><th style="padding:12px 8px;text-align:right;color:#888;font-size:12px">MDD</th><th style="padding:12px 8px;text-align:right;color:#22c55e;font-size:12px">vs기본</th><th style="padding:12px 8px;text-align:right;color:#ef4444;font-size:12px">P회</th><th style="padding:12px 8px;text-align:right;color:#22c55e;font-size:12px">승률</th><th style="padding:12px 8px;text-align:right;color:#fbbf24;font-size:12px">기대값</th></tr></thead><tbody>';
     
     results.forEach((item, idx) => {
       const r = item.result;
@@ -1320,12 +1319,25 @@ async function runPanicHybrid() {
       const periodCls = periodReturn >= 0 ? '#22c55e' : '#ef4444';
       const panicCount = r.panicTrades || 0;
       const panicWins = r.panicWins || 0;
-      const panicInfo = panicCount > 0 ? panicWins + '/' + panicCount : '-';
-      html += '<tr style="border-bottom:1px solid #222;cursor:pointer" onclick="togglePanicDetail(' + idx + ')" onmouseover="this.style.background=\'#1a1a2a\'" onmouseout="this.style.background=\'transparent\'"><td style="padding:14px 8px;color:' + item.color + ';font-weight:800;font-size:13px">▶ ' + item.name + '</td><td style="padding:14px 8px;text-align:right;font-weight:800;color:' + periodCls + ';font-size:14px">' + (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(0) + '%</td><td style="padding:14px 8px;text-align:right;color:#22c55e;font-size:12px">+' + cagr.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:#ef4444;font-size:12px">' + r.mdd.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:' + (vsBase > 0 ? '#22c55e' : (vsBase < 0 ? '#ef4444' : '#888')) + ';font-weight:700;font-size:12px">' + (vsBase >= 0 ? '+' : '') + vsBase.toFixed(1) + '%</td><td style="padding:14px 8px;text-align:right;color:#ef4444;font-weight:700;font-size:12px">' + panicInfo + '</td></tr>';
+      const winRate = panicCount > 0 ? (panicWins / panicCount * 100).toFixed(0) : '-';
+      
+      // 기대값 계산
+      let expectancy = 0;
+      if (r.panicHistory && r.panicHistory.length > 0) {
+        const wins = r.panicHistory.filter(t => t.pnl > 0);
+        const losses = r.panicHistory.filter(t => t.pnl < 0);
+        const winRatePct = wins.length / r.panicHistory.length;
+        const avgWin = wins.length > 0 ? wins.reduce((s,t)=>s+t.pnl,0) / wins.length : 0;
+        const avgLoss = losses.length > 0 ? losses.reduce((s,t)=>s+t.pnl,0) / losses.length : 0;
+        expectancy = winRatePct * avgWin + (1-winRatePct) * avgLoss;
+      }
+      const expCls = expectancy > 0 ? '#22c55e' : (expectancy < 0 ? '#ef4444' : '#888');
+      
+      html += '<tr style="border-bottom:1px solid #222;cursor:pointer" onclick="togglePanicDetail(' + idx + ')" onmouseover="this.style.background=\'#1a1a2a\'" onmouseout="this.style.background=\'transparent\'"><td style="padding:14px 6px;color:' + item.color + ';font-weight:800;font-size:12px">▶ ' + item.name + '</td><td style="padding:14px 6px;text-align:right;font-weight:800;color:' + periodCls + ';font-size:13px">' + (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(0) + '%</td><td style="padding:14px 6px;text-align:right;color:#ef4444;font-size:11px">' + r.mdd.toFixed(1) + '%</td><td style="padding:14px 6px;text-align:right;color:' + (vsBase > 0 ? '#22c55e' : (vsBase < 0 ? '#ef4444' : '#888')) + ';font-weight:700;font-size:11px">' + (vsBase >= 0 ? '+' : '') + vsBase.toFixed(1) + '%</td><td style="padding:14px 6px;text-align:right;color:#ef4444;font-weight:700;font-size:11px">' + panicCount + '</td><td style="padding:14px 6px;text-align:right;color:#22c55e;font-size:11px">' + winRate + (winRate !== '-' ? '%' : '') + '</td><td style="padding:14px 6px;text-align:right;color:' + expCls + ';font-weight:700;font-size:11px">' + (panicCount > 0 ? (expectancy >= 0 ? '+' : '') + expectancy.toFixed(1) + '%' : '-') + '</td></tr>';
       
       // PANIC 상세 펼침
       if (r.panicHistory && r.panicHistory.length > 0) {
-        html += '<tr id="panic-detail-' + idx + '" style="display:none"><td colspan="6" style="padding:0"><div style="background:#0a0a14;padding:14px;border-left:3px solid ' + item.color + '">';
+        html += '<tr id="panic-detail-' + idx + '" style="display:none"><td colspan="7" style="padding:0"><div style="background:#0a0a14;padding:14px;border-left:3px solid ' + item.color + '">';
         html += '<div style="font-size:13px;color:' + item.color + ';font-weight:800;margin-bottom:10px">🚨 PANIC 거래 상세 (' + r.panicHistory.length + '회)</div>';
         html += '<table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:11px">';
         html += '<thead><tr style="border-bottom:1px solid #333"><th style="padding:6px 4px;text-align:left;color:#888">진입일</th><th style="padding:6px 4px;text-align:right;color:#888">진입가</th><th style="padding:6px 4px;text-align:right;color:#888">매도일</th><th style="padding:6px 4px;text-align:right;color:#888">매도가</th><th style="padding:6px 4px;text-align:right;color:#888">일수</th><th style="padding:6px 4px;text-align:right;color:#888">수익</th><th style="padding:6px 4px;text-align:left;color:#888">종료사유</th></tr></thead><tbody>';
@@ -1335,7 +1347,7 @@ async function runPanicHybrid() {
         }
         html += '</tbody></table></div></td></tr>';
       } else if (item.panic) {
-        html += '<tr id="panic-detail-' + idx + '" style="display:none"><td colspan="6" style="padding:0"><div style="background:#0a0a14;padding:14px;color:#888;font-size:12px;text-align:center">PANIC 시그널 발생 X (기간 내 큰 폭락 없음)</div></td></tr>';
+        html += '<tr id="panic-detail-' + idx + '" style="display:none"><td colspan="7" style="padding:0"><div style="background:#0a0a14;padding:14px;color:#888;font-size:12px;text-align:center">PANIC 시그널 발생 X (기간 내 큰 폭락 없음)</div></td></tr>';
       }
     });
     html += '</tbody></table></div>';
@@ -1368,7 +1380,8 @@ function togglePanicDetail(idx) {
 }
 
 // HYBRID + PANIC 통합 시뮬레이션
-function simulatePanicHybrid(bars, params, userStartIdx, hybridFn, panicEnabled, panicMaxUnits) {
+function simulatePanicHybrid(bars, params, userStartIdx, hybridFn, panicEnabled, panicMaxUnits, panicWait) {
+  panicWait = panicWait || 1; // 기본 1일 후
   const closes = bars.map(b => b.close);
   const dates = bars.map(b => b.date);
   const opens = bars.map(b => b.open || b.close);
@@ -1505,10 +1518,10 @@ function simulatePanicHybrid(bars, params, userStartIdx, hybridFn, panicEnabled,
       continue;
     }
     
-    // ===== PANIC 시그널 대기 (S2 진입 대기) =====
+    // ===== PANIC 시그널 대기 (진입 일수 대기) =====
     if (panicSignalDay > 0) {
       panicWaitDays++;
-      const requiredWait = panicSignalLevel === 2 ? 3 : 1;
+      const requiredWait = panicWait;
       if (panicWaitDays >= requiredWait) {
         // PANIC 매수 진입!
         const totalU = pu.reduce((s, u) => s + u, 0);
