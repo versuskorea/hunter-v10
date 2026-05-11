@@ -1382,8 +1382,42 @@ async function runPanicHybrid() {
       html += '<tr style="border-bottom:1px solid #222;cursor:pointer" onclick="togglePanicDetail(' + idx + ')" onmouseover="this.style.background=\'#1a1a2a\'" onmouseout="this.style.background=\'transparent\'"><td style="padding:14px 6px;color:' + item.color + ';font-weight:800;font-size:12px">▶ ' + item.name + '</td><td style="padding:14px 6px;text-align:right;font-weight:800;color:' + periodCls + ';font-size:13px">' + (periodReturn >= 0 ? '+' : '') + periodReturn.toFixed(0) + '%</td><td style="padding:14px 6px;text-align:right;color:#ef4444;font-size:11px">' + r.mdd.toFixed(1) + '%</td><td style="padding:14px 6px;text-align:right;color:' + (vsBase > 0 ? '#22c55e' : (vsBase < 0 ? '#ef4444' : '#888')) + ';font-weight:700;font-size:11px">' + (vsBase >= 0 ? '+' : '') + vsBase.toFixed(1) + '%</td><td style="padding:14px 6px;text-align:right;color:#ef4444;font-weight:700;font-size:11px">' + panicCount + '</td><td style="padding:14px 6px;text-align:right;color:#22c55e;font-size:11px">' + winRate + (winRate !== '-' ? '%' : '') + '</td><td style="padding:14px 6px;text-align:right;color:' + expCls + ';font-weight:700;font-size:11px">' + (panicCount > 0 ? (expectancy >= 0 ? '+' : '') + expectancy.toFixed(1) + '%' : '-') + '</td></tr>';
       
       // PANIC 상세 펼침
+      // 🆕 연도별/월별 + PANIC 거래 둘 다 표시
+      html += '<tr id="panic-detail-' + idx + '" style="display:none"><td colspan="7" style="padding:0"><div style="background:#0a0a14;padding:14px;border-left:3px solid ' + item.color + '">';
+      
+      // 연도별 표시
+      if (r.yearly && Object.keys(r.yearly).length > 0) {
+        html += '<div style="font-size:13px;color:' + item.color + ';font-weight:800;margin-bottom:10px">📅 연도별 상세 (연도 클릭 시 월별)</div>';
+        html += '<table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:12px;margin-bottom:14px">';
+        html += '<thead><tr style="border-bottom:1px solid #333"><th style="padding:8px 4px;text-align:left;color:#888">연도</th><th style="padding:8px 4px;text-align:right;color:#888">수익률</th><th style="padding:8px 4px;text-align:right;color:#888">MDD</th><th style="padding:8px 4px;text-align:right;color:#888">시작자산</th><th style="padding:8px 4px;text-align:right;color:#888">종료자산</th></tr></thead><tbody>';
+        
+        const years = Object.keys(r.yearly).sort();
+        for (const y of years) {
+          const yData = r.yearly[y];
+          const ret = yData.startAsset > 0 ? (yData.endAsset / yData.startAsset - 1) * 100 : 0;
+          const retCls = ret >= 0 ? '#22c55e' : '#ef4444';
+          const ymKey = idx + '-' + y;
+          
+          html += '<tr style="border-bottom:1px solid #1a1a1a;cursor:pointer" onclick="togglePanicMonthly(\'' + ymKey + '\')"><td style="padding:8px 4px;color:#fff;font-weight:700">▶ ' + y + '</td><td style="padding:8px 4px;text-align:right;color:' + retCls + ';font-weight:700">' + (ret >= 0 ? '+' : '') + ret.toFixed(1) + '%</td><td style="padding:8px 4px;text-align:right;color:#ef4444">' + (yData.mdd || 0).toFixed(1) + '%</td><td style="padding:8px 4px;text-align:right;color:#888">$' + Math.round(yData.startAsset).toLocaleString() + '</td><td style="padding:8px 4px;text-align:right;color:#fbbf24;font-weight:700">$' + Math.round(yData.endAsset).toLocaleString() + '</td></tr>';
+          
+          // 월별 펼침
+          if (yData.monthly && Object.keys(yData.monthly).length > 0) {
+            const months = Object.keys(yData.monthly).sort();
+            html += '<tr id="panic-monthly-' + ymKey + '" style="display:none"><td colspan="5" style="padding:0"><div style="background:#050510;padding:10px;border-left:2px solid ' + item.color + '"><div style="font-size:11px;color:' + item.color + ';font-weight:700;margin-bottom:6px">' + y + '년 월별</div><table style="width:100%;font-size:11px"><thead><tr><th style="padding:4px;text-align:left;color:#666">월</th><th style="padding:4px;text-align:right;color:#666">수익률</th><th style="padding:4px;text-align:right;color:#666">MDD</th><th style="padding:4px;text-align:right;color:#666">자산</th></tr></thead><tbody>';
+            for (const m of months) {
+              const mData = yData.monthly[m];
+              const mRet = mData.startAsset > 0 ? (mData.endAsset / mData.startAsset - 1) * 100 : 0;
+              const mRetCls = mRet >= 0 ? '#22c55e' : '#ef4444';
+              html += '<tr><td style="padding:4px;color:#aaa">' + m + '월</td><td style="padding:4px;text-align:right;color:' + mRetCls + '">' + (mRet >= 0 ? '+' : '') + mRet.toFixed(1) + '%</td><td style="padding:4px;text-align:right;color:#ef4444">' + (mData.mdd || 0).toFixed(1) + '%</td><td style="padding:4px;text-align:right;color:#fbbf24">$' + Math.round(mData.endAsset).toLocaleString() + '</td></tr>';
+            }
+            html += '</tbody></table></div></td></tr>';
+          }
+        }
+        html += '</tbody></table>';
+      }
+      
+      // PANIC 거래 상세
       if (r.panicHistory && r.panicHistory.length > 0) {
-        html += '<tr id="panic-detail-' + idx + '" style="display:none"><td colspan="7" style="padding:0"><div style="background:#0a0a14;padding:14px;border-left:3px solid ' + item.color + '">';
         html += '<div style="font-size:13px;color:' + item.color + ';font-weight:800;margin-bottom:10px">🚨 PANIC 거래 상세 (' + r.panicHistory.length + '회)</div>';
         html += '<table style="width:100%;border-collapse:collapse;font-family:monospace;font-size:11px">';
         html += '<thead><tr style="border-bottom:1px solid #333"><th style="padding:6px 4px;text-align:left;color:#888">진입일</th><th style="padding:6px 4px;text-align:right;color:#888">진입가</th><th style="padding:6px 4px;text-align:right;color:#888">매도일</th><th style="padding:6px 4px;text-align:right;color:#888">매도가</th><th style="padding:6px 4px;text-align:right;color:#888">일수</th><th style="padding:6px 4px;text-align:right;color:#888">수익</th><th style="padding:6px 4px;text-align:left;color:#888">종료사유</th></tr></thead><tbody>';
@@ -1391,10 +1425,12 @@ async function runPanicHybrid() {
           const pnlCls = t.pnl >= 0 ? '#22c55e' : '#ef4444';
           html += '<tr style="border-bottom:1px solid #1a1a1a"><td style="padding:6px 4px;color:#aaa">' + t.entryDate + '</td><td style="padding:6px 4px;text-align:right;color:#888">$' + t.entryPrice.toFixed(2) + '</td><td style="padding:6px 4px;text-align:right;color:#aaa">' + t.exitDate + '</td><td style="padding:6px 4px;text-align:right;color:#888">$' + t.exitPrice.toFixed(2) + '</td><td style="padding:6px 4px;text-align:right;color:#888">' + t.days + '일</td><td style="padding:6px 4px;text-align:right;color:' + pnlCls + ';font-weight:700">' + (t.pnl >= 0 ? '+' : '') + t.pnl.toFixed(2) + '%</td><td style="padding:6px 4px;color:#666;font-size:10px">' + t.reason + '</td></tr>';
         }
-        html += '</tbody></table></div></td></tr>';
+        html += '</tbody></table>';
       } else if (item.panic) {
-        html += '<tr id="panic-detail-' + idx + '" style="display:none"><td colspan="7" style="padding:0"><div style="background:#0a0a14;padding:14px;color:#888;font-size:12px;text-align:center">PANIC 시그널 발생 X (기간 내 큰 폭락 없음)</div></td></tr>';
+        html += '<div style="color:#888;font-size:12px;text-align:center;padding:10px">PANIC 시그널 발생 X (기간 내 큰 폭락 없음)</div>';
       }
+      
+      html += '</div></td></tr>';
     });
     html += '</tbody></table></div>';
     
@@ -1422,6 +1458,11 @@ async function runPanicHybrid() {
 
 function togglePanicDetail(idx) {
   const el = document.getElementById('panic-detail-' + idx);
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function togglePanicMonthly(ymKey) {
+  const el = document.getElementById('panic-monthly-' + ymKey);
   if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
 }
 
@@ -1457,6 +1498,13 @@ function simulatePanicHybrid(bars, params, userStartIdx, hybridFn, panicEnabled,
   let panicWaitDays = 0; // S2는 3일 대기
   const panicHistory = [];
   
+  // 🆕 연도별/월별 추적
+  const yearly = {}; // {year: {startAsset, endAsset, peakAsset, mdd, monthly: {month: {...}}}}
+  let curYear = '';
+  let curMonth = '';
+  let yearPeak = 100000;
+  let monthPeak = 100000;
+  
   const calcTotalValue = (cl) => {
     if (panicMode) return cash + panicShares * cl;
     let assetValue = 0;
@@ -1478,6 +1526,31 @@ function simulatePanicHybrid(bars, params, userStartIdx, hybridFn, panicEnabled,
     const ma50 = calcMA(closes, 50, i);
     const ma200 = calcMA(closes, 200, i);
     const todayChange = (cl - prev) / prev * 100;
+    
+    // 🆕 연도/월 변경 감지
+    const year = dates[i].substring(0, 4);
+    const month = dates[i].substring(0, 7); // YYYY-MM
+    const monthOnly = dates[i].substring(5, 7); // MM
+    
+    if (year !== curYear) {
+      const curAsset = calcTotalValue(cl);
+      if (curYear !== '') yearly[curYear].endAsset = curAsset;
+      yearly[year] = { startAsset: curAsset, endAsset: curAsset, mdd: 0, monthly: {} };
+      curYear = year;
+      yearPeak = curAsset;
+    }
+    
+    if (month !== curMonth) {
+      const curAsset = calcTotalValue(cl);
+      if (curMonth !== '' && yearly[curYear] && yearly[curYear].monthly[curMonth.substring(5,7)]) {
+        yearly[curYear].monthly[curMonth.substring(5,7)].endAsset = curAsset;
+      }
+      if (yearly[year]) {
+        yearly[year].monthly[monthOnly] = { startAsset: curAsset, endAsset: curAsset, mdd: 0 };
+      }
+      curMonth = month;
+      monthPeak = curAsset;
+    }
     
     // 거래량 비교
     let volRatio = 1;
@@ -1716,6 +1789,26 @@ function simulatePanicHybrid(bars, params, userStartIdx, hybridFn, panicEnabled,
     if (tv > pk) pk = tv;
     const ddv = (tv - pk) / pk * 100;
     if (ddv < mdd) mdd = ddv;
+    
+    // 🆕 연/월 MDD 추적
+    if (tv > yearPeak) yearPeak = tv;
+    const yearDd = (tv - yearPeak) / yearPeak * 100;
+    if (yearly[curYear] && yearDd < yearly[curYear].mdd) yearly[curYear].mdd = yearDd;
+    
+    if (tv > monthPeak) monthPeak = tv;
+    const monthDd = (tv - monthPeak) / monthPeak * 100;
+    if (yearly[curYear] && yearly[curYear].monthly[monthOnly] && monthDd < yearly[curYear].monthly[monthOnly].mdd) {
+      yearly[curYear].monthly[monthOnly].mdd = monthDd;
+    }
+  }
+  
+  // 🆕 마지막 연도/월 종료 자산 기록
+  if (curYear !== '' && yearly[curYear]) {
+    yearly[curYear].endAsset = calcTotalValue(closes[n-1]);
+    const lastMonthOnly = dates[n-1].substring(5,7);
+    if (yearly[curYear].monthly[lastMonthOnly]) {
+      yearly[curYear].monthly[lastMonthOnly].endAsset = calcTotalValue(closes[n-1]);
+    }
   }
   
   const lastClose = closes[n-1];
@@ -1728,7 +1821,8 @@ function simulatePanicHybrid(bars, params, userStartIdx, hybridFn, panicEnabled,
     nBuys, nSells,
     panicTrades: panicHistory.length,
     panicWins,
-    panicHistory
+    panicHistory,
+    yearly  // 🆕 연도별/월별 데이터
   };
 }
 
