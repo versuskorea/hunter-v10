@@ -381,9 +381,9 @@ function render(){
         h+='<tr><td colspan="5" style="color:var(--red);font-weight:700;padding:12px">⚠️ 풀 포지션 ('+TU+'u) - 매수 LOC 없음</td></tr>';
       }
       h+='</tbody></table><div class="note" style="margin-top:8px">'+
-        // 🆕 HYBRID 배너 (비중 + 부스트)
-        ((vWeight<1.0||useVirtual)?'<div style="background:linear-gradient(135deg,#fbbf24,#ec4899,#a78bfa);color:#000;padding:8px 12px;border-radius:8px;font-weight:800;margin-bottom:8px;text-align:center;font-size:12px;line-height:1.5">💎 HYBRID 적용<br>비중: '+(vWeight*100).toFixed(0)+'% '+(useVirtual?'· 부스트: +'+(vBoost*100).toFixed(0)+'%':'· 부스트: X')+'</div>':'')+
-        (useVirtual?'<div style="background:linear-gradient(135deg,#fbbf24,#f97316);color:#000;padding:6px 10px;border-radius:6px;font-weight:800;margin-bottom:8px;text-align:center">⚡ 가상 시드 +'+(vBoost*100).toFixed(0)+'% 적용 중 (수량 ↑) · 15u+ 시 자동 정상</div>':'')+'💡 매수①: 전날×1.15 (상승 대응 '+UP+'u)<br>💡 매수②: 전날-$0.01 (하락 추가 '+(DN-UP)+'u, 하락일만 체결)<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X<br>🚨 <b style="color:var(--red)">MOC = 강제청산일! 시장가 매도 필수 (시스템 룰)</b></div></div>';
+        // 비중조절 배너 (부스트 X)
+        ((vWeight<1.0)?'<div style="background:linear-gradient(135deg,#3b82f6,#22c55e);color:#fff;padding:8px 12px;border-radius:8px;font-weight:800;margin-bottom:8px;text-align:center;font-size:12px;line-height:1.5">⚙️ 비중조절 적용<br>비중: '+(vWeight*100).toFixed(0)+'% · 부스트: X (V자 폭락 안전)</div>':'')+
+        '💡 매수①: 전날×1.15 (상승 대응 '+UP+'u)<br>💡 매수②: 전날-$0.01 (하락 추가 '+(DN-UP)+'u, 하락일만 체결)<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X<br>🚨 <b style="color:var(--red)">MOC = 강제청산일! 시장가 매도 필수 (시스템 룰)</b></div></div>';
     }
   }
   if(tab==='t'){
@@ -827,12 +827,12 @@ async function fetchAndApplyRsi(autoApply){
   try{
     // 야후에서 30일 데이터 가져오기 (RSI 계산용)
     const end=new Date();
-    const start=new Date();start.setDate(start.getDate()-50);
+    const start=new Date();start.setDate(start.getDate()-300);  // 200MA + 여유
     const fmt=d=>d.toISOString().slice(0,10);
     const res=await fetch('/api/history?symbol='+sym+'&start='+fmt(start)+'&end='+fmt(end));
     if(!res.ok)throw new Error('API 오류');
     const data=await res.json();
-    if(data.error||!data.bars||data.bars.length<20)throw new Error('데이터 부족');
+    if(data.error||!data.bars||data.bars.length<200)throw new Error('데이터 부족 (200일+ 필요)');
     
     const closes=data.bars.map(b=>b.close);
     
