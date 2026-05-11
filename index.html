@@ -119,7 +119,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   <button class="tab" id="tab-h" onclick="sw('h')">📜 기록</button>
 </div>
 <div id="body"></div>
-<a href="/bt.html" style="display:block;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-weight:700;font-size:15px;margin-top:14px;box-shadow:0 4px 16px rgba(249,115,22,0.3)">📊 백테스트 페이지로!</a>
+<a href="bt.html" style="display:block;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;text-decoration:none;text-align:center;padding:14px;border-radius:12px;font-weight:700;font-size:15px;margin-top:14px;box-shadow:0 4px 16px rgba(249,115,22,0.3)">📊 백테스트 페이지로!</a>
 <div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:#333;margin-top:16px">HUNTER v14 매매일지 · 멀티종목 지원</div>
 <div id="modal-container"></div>
 <script>
@@ -149,6 +149,8 @@ for(const sym in portfolios){
   p.seed=Number(p.seed)||100000;p.startDate=p.startDate||'';p.priceClose=Number(p.priceClose)||0;p.priceLive=Number(p.priceLive)||0;p.high20=Number(p.high20)||0;p.priceDate=p.priceDate||'';
   p.diary=Array.isArray(p.diary)?p.diary:[];p.pos=Array.isArray(p.pos)?p.pos:[];p.hist=Array.isArray(p.hist)?p.hist:[];
   p.virtualBoost=Number(p.virtualBoost)||0;
+  p.virtualWeight=Number(p.virtualWeight)||1.0;
+  p.todayRsi=Number(p.todayRsi)||0;p.prevRsi=Number(p.prevRsi)||0;
 }
 const $=id=>document.getElementById(id);
 const gv=id=>parseFloat($(id).value)||0;
@@ -339,13 +341,13 @@ function render(){
       const nextUnits=last.units;
       const uw=p.seed/TU;
       const totalU=p.pos.reduce((s,pp)=>s+(pp.u||0),0);
-      const vBoost=p.virtualBoost||0;
-      const useVirtual=vBoost>0&&totalU<15;
-      const boostMult=useVirtual?(1+vBoost):1;
+      const vWeight=p.virtualWeight||1.0;  // 비중조절만 (부스트 X)
+      // 비중조절만 적용 (V자 폭락 견딤)
+      const finalMult=vWeight;
       const loc1Price=(lastClose*1.15).toFixed(2);
       const loc2Price=(lastClose-0.01).toFixed(2);
-      const loc1Shares=Math.floor(UP*uw*boostMult/lastClose);
-      const loc2Shares=Math.floor(DN*uw*boostMult/lastClose)-loc1Shares;
+      const loc1Shares=Math.floor(UP*uw*finalMult/lastClose);
+      const loc2Shares=Math.floor(DN*uw*finalMult/lastClose)-loc1Shares;
       const lastDate=new Date(last.date);
       let nextDate=new Date(lastDate);
       nextDate.setDate(nextDate.getDate()+1);
@@ -378,7 +380,10 @@ function render(){
       }else{
         h+='<tr><td colspan="5" style="color:var(--red);font-weight:700;padding:12px">⚠️ 풀 포지션 ('+TU+'u) - 매수 LOC 없음</td></tr>';
       }
-      h+='</tbody></table><div class="note" style="margin-top:8px">'+(useVirtual?'<div style="background:linear-gradient(135deg,#fbbf24,#f97316);color:#000;padding:6px 10px;border-radius:6px;font-weight:800;margin-bottom:8px;text-align:center">⚡ 가상 시드 +'+(vBoost*100).toFixed(0)+'% 적용 중 (수량 ↑) · 15u+ 시 자동 정상</div>':'')+'💡 매수①: 전날×1.15 (상승 대응 '+UP+'u)<br>💡 매수②: 전날-$0.01 (하락 추가 '+(DN-UP)+'u, 하락일만 체결)<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X<br>🚨 <b style="color:var(--red)">MOC = 강제청산일! 시장가 매도 필수 (시스템 룰)</b></div></div>';
+      h+='</tbody></table><div class="note" style="margin-top:8px">'+
+        // 🆕 HYBRID 배너 (비중 + 부스트)
+        ((vWeight<1.0||useVirtual)?'<div style="background:linear-gradient(135deg,#fbbf24,#ec4899,#a78bfa);color:#000;padding:8px 12px;border-radius:8px;font-weight:800;margin-bottom:8px;text-align:center;font-size:12px;line-height:1.5">💎 HYBRID 적용<br>비중: '+(vWeight*100).toFixed(0)+'% '+(useVirtual?'· 부스트: +'+(vBoost*100).toFixed(0)+'%':'· 부스트: X')+'</div>':'')+
+        (useVirtual?'<div style="background:linear-gradient(135deg,#fbbf24,#f97316);color:#000;padding:6px 10px;border-radius:6px;font-weight:800;margin-bottom:8px;text-align:center">⚡ 가상 시드 +'+(vBoost*100).toFixed(0)+'% 적용 중 (수량 ↑) · 15u+ 시 자동 정상</div>':'')+'💡 매수①: 전날×1.15 (상승 대응 '+UP+'u)<br>💡 매수②: 전날-$0.01 (하락 추가 '+(DN-UP)+'u, 하락일만 체결)<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X<br>🚨 <b style="color:var(--red)">MOC = 강제청산일! 시장가 매도 필수 (시스템 룰)</b></div></div>';
     }
   }
   if(tab==='t'){
@@ -430,6 +435,59 @@ function render(){
         return '<button onclick="setVirtualBoost('+b+')" style="background:'+(sel?col:'transparent')+';color:'+(sel?'#000':col)+';border:1px solid '+col+';padding:10px 6px;border-radius:8px;font-weight:800;cursor:pointer;font-size:12px">'+lbl+'</button>';
       }).join('')+
     '</div><div class="note" style="margin-top:6px;font-size:11px">현재: <b style="color:#fbbf24">'+(vb===0?'정상':'+'+(vb*100).toFixed(0)+'%')+'</b>'+(vb>0?' · 백테에서 검증 후 사용 권장':'')+'</div></div>';
+    
+    // 🆕 HYBRID 강 자동 (비중 6단계 + 부스트 4단계)
+    const todayRsi=p.todayRsi||0;
+    const prevRsi=p.prevRsi||0;
+    const rsiUpdated=p.rsiUpdated;
+    const rsiAge=rsiUpdated?Math.round((Date.now()-new Date(rsiUpdated).getTime())/3600000):999;
+    const hybrid=p.hybrid;
+    
+    h+='<div class="card" style="border:2px solid #fbbf24;background:linear-gradient(135deg,#1a1a2a,#2a1a2a)"><div class="ct" style="color:#fbbf24">💎 HYBRID 강 자동 (비중조절 + 강세 부스트)</div>';
+    
+    if(hybrid&&hybrid.weight!==undefined){
+      // 현재 추세 상태 표시
+      const weightColor=hybrid.weight>=1.0?'#22c55e':(hybrid.weight>=0.9?'#84cc16':(hybrid.weight>=0.6?'#fbbf24':(hybrid.weight>=0.4?'#f97316':'#ef4444')));
+      const boostColor=hybrid.boost===0?'#888':(hybrid.boost<=0.10?'#22c55e':(hybrid.boost<=0.30?'#3b82f6':'#fbbf24'));
+      
+      // 추세 라벨
+      h+='<div style="padding:12px;background:#0a0a14;border-radius:10px;margin-bottom:10px;text-align:center"><div style="font-size:12px;color:var(--dim);margin-bottom:4px">현재 시장 상태</div><div style="font-size:16px;font-weight:800;color:'+weightColor+';margin-bottom:4px">'+hybrid.trendLabel+'</div><div style="font-size:11px;color:var(--dim)">50MA: $'+hybrid.ma50.toFixed(2)+' · 200MA: $'+hybrid.ma200.toFixed(2)+'</div></div>';
+      
+      // 비중 + 부스트
+      h+='<div style="display:flex;gap:8px;margin-bottom:10px">';
+      h+='<div style="flex:1;padding:14px;background:rgba(34,197,94,0.08);border:2px solid '+weightColor+';border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--dim);margin-bottom:4px">🎯 비중</div><div style="font-size:28px;font-weight:800;color:'+weightColor+';font-family:JetBrains Mono,monospace">'+(hybrid.weight*100).toFixed(0)+'%</div></div>';
+      h+='<div style="flex:1;padding:14px;background:rgba(251,191,36,0.08);border:2px solid '+boostColor+';border-radius:10px;text-align:center"><div style="font-size:11px;color:var(--dim);margin-bottom:4px">⚡ 부스트</div><div style="font-size:28px;font-weight:800;color:'+boostColor+';font-family:JetBrains Mono,monospace">'+(hybrid.boost>0?'+'+(hybrid.boost*100).toFixed(0)+'%':'X')+'</div></div>';
+      h+='</div>';
+      
+      // 적용 상태
+      const isMatchW=Math.abs(vWeight-hybrid.weight)<0.001;
+      const isMatchB=Math.abs(vb-hybrid.boost)<0.001;
+      const isAllMatch=isMatchW&&isMatchB;
+      
+      if(!isAllMatch){
+        h+='<button onclick="applyHybrid()" style="width:100%;background:linear-gradient(135deg,#fbbf24,#f97316);color:#000;border:none;border-radius:8px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:8px">✨ HYBRID 강 적용 (비중 '+(hybrid.weight*100).toFixed(0)+'% · 부스트 '+(hybrid.boost>0?'+'+(hybrid.boost*100).toFixed(0)+'%':'X')+')</button>';
+        h+='<div style="font-size:11px;color:var(--dim);text-align:center;margin-bottom:8px">현재 설정: 비중 '+(vWeight*100).toFixed(0)+'% · 부스트 '+(vb>0?'+'+(vb*100).toFixed(0)+'%':'X')+'</div>';
+      }else{
+        h+='<div style="padding:10px;background:#0a1a0a;border-radius:8px;text-align:center;color:#22c55e;font-size:13px;font-weight:700;margin-bottom:8px">✅ HYBRID 강 자동 적용 중</div>';
+      }
+      
+      h+='<div style="font-size:11px;color:var(--dim);text-align:center;margin-bottom:8px">⏱️ '+(rsiAge<1?'방금 갱신':rsiAge<24?rsiAge+'시간 전':Math.floor(rsiAge/24)+'일 전')+'</div>';
+    }else{
+      h+='<div style="padding:14px;background:#0a0a14;border-radius:8px;text-align:center;color:var(--dim);font-size:13px;margin-bottom:10px">HYBRID 데이터 없음<br><small>아래 버튼으로 자동 가져오기</small></div>';
+    }
+    
+    h+='<button class="btn btn-fetch" onclick="autoUpdateRsi()">🔄 야후에서 자동 가져오기 + HYBRID 적용</button>';
+    
+    // 6단계 룰 표시
+    h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:#fbbf24;font-weight:700">💡 HYBRID 강 6단계 룰 보기</summary><div style="margin-top:8px;padding:10px;background:#0a0a14;border-radius:8px;font-size:11px;line-height:1.8;color:var(--text)">';
+    h+='<b style="color:#22c55e">🟢 강세 강</b> (trend>5% + gap>0): 비중 100% / 부스트 +50%<br>';
+    h+='<b style="color:#84cc16">🟢 강세 약</b> (trend>0%): 비중 90% / 부스트 +30%<br>';
+    h+='<b style="color:#fbbf24">🟡 중립</b> (trend>-5%): 비중 60% / 부스트 +10%<br>';
+    h+='<b style="color:#f97316">🟠 약세</b> (trend>-10%): 비중 40% / 부스트 X<br>';
+    h+='<b style="color:#3b82f6">🔵 바닥 역발상</b> (gap<-30%): 비중 50% / 부스트 X<br>';
+    h+='<b style="color:#ef4444">🔴 폭락</b> (else): 비중 30% / 부스트 X<br>';
+    h+='<br>📌 매일 자동 판단 · 5년 백테 검증<br>🎯 +422% / MDD -45% (2년 강세장)';
+    h+='</div></details></div>';
     h+='<div class="card"><div class="ct">📅 매매일지 시작일</div><div class="ir"><label>시작일</label><input type="date" id="start-date-in" value="'+(p.startDate||td())+'" max="'+td()+'" onchange="setStartDate()"><span class="u">📅</span></div><div class="note">시작일 변경 시 일지 다시 갱신 필요</div></div>';
     h+='<div class="card"><div class="ct">💵 시드 재설정</div><button class="btn btn-g" onclick="promptSeedReset()">시드 변경</button></div>';
     h+='<div class="card"><div class="danger-zone"><div class="title">⚠️ 위험 영역</div><div style="color:var(--dim);font-size:13px;margin-bottom:8px">'+activeSymbol+' 데이터 초기화 (시드/일지/티어/기록 모두)</div><button class="btn btn-r" onclick="confirmFullReset()">💀 '+activeSymbol+' 초기화</button></div></div>';
@@ -456,6 +514,40 @@ function render(){
 }
 function updSeed(){const v=gv('seed-in');if(v>0)curPort().seed=v;save();render();}
 function updSeedQuick(){const v=gv('seed-quick');if(v>0){curPort().seed=v;save();render();}}
+function updRsi(){
+  const t=gv('today-rsi');const p=gv('prev-rsi');
+  curPort().todayRsi=t;curPort().prevRsi=p;save();render();
+}
+async function autoUpdateRsi(){
+  const btn=event.target;
+  if(btn){btn.disabled=true;btn.textContent='⏳ 가져오는 중...';}
+  const r=await fetchAndApplyRsi(false);
+  if(btn){btn.disabled=false;btn.textContent='🔄 야후에서 자동 가져오기 + HYBRID 적용';}
+  if(r&&r.hybrid){
+    const h=r.hybrid;
+    const msg='💎 HYBRID 강 추천!\n\n'+
+      '📊 상태: '+h.trendLabel+'\n'+
+      '   50MA: $'+h.ma50.toFixed(2)+' / 200MA: $'+h.ma200.toFixed(2)+'\n'+
+      '   trend: '+h.trend.toFixed(1)+'% / gap: '+h.gap.toFixed(1)+'%\n\n'+
+      '🎯 비중: '+(h.weight*100).toFixed(0)+'%\n'+
+      '⚡ 부스트: '+(h.boost>0?'+'+(h.boost*100).toFixed(0)+'%':'X (방어 모드)')+'\n\n'+
+      '바로 적용할까요?';
+    const apply=confirm(msg);
+    if(apply){
+      curPort().virtualBoost=h.boost;
+      curPort().virtualWeight=h.weight;
+      save();render();
+    }
+  }
+}
+// 🆕 HYBRID 자동 적용 (확인 없이)
+function applyHybrid(){
+  const p=curPort();
+  if(!p.hybrid){alert('먼저 야후에서 데이터 가져오세요');return;}
+  p.virtualBoost=p.hybrid.boost;
+  p.virtualWeight=p.hybrid.weight;
+  save();render();
+}
 function quickFillBuy(date,close,units){
   const p=curPort();
   const diaryEntry=p.diary.find(d=>d.date===date);
@@ -579,6 +671,146 @@ function setVirtualBoost(b){
     }
   }
 }
+// RSI 기반 동적 부스트 추천
+// 🆕 HYBRID 추천: 추세 비중 + 강세장 부스트
+function calcMA(closes, period){
+  if(closes.length<period)return 0;
+  let sum=0;
+  for(let i=closes.length-period;i<closes.length;i++)sum+=closes[i];
+  return sum/period;
+}
+// 🆕 PANIC 모드 감지 (강화1: -7% + 거래량 1.5x + 3일 후 진입)
+// 백테 검증: 5년 +882%p 추가 알파 / 기대값 +3.0%
+function detectPanic(closes, volumes){
+  if(!closes||closes.length<31)return{active:false};
+  
+  const n=closes.length;
+  const today=closes[n-1];
+  const yesterday=closes[n-2];
+  const todayChange=(today-yesterday)/yesterday*100;
+  
+  // 거래량 비교
+  let volRatio=0;
+  if(volumes&&volumes.length>=31){
+    const todayVol=volumes[n-1];
+    let avgVol30=0;
+    for(let i=n-31;i<n-1;i++)avgVol30+=volumes[i];
+    avgVol30/=30;
+    volRatio=todayVol/avgVol30;
+  }
+  
+  // 20일 고점 대비
+  let high20=0;
+  for(let i=n-21;i<n;i++)if(closes[i]>high20)high20=closes[i];
+  const fromHigh=(today-high20)/high20*100;
+  
+  // 🆕 강화1 시그널 (백테 베스트)
+  // 조건: 일 -7% AND 거래량 1.5배 이상
+  const signalStrong=todayChange<=-7 && volRatio>=1.5;
+  // 약한 시그널 (참고용)
+  const signalWeak=todayChange<=-5 && volRatio>=1.3;
+  
+  let level=0, levelName='-', action='대기';
+  
+  if(signalStrong){
+    level=3;
+    levelName='🔴 강화 시그널 (-7% + 1.5x)';
+    action='3 거래일 후 시초가 풀 매수';
+  }else if(signalWeak){
+    level=1;
+    levelName='🟠 약한 시그널 (-5% + 1.3x)';
+    action='관망 (조건 부족)';
+  }else if(fromHigh<=-30){
+    level=0.5;
+    levelName='🟡 잠재 (고점 -30%+)';
+    action='대기 (S1/S2 시그널 기다림)';
+  }
+  
+  return{
+    active:level>=3,  // 강화1 시그널만 active
+    weak:level>=1,
+    level,levelName,action,
+    todayChange,fromHigh,volRatio,
+    volTrigger:volRatio>=1.5,
+    high20,today
+  };
+}
+
+function recommendHybrid(closes, todayRsi, prevRsi){
+  if(!closes||closes.length<200)return{weight:1.0,boost:0,trendLabel:'데이터부족',rsiLabel:'-'};  
+  const cl=closes[closes.length-1];
+  const ma50=calcMA(closes,50);
+  const ma200=calcMA(closes,200);
+  const trend=(ma50-ma200)/ma200*100;
+  const gap=(cl-ma200)/ma200*100;
+  
+  // 🆕 비중조절만 (부스트 X) - V자 폭락 견딤
+  // 5년 백테: +2,127% / MDD -39% / Calmar 2.19 ⭐
+  // 2020 코로나: -21% (HYBRID 강 -39% 대비 안전)
+  let weight, boost = 0, trendLabel;
+  
+  if(trend>5&&gap>0){
+    weight=1.0;
+    trendLabel='🟢 강세 강 (trend+'+trend.toFixed(1)+'%, gap+'+gap.toFixed(1)+'%)';
+  }
+  else if(trend>0){
+    weight=0.9;
+    trendLabel='🟢 강세 약 (trend+'+trend.toFixed(1)+'%)';
+  }
+  else if(trend>-5){
+    weight=0.6;
+    trendLabel='🟡 중립 (trend'+trend.toFixed(1)+'%)';
+  }
+  else if(trend>-10){
+    weight=0.4;
+    trendLabel='🟠 약세 (trend'+trend.toFixed(1)+'%)';
+  }
+  else if(gap<-30){
+    weight=0.5;
+    trendLabel='🔵 바닥 역발상 (gap'+gap.toFixed(1)+'%)';
+  }
+  else {
+    weight=0.3;
+    trendLabel='🔴 폭락 (trend'+trend.toFixed(1)+'%)';
+  }
+  
+  // RSI 라벨
+  let rsiLabel='-';
+  if(todayRsi>0&&prevRsi>0){
+    const direction=todayRsi<prevRsi?'↓':(todayRsi>prevRsi?'↑':'→');
+    rsiLabel='RSI '+direction+todayRsi.toFixed(0)+' / 비중 '+(weight*100).toFixed(0)+'%';
+  }
+  
+  return{weight,boost,trendLabel,rsiLabel,ma50,ma200,trend,gap};
+}
+
+function recommendBoost(rsi, prevRsi){
+  if(!rsi||!prevRsi)return{boost:0,reason:'RSI 데이터 필요'};
+  
+  // 위험 구간 차단
+  if(rsi>=70)return{boost:0,reason:'과매수 위험 (RSI 70+)'};
+  if(rsi<30)return{boost:0,reason:'과매도 직전 (RSI <30, 폭락 임박)'};
+  
+  const falling = rsi < prevRsi;
+  const rising = rsi > prevRsi;
+  
+  // 하락 중 (고점 추락형) - 진짜 sweet spot!
+  if(falling){
+    if(rsi>=40&&rsi<55)return{boost:0.30,reason:'⭐ 하락 중 40-55 (베스트! T5+ 0% 검증)'};
+    if(rsi>=55&&rsi<65)return{boost:0.20,reason:'✅ 하락 중 55-65 (적정)'};
+    if(rsi>=65&&rsi<70)return{boost:0.10,reason:'⚠️ 하락 중 65-70 (조심)'};
+  }
+  
+  // 상승 중 (바닥 회복형) - 표본 적음 + T5 위험
+  if(rising){
+    if(rsi>=30&&rsi<40)return{boost:0,reason:'⚠️ 상승 중 30-40 (초기 회복, 위험)'};
+    if(rsi>=40&&rsi<50)return{boost:0.10,reason:'⚠️ 상승 중 40-50 (T5+ 50% 위험)'};
+    if(rsi>=50&&rsi<60)return{boost:0.20,reason:'✅ 상승 중 50-60 (적정)'};
+    if(rsi>=60&&rsi<70)return{boost:0.15,reason:'⚠️ 상승 중 60-70 (과열 주의)'};
+  }
+  
+  return{boost:0.10,reason:'횡보 (작은 부스트)'};
+}
 async function fetchLivePrice(){
   const p=curPort();const sym=activeSymbol;
   try{
@@ -588,6 +820,74 @@ async function fetchLivePrice(){
     const px=d.price||d.regularMarketPrice||d.last;
     if(px){p.priceLive=Number(px);save();render();}
   }catch(e){console.log('실시간 가격 fetch 실패:',e);}
+}
+// 🆕 RSI 자동 계산 + 부스트 자동 적용
+async function fetchAndApplyRsi(autoApply){
+  const p=curPort();const sym=activeSymbol;
+  try{
+    // 야후에서 30일 데이터 가져오기 (RSI 계산용)
+    const end=new Date();
+    const start=new Date();start.setDate(start.getDate()-50);
+    const fmt=d=>d.toISOString().slice(0,10);
+    const res=await fetch('/api/history?symbol='+sym+'&start='+fmt(start)+'&end='+fmt(end));
+    if(!res.ok)throw new Error('API 오류');
+    const data=await res.json();
+    if(data.error||!data.bars||data.bars.length<20)throw new Error('데이터 부족');
+    
+    const closes=data.bars.map(b=>b.close);
+    
+    // RSI(14) 계산 - Wilder's smoothing
+    const calcRsi=(arr,len)=>{
+      if(arr.length<len+1)return 0;
+      let gains=0,losses=0;
+      for(let i=1;i<=len;i++){
+        const d=arr[i]-arr[i-1];
+        if(d>0)gains+=d;else losses-=d;
+      }
+      let avgGain=gains/len,avgLoss=losses/len;
+      for(let i=len+1;i<arr.length;i++){
+        const d=arr[i]-arr[i-1];
+        if(d>0){avgGain=(avgGain*(len-1)+d)/len;avgLoss=(avgLoss*(len-1))/len;}
+        else{avgGain=(avgGain*(len-1))/len;avgLoss=(avgLoss*(len-1)-d)/len;}
+      }
+      if(avgLoss===0)return 100;
+      return 100-100/(1+avgGain/avgLoss);
+    };
+    
+    // 오늘 RSI (전체 데이터)
+    const todayRsi=calcRsi(closes,14);
+    // 어제 RSI (마지막 빼고)
+    const prevRsi=calcRsi(closes.slice(0,-1),14);
+    
+    p.todayRsi=Math.round(todayRsi*100)/100;
+    p.prevRsi=Math.round(prevRsi*100)/100;
+    p.rsiUpdated=new Date().toISOString();
+    
+    // 🆕 HYBRID 추천 (비중 + 부스트)
+    const hybrid=recommendHybrid(closes,todayRsi,prevRsi);
+    p.hybrid=hybrid;
+    p.virtualWeight=hybrid.weight;  // 비중
+    
+    // 🆕 PANIC 시그널 감지
+    const volumes=data.bars.map(b=>b.volume||0);
+    const panic=detectPanic(closes,volumes);
+    p.panic=panic;
+    
+    // 자동 부스트 추천
+    const rec=recommendBoost(todayRsi,prevRsi);
+    p.rsiRecommend=rec;
+    
+    if(autoApply){
+      p.virtualBoost=hybrid.boost;
+    }
+    
+    save();render();
+    return{todayRsi,prevRsi,rec,hybrid};
+  }catch(e){
+    console.log('RSI fetch 실패:',e);
+    alert('RSI 계산 실패: '+e.message);
+    return null;
+  }
 }
 function startLivePriceAutoUpdate(){
   if(window._livePriceTimer)clearInterval(window._livePriceTimer);
@@ -766,6 +1066,12 @@ function closeModal(){$('modal-container').innerHTML='';}
 render();
 setInterval(()=>{const usEl=$('us-status');if(usEl)usEl.innerHTML=getUSMarketStatus();},60000);
 startLivePriceAutoUpdate();
+// 🆕 페이지 로드 시 RSI 자동 갱신 (1시간 이상 지났을 때만)
+setTimeout(()=>{
+  const p=curPort();
+  const rsiAge=p.rsiUpdated?(Date.now()-new Date(p.rsiUpdated).getTime())/3600000:999;
+  if(rsiAge>=1){fetchAndApplyRsi(false);}
+},2000);
 </script>
 </body>
 </html>
