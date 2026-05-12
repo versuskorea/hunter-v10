@@ -520,8 +520,9 @@ function render(){
     const livePrice=p.priceLive||p.priceClose;
     const totalU=p.pos.reduce((a,pp)=>a+pp.u,0);
     const remU=TU-totalU;
-    h+='<div class="card" style="padding:0"><div style="padding:12px 14px 6px"><div class="ct" style="margin:0">📦 보유 현황 '+(p.priceLive?'(실시간)':'(전날종가)')+'</div></div><table class="tier-table"><thead><tr><th>티어</th><th>매수일</th><th>매수가</th><th>수량</th><th>유닛</th><th>매도점</th><th>강제청산</th><th>손익</th></tr></thead><tbody>';
+    h+='<div class="card" style="padding:0"><div style="padding:12px 14px 6px"><div class="ct" style="margin:0">📦 보유 현황 '+(p.priceLive?'(실시간)':'(전날종가)')+' · 행 클릭 시 매도</div></div><table class="tier-table"><thead><tr><th>티어</th><th>매수일</th><th>매수가</th><th>수량</th><th>유닛</th><th>매도점</th><th>강제청산</th><th>손익</th></tr></thead><tbody>';
     const sortedPosT=[...p.pos].sort((a,b)=>a.d.localeCompare(b.d));
+    let totalCost=0,totalValue=0;
     sortedPosT.forEach((pp,idx)=>{
       const pz=ZONES[pp.z];
       const basePriceForSell=pp.diaryClose||pp.e;
@@ -530,11 +531,32 @@ function render(){
       const pnl=livePrice?((livePrice-pp.e)/pp.e*100).toFixed(2):0;
       const pnlCls=pnl>=0?'pnl-up':'pnl-dn';
       const isForce=days>=pz.fd;
-      h+='<tr '+(isForce?'style="background:rgba(239,68,68,0.08)"':'')+'><td><b>T'+(idx+1)+'</b></td><td>'+pp.d.slice(5)+'</td><td>$'+pp.e+'</td><td>'+pp.s+'</td><td>'+pp.u+'u</td><td>$'+sellPrice+'</td><td>~'+addBd(pp.d,pz.fd)+(isForce?'⚠️':'')+'</td><td class="'+pnlCls+'">'+(pnl>=0?'+':'')+pnl+'%</td></tr>';
+      const origIdx=p.pos.indexOf(pp);
+      totalCost+=pp.e*pp.s;
+      totalValue+=(livePrice||pp.e)*pp.s;
+      h+='<tr style="cursor:pointer;'+(isForce?'background:rgba(239,68,68,0.08)':'')+'" onclick="promptSell('+origIdx+')"><td><b>T'+(idx+1)+'</b></td><td>'+pp.d.slice(5)+'</td><td>$'+pp.e+'</td><td>'+pp.s+'</td><td>'+pp.u+'u</td><td>$'+sellPrice+'</td><td>~'+addBd(pp.d,pz.fd)+(isForce?'⚠️':'')+'</td><td class="'+pnlCls+'">'+(pnl>=0?'+':'')+pnl+'%</td></tr>';
     });
     if(p.pos.length===0){h+='<tr class="empty"><td colspan="8" style="padding:20px;color:var(--dim);font-style:italic">보유 티어 없음</td></tr>';}
-    h+='</tbody></table></div><div class="card"><div class="sb-row"><span class="k">보유 유닛</span><span class="v">'+totalU+'/'+TU+' ('+remU+'u 남음)</span></div><div class="sb-row"><span class="k">보유 주수</span><span class="v">'+p.pos.reduce((a,pp)=>a+pp.s,0)+'주</span></div><div class="sb-row"><span class="k">시드</span><span class="v" style="color:var(--green)">$'+p.seed.toLocaleString()+'</span></div><div class="sb-row"><span class="k">유닛 단가</span><span class="v">$'+(p.seed/TU).toFixed(0)+'</span></div></div><div class="note" style="margin-top:8px">💡 매수 체결은 <b style="color:var(--accent)">📋 주문 탭</b>에서 일지의 "체결" 버튼으로 입력하세요<br>💡 여기서는 매도만 가능 (티어 클릭 또는 "매도 기록")</div>';
-    if(p.pos.length>0){h+='<div class="card"><div class="ct">📉 매도</div><button class="btn btn-s" onclick="openSellModal()">매도 기록</button></div>';}
+    h+='</tbody></table></div>';
+    
+    // 요약 - 매수 금액 + 평가액 + 수익률
+    const unrealized=totalValue-totalCost;
+    const unrealizedPct=totalCost>0?(unrealized/totalCost*100):0;
+    h+='<div class="card"><div class="sb-row"><span class="k">보유 유닛</span><span class="v">'+totalU+'/'+TU+' ('+remU+'u 남음)</span></div>';
+    h+='<div class="sb-row"><span class="k">보유 주수</span><span class="v">'+p.pos.reduce((a,pp)=>a+pp.s,0)+'주</span></div>';
+    if(p.pos.length>0){
+      h+='<div class="sb-row" style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px"><span class="k">📥 매수 총액</span><span class="v">$'+totalCost.toFixed(0).toLocaleString()+'</span></div>';
+      h+='<div class="sb-row"><span class="k">💰 평가액</span><span class="v" style="color:var(--gold)">$'+totalValue.toFixed(0).toLocaleString()+'</span></div>';
+      h+='<div class="sb-row"><span class="k">📊 평가손익</span><span class="v" style="color:'+(unrealized>=0?'var(--green)':'var(--red)')+'">'+(unrealized>=0?'+':'')+'$'+unrealized.toFixed(0).toLocaleString()+' ('+(unrealizedPct>=0?'+':'')+unrealizedPct.toFixed(2)+'%)</span></div>';
+    }
+    h+='<div class="sb-row" style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px"><span class="k">시드</span><span class="v" style="color:var(--green)">$'+p.seed.toLocaleString()+'</span></div>';
+    h+='<div class="sb-row"><span class="k">유닛 단가</span><span class="v">$'+(p.seed/TU).toFixed(0)+'</span></div>';
+    h+='</div><div class="note" style="margin-top:8px">💡 매수 체결은 <b style="color:var(--accent)">📋 주문 탭</b>에서 일지의 "체결" 버튼으로<br>💡 매도: <b style="color:var(--top)">티어 행 클릭</b> 또는 아래 일괄 매도</div>';
+    if(p.pos.length>0){
+      h+='<div class="card"><div class="ct">📉 일괄 매도</div>';
+      h+='<button class="btn btn-s" onclick="promptBulkSell()" style="margin-top:0">🔥 전체 '+p.pos.length+'개 티어 한번에 매도</button>';
+      h+='<div class="note" style="margin-top:6px">⚠️ 모든 티어 같은 가격에 매도 (사이클 종료용)</div></div>';
+    }
   }
   if(tab==='s'){
     h+='<div class="card"><div class="ct">⚙️ 기본 설정</div><div class="ir"><label>시드</label><input type="number" id="seed-in" value="'+p.seed+'" onchange="updSeed()"><span class="u">$</span></div><div class="note">시드 변경 시 유닛 크기도 함께 변경됨 ($시드/20)</div></div>';
@@ -780,6 +802,46 @@ function openSellModal(){
   h+='<div class="btn-row"><button class="btn btn-d" onclick="closeModal()">취소</button></div>';
   showModal(h);
 }
+function promptBulkSell(){
+  const p=curPort();
+  if(p.pos.length===0)return alert('보유 티어 없음');
+  const livePrice=p.priceLive||p.priceClose||0;
+  const totalShares=p.pos.reduce((a,pp)=>a+pp.s,0);
+  const totalCost=p.pos.reduce((a,pp)=>a+pp.e*pp.s,0);
+  const avgPrice=totalShares>0?(totalCost/totalShares).toFixed(2):0;
+  showModal('<h3>🔥 일괄 매도 (전체 '+p.pos.length+'개)</h3><div class="desc">보유 티어 <b>'+p.pos.length+'개</b> 모두 같은 가격으로 매도<br>총 주수: <b>'+totalShares+'주</b><br>평단: <b>$'+avgPrice+'</b><br>매수 총액: <b>$'+totalCost.toFixed(0).toLocaleString()+'</b><br><br>⚠️ 사이클 종료용. 신중히!</div><div class="ir"><label>매도가</label><input type="number" step="0.01" id="bulk-sell-price" value="'+(livePrice||avgPrice)+'"><span class="u">$</span></div><div class="ir"><label>매도일</label><input type="date" id="bulk-sell-date" value="'+td()+'" max="'+td()+'"><span class="u">📅</span></div><div class="btn-row"><button class="btn btn-d" onclick="closeModal()">취소</button><button class="btn btn-s" onclick="doBulkSell()">🔥 일괄 매도!</button></div>');
+}
+function doBulkSell(){
+  const p=curPort();
+  const sp=parseFloat($('bulk-sell-price').value);
+  const sd=$('bulk-sell-date').value;
+  if(!sp||sp<=0)return alert('매도가');
+  if(!sd)return alert('매도일');
+  if(sd>td())return alert('미래 X');
+  if(!confirm('전체 '+p.pos.length+'개 티어를 $'+sp+'에 일괄 매도?'))return;
+  
+  let totalRealized=0;
+  const sortedPos=[...p.pos].sort((a,b)=>a.d.localeCompare(b.d));
+  sortedPos.forEach(pp=>{
+    if(sd<pp.d)return;
+    const pnl=(sp-pp.e)/pp.e*100;
+    const realized=(sp-pp.e)*pp.s;
+    totalRealized+=realized;
+    p.hist.push({a:'S',d:sd,e:sp,u:pp.u,s:pp.s,z:pp.z,pnl:pnl,buyPrice:pp.e,realized:realized});
+  });
+  p.pos=[];
+  
+  const allSells=p.hist.filter(r=>r.a==='S'&&r.realized!==undefined);
+  const cumulativeRealized=allSells.reduce((sum,r)=>sum+(r.realized||0),0);
+  const newSeed=p.seed+cumulativeRealized;
+  
+  save();closeModal();
+  setTimeout(()=>{
+    showModal('<h3>🎉 일괄 매도 완료!</h3><div class="desc">전체 티어 매도 완료! 보유 0u<br><br>💰 이번 매도 수익: <b style="color:var(--green)">+$'+totalRealized.toFixed(0)+'</b><br>📊 누적 매도 수익: <b style="color:var(--green)">+$'+cumulativeRealized.toFixed(0)+'</b><br><br><div style="background:#0a1a0a;padding:12px;border-radius:8px;border:1px solid var(--green);margin-top:8px"><div style="font-size:11px;color:var(--dim)">현재 시드</div><div style="font-size:18px;font-weight:800">$'+p.seed.toLocaleString()+'</div><div style="font-size:11px;color:var(--dim);margin-top:8px">새 시드 (복리 반영)</div><div style="font-size:20px;font-weight:800;color:var(--green)">$'+newSeed.toFixed(0)+'</div></div></div><div class="btn-row"><button class="btn btn-d" onclick="closeModal()">나중에</button><button class="btn btn-b" onclick="applyCycleSeed('+newSeed+')">✅ 시드 업데이트!</button></div>');
+  },200);
+  render();
+}
+
 function promptSell(idx){
   const p=curPort();const pp=p.pos[idx];const pz=ZONES[pp.z];
   const basePriceForSell=pp.diaryClose||pp.e;
