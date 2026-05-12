@@ -1843,12 +1843,35 @@ async function runBossRuleMonth(panicEnabled) {
           // 월별 펼침
           if (yd.monthly && Object.keys(yd.monthly).length > 0) {
             const months = Object.keys(yd.monthly).sort();
-            html += '<tr id="boss-monthly-' + ymKey + '" style="display:none"><td colspan="5" style="padding:0"><div style="background:#050510;padding:10px;border-left:2px solid ' + item.color + '"><div style="font-size:11px;color:' + item.color + ';font-weight:700;margin-bottom:6px">' + y + '년 월별</div><table style="width:100%;font-size:11px"><thead><tr><th style="padding:4px;text-align:left;color:#666">월</th><th style="padding:4px;text-align:right;color:#666">수익률</th><th style="padding:4px;text-align:right;color:#666">MDD</th><th style="padding:4px;text-align:right;color:#666">자산</th></tr></thead><tbody>';
+            // 트리거 발동 월 미리 계산 (부스터 룰 적용 항목만)
+            const triggerMonths = {};
+            if (item.threshold !== undefined && item.boost !== undefined) {
+              const th = item.threshold;
+              const boost = item.boost;
+              for (const m of months) {
+                const fullKey = y + '-' + m;
+                const [py, pm] = fullKey.split('-').map(Number);
+                let prevY = py, prevM = pm - 1;
+                if (prevM === 0) { prevY = py - 1; prevM = 12; }
+                const prevKey = prevY + '-' + String(prevM).padStart(2, '0');
+                const prevRet = monthlyReturns[prevKey];
+                if (prevRet !== undefined && prevRet < th) {
+                  triggerMonths[m] = { prevKey, prevRet, th, boost };
+                }
+              }
+            }
+            
+            html += '<tr id="boss-monthly-' + ymKey + '" style="display:none"><td colspan="5" style="padding:0"><div style="background:#050510;padding:10px;border-left:2px solid ' + item.color + '"><div style="font-size:11px;color:' + item.color + ';font-weight:700;margin-bottom:6px">' + y + '년 월별' + (item.threshold !== undefined ? ' · 🔥=부스터 발동' : '') + '</div><table style="width:100%;font-size:11px"><thead><tr><th style="padding:4px;text-align:left;color:#666">월</th><th style="padding:4px;text-align:right;color:#666">수익률</th><th style="padding:4px;text-align:right;color:#666">MDD</th><th style="padding:4px;text-align:right;color:#666">자산</th><th style="padding:4px;text-align:center;color:#666">부스터</th></tr></thead><tbody>';
             for (const m of months) {
               const md = yd.monthly[m];
               const mRet = md.startAsset > 0 ? (md.endAsset / md.startAsset - 1) * 100 : 0;
               const mRetCls = mRet >= 0 ? '#22c55e' : '#ef4444';
-              html += '<tr><td style="padding:4px;color:#aaa">' + m + '월</td><td style="padding:4px;text-align:right;color:' + mRetCls + ';font-weight:700">' + (mRet >= 0 ? '+' : '') + mRet.toFixed(1) + '%</td><td style="padding:4px;text-align:right;color:#ef4444">' + (md.mdd || 0).toFixed(1) + '%</td><td style="padding:4px;text-align:right;color:#fbbf24">$' + Math.round(md.endAsset).toLocaleString() + '</td></tr>';
+              const trig = triggerMonths[m];
+              const trigCell = trig 
+                ? '<span style="background:linear-gradient(135deg,#fbbf24,#f97316);color:#000;padding:2px 6px;border-radius:4px;font-weight:800;font-size:10px" title="전월 ' + trig.prevKey + ' ' + trig.prevRet.toFixed(1) + '% < ' + trig.th + '%">🔥 ' + trig.prevRet.toFixed(0) + '%</span>'
+                : '<span style="color:#444">-</span>';
+              const rowBg = trig ? 'background:rgba(251,191,36,0.08);' : '';
+              html += '<tr style="' + rowBg + '"><td style="padding:4px;color:#aaa">' + m + '월</td><td style="padding:4px;text-align:right;color:' + mRetCls + ';font-weight:700">' + (mRet >= 0 ? '+' : '') + mRet.toFixed(1) + '%</td><td style="padding:4px;text-align:right;color:#ef4444">' + (md.mdd || 0).toFixed(1) + '%</td><td style="padding:4px;text-align:right;color:#fbbf24">$' + Math.round(md.endAsset).toLocaleString() + '</td><td style="padding:4px;text-align:center">' + trigCell + '</td></tr>';
             }
             html += '</tbody></table></div></td></tr>';
           }
