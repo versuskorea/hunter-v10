@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -139,8 +138,9 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
 <button class="btn" onclick="runRuleCompare()" style="background:linear-gradient(135deg,#a78bfa,#3b82f6) !important;font-weight:800">🎯 룰 비교! (매수 유닛 / 매도 % / 강제 기간)</button>
 <button class="btn" onclick="runHybridUltimate()" style="background:linear-gradient(135deg,#fbbf24,#ec4899,#a78bfa) !important;color:#000 !important;font-weight:800">💎 HYBRID ULTIMATE! (비중 조절 + 강세장 부스트) ⭐⭐⭐<br><small style="font-size:11px;font-weight:500">각 모드 클릭 시 → 연도별 분석</small></button>
 <button class="btn" onclick="runPanicHybrid()" style="background:linear-gradient(135deg,#ef4444,#f97316,#fbbf24) !important;color:#000 !important;font-weight:800">🚨 PANIC 전환 백테! (HYBRID + PANIC 통합 운용) ⭐⭐⭐<br><small style="font-size:11px;font-weight:500">폭락 시그널 + 보유 ≤4u → PANIC 전환</small></button>
-<button class="btn" onclick="runBossRule()" style="background:linear-gradient(135deg,#22c55e,#3b82f6,#a78bfa) !important;color:#fff !important;font-weight:800">👑 형님 룰 백테! (전년 SOXL < 0% → 다음해 HUNTER 100%) ⭐⭐⭐⭐<br><small style="font-size:11px;font-weight:500">16년 1,192배 검증 / 폭락 다음해 V자 풀베팅</small></button>
-<button class="btn" onclick="runBossRuleMonth()" style="background:linear-gradient(135deg,#fbbf24,#f97316,#ef4444) !important;color:#000 !important;font-weight:800">👑 형님 룰 V4! 임계값×부스터 자동 비교 ⭐⭐⭐⭐⭐<br><small style="font-size:11px;font-weight:500">임계값 3개 × 부스터 5개 = 15가지 + 기본/대조/V1 = 18개 자동 탐색</small></button>
+<button class="btn" onclick="runBossRule()" style="background:linear-gradient(135deg,#22c55e,#3b82f6,#a78bfa) !important;color:#fff !important;font-weight:800">👑 형님 룰 백테! (전년 SOXL &lt; 0% → 다음해 HUNTER 100%) ⭐⭐⭐⭐<br><small style="font-size:11px;font-weight:500">16년 1,192배 검증 / 폭락 다음해 V자 풀베팅</small></button>
+<button class="btn" onclick="runBossRuleMonth(true)" style="background:linear-gradient(135deg,#fbbf24,#f97316,#ef4444) !important;color:#000 !important;font-weight:800">👑 형님 룰 V4! PANIC ON (전체) ⭐⭐⭐⭐⭐<br><small style="font-size:11px;font-weight:500">임계값 3개 × 부스터 5개 = 15가지 + PANIC 강화1 포함</small></button>
+<button class="btn" onclick="runBossRuleMonth(false)" style="background:linear-gradient(135deg,#22c55e,#fbbf24) !important;color:#000 !important;font-weight:800">👑 형님 룰 V4! PANIC OFF (월 트리거만) ⭐⭐⭐⭐<br><small style="font-size:11px;font-weight:500">PANIC 제외 → 월 트리거 부스터 단독 효과 측정</small></button>
 
   <div class="progress" id="bt-progress"></div>
 </div>
@@ -1687,7 +1687,8 @@ function getNextMonth(monthKey) {
 }
 
 // 👑 형님 룰 V2: 월 -15% → 다음달 HUNTER 100%, 그 후 PANIC 복귀
-async function runBossRuleMonth() {
+async function runBossRuleMonth(panicEnabled) {
+  if (panicEnabled === undefined) panicEnabled = true;
   const sym = document.getElementById('bt-sym').value.toUpperCase().trim();
   const userStartDate = document.getElementById('bt-start').value;
   const userEndDate = document.getElementById('bt-end').value;
@@ -1747,9 +1748,9 @@ async function runBossRuleMonth() {
     
     // 2. 대조: 비중조절 + PANIC만
     results.push({
-      name: '⚙️ 비중조절 + PANIC (대조)',
+      name: panicEnabled ? '⚙️ 비중조절 + PANIC (대조)' : '⚙️ 비중조절만 (PANIC X, 대조)',
       color: '#888',
-      result: simulatePanicHybrid(data.bars, params, userStartIdx, weightOnlyFn, true, 4, 3, { dropPct: -7, volRatio: 1.5 })
+      result: simulatePanicHybrid(data.bars, params, userStartIdx, weightOnlyFn, panicEnabled, 4, 3, panicEnabled ? { dropPct: -7, volRatio: 1.5 } : null)
     });
     
     // 임계값 × 부스터 자동 비교 (3 임계값 × 5 부스터 = 15개)
@@ -1778,7 +1779,7 @@ async function runBossRuleMonth() {
           color: thColors[String(th)] || '#fbbf24',
           threshold: th,
           boost: boostLv,
-          result: simulatePanicHybridMonth(data.bars, params, userStartIdx, monthTriggerBoostFn, true, 4, 3, { dropPct: -7, volRatio: 1.5 })
+          result: simulatePanicHybridMonth(data.bars, params, userStartIdx, monthTriggerBoostFn, panicEnabled, 4, 3, panicEnabled ? { dropPct: -7, volRatio: 1.5 } : null)
         });
       }
     }
@@ -1794,14 +1795,14 @@ async function runBossRuleMonth() {
     results.push({
       name: '👑 V1 (전년 < 0% → 1년 HUNTER)',
       color: '#a78bfa',
-      result: simulatePanicHybrid(data.bars, params, userStartIdx, bossRuleYearFn, true, 4, 3, { dropPct: -7, volRatio: 1.5 })
+      result: simulatePanicHybrid(data.bars, params, userStartIdx, bossRuleYearFn, panicEnabled, 4, 3, panicEnabled ? { dropPct: -7, volRatio: 1.5 } : null)
     });
     
     const totalDaysActual = data.bars.length - userStartIdx;
     const yearsDisplay = (totalDaysActual / 252).toFixed(2);
     const baseMult = results[0].result.mult;
     
-    let html = '<div class="cycle-card" style="margin-top:14px"><div class="cs-title">👑 형님 룰 V4: 임계값×부스터 자동 비교 (15가지)</div>';
+    let html = '<div class="cycle-card" style="margin-top:14px"><div class="cs-title">👑 형님 룰 V4: 임계값×부스터 (' + (panicEnabled ? '🚨 PANIC ON' : '⚙️ PANIC OFF') + ')</div>';
     html += '<div style="background:#0a1a2a;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px;color:#fbbf24;font-weight:700;text-align:center">📅 ' + userStartDate + ' ~ ' + userEndDate + ' (' + yearsDisplay + '년) · ' + sym + '</div>';
     
     html += '<div style="background:linear-gradient(135deg,#1a1a2a,#0a1a2a);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13px;line-height:1.7"><b style="color:#fbbf24">👑 룰:</b> 월 수익률이 임계값 이하면 다음달 HUNTER 100% + 부스터<br><b style="color:#22c55e">임계값 × 부스터 자동 비교</b>: 3 × 5 = 15가지<br>임계값: <span style="color:#22c55e">-15%</span> / <span style="color:#fbbf24">-20%</span> / <span style="color:#ef4444">-25%</span><br>부스터: +0% / +20% / +30% / +50% / +100%</div>';
