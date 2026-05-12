@@ -148,6 +148,8 @@ for(const sym in portfolios){
   const p=portfolios[sym];
   p.seed=Number(p.seed)||100000;p.startDate=p.startDate||'';p.priceClose=Number(p.priceClose)||0;p.priceLive=Number(p.priceLive)||0;p.high20=Number(p.high20)||0;p.priceDate=p.priceDate||'';
   p.diary=Array.isArray(p.diary)?p.diary:[];p.pos=Array.isArray(p.pos)?p.pos:[];p.hist=Array.isArray(p.hist)?p.hist:[];
+  p.virtualWeight=Number(p.virtualWeight)||1.0;
+  if(p.hybrid&&(p.hybrid.ma50===undefined||p.hybrid.ma200===undefined))delete p.hybrid;
 }
 const $=id=>document.getElementById(id);
 const gv=id=>parseFloat($(id).value)||0;
@@ -175,6 +177,77 @@ const db=(a,b)=>{try{if(!a||!b)return 0;const d1=new Date(a),d2=new Date(b);if(i
 const addBd=(dateStr,n)=>{try{const d=new Date(dateStr);let added=0;while(added<n){d.setDate(d.getDate()+1);if(d.getDay()!==0&&d.getDay()!==6)added++;}return (d.getMonth()+1)+'/'+d.getDate();}catch(e){return '';}};
 function getZoneFor(close,high20){if(!close||!high20)return 'top';const dd=(close-high20)/high20*100;if(dd>=TOP_TH)return 'top';if(dd<=BOT_TH)return 'bot';return 'mid';}
 function getZone(){const p=curPort();return getZoneFor(p.priceClose,p.high20);}
+
+// 비중조절 6단계 (V자 안전)
+function calcMA(closes,period){
+  if(closes.length<period)return 0;
+  let sum=0;
+  for(let i=closes.length-period;i<closes.length;i++)sum+=closes[i];
+  return sum/period;
+}
+function recommendHybrid(closes){
+  if(!closes||closes.length<200)return{weight:1.0,trendLabel:'데이터부족',ma50:0,ma200:0,trend:0,gap:0,bossMode:false,boost:0};
+  const cl=closes[closes.length-1];
+  const ma50=calcMA(closes,50);
+  const ma200=calcMA(closes,200);
+  const trend=(ma50-ma200)/ma200*100;
+  const gap=(cl-ma200)/ma200*100;
+  let weight,trendLabel;
+  if(trend>5&&gap>0){weight=1.0;trendLabel='🟢 강세 강';}
+  else if(trend>0){weight=0.9;trendLabel='🟢 강세 약';}
+  else if(trend>-5){weight=0.6;trendLabel='🟡 중립';}
+  else if(trend>-10){weight=0.4;trendLabel='🟠 약세';}
+  else if(gap<-30){weight=0.5;trendLabel='🔵 바닥 역발상';}
+  else{weight=0.3;trendLabel='🔴 폭락';}
+  return{weight,trendLabel,ma50,ma200,trend,gap,bossMode:false,boost:0};
+}
+
+// 형님 룰 V4: 전월 -20% 이하면 이번달 HUNTER 100% + 부스터 +100%
+function calcMonthlyReturns(bars){
+  const monthly={};
+  for(const b of bars){
+    const m=b.date.substring(0,7);
+    if(!monthly[m])monthly[m]={start:b.close,end:b.close};
+    monthly[m].end=b.close;
+  }
+  const r={};
+  for(const m in monthly)r[m]=(monthly[m].end/monthly[m].start-1)*100;
+  return r;
+}
+function checkBossRule(bars,threshold){
+  if(!bars||bars.length<25)return null;
+  const monthly=calcMonthlyReturns(bars);
+  const today=new Date();
+  const curY=today.getFullYear();
+  const curM=today.getMonth()+1;
+  let prevY=curY,prevM=curM-1;
+  if(prevM===0){prevY=curY-1;prevM=12;}
+  const prevKey=prevY+'-'+String(prevM).padStart(2,'0');
+  const prevRet=monthly[prevKey];
+  if(prevRet===undefined)return{triggered:false,prevKey,prevRet:null,threshold};
+  return{triggered:prevRet<threshold,prevKey,prevRet,threshold};
+}
+async function autoUpdateRsi(){
+  const p=curPort();
+  const btn=event.target;btn.disabled=true;btn.textContent='⏳ 가져오는 중...';
+  try{
+    const start=new Date();start.setDate(start.getDate()-300);
+    const res=await fetch('/api/history?symbol='+activeSymbol+'&start='+start.toISOString().slice(0,10)+'&end='+td());
+    const data=await res.json();
+    if(data.error||!data.bars||data.bars.length<200){alert('200일+ 데이터 필요');return;}
+    const closes=data.bars.map(b=>b.close);
+    const hybrid=recommendHybrid(closes);
+    p.hybrid=hybrid;
+    p.bossRule=checkBossRule(data.bars,-20);
+    p.rsiUpdated=new Date().toISOString();
+    if(confirm('⚙️ 비중조절 추천\n\n📊 '+hybrid.trendLabel+'\n   50MA: $'+hybrid.ma50.toFixed(2)+'\n   200MA: $'+hybrid.ma200.toFixed(2)+'\n   추세: '+(hybrid.trend>=0?'+':'')+hybrid.trend.toFixed(1)+'%\n   gap: '+(hybrid.gap>=0?'+':'')+hybrid.gap.toFixed(1)+'%\n\n🎯 비중: '+(hybrid.weight*100).toFixed(0)+'%\n\n바로 적용?')){
+      p.virtualWeight=hybrid.weight;
+    }
+    save();render();
+  }catch(e){alert('실패: '+e.message);}
+  finally{if(btn){btn.disabled=false;btn.textContent='🔄 야후에서 자동 가져오기 + 적용';}}
+}
+function setVirtualWeight(w){curPort().virtualWeight=w;save();render();}
 function switchSymbol(sym){save();activeSymbol=sym;if(!portfolios[sym])portfolios[sym]={seed:100000,startDate:'',priceClose:0,priceLive:0,high20:0,priceDate:'',diary:[],pos:[],hist:[]};save();render();}
 function addSymbol(){const sym=prompt('종목 코드:');if(!sym)return;const u=sym.toUpperCase().trim();if(!u)return;if(portfolios[u]){alert('이미 있음');return;}portfolios[u]={seed:100000,startDate:'',priceClose:0,priceLive:0,high20:0,priceDate:'',diary:[],pos:[],hist:[]};save();switchSymbol(u);}
 function removeSymbol(sym){if(Object.keys(portfolios).length<=1){alert('최소 1개 필요');return;}if(!confirm(sym+' 삭제?'))return;delete portfolios[sym];save();if(sym===activeSymbol)activeSymbol=Object.keys(portfolios)[0];render();}
@@ -246,6 +319,16 @@ async function buildDiary(){
     
     p.diary=diary;
     if(diary.length>0){const last=diary[diary.length-1];p.priceClose=last.close;p.high20=last.high20;p.priceDate=last.date;}
+    
+    // 비중조절 자동 계산 (200일+ 데이터 있을 때)
+    if(data.bars.length>=200){
+      const closes=data.bars.map(b=>b.close);
+      p.hybrid=recommendHybrid(closes);
+      // 형님 룰 V4: -20% 트리거 체크
+      p.bossRule=checkBossRule(data.bars,-20);
+      p.rsiUpdated=new Date().toISOString();
+    }
+    
     save();render();
     
     const tradingDays=diary.filter(d=>!d.isRef);
@@ -276,6 +359,27 @@ function render(){
     }
     h+='<div class="card" style="border:1px solid var(--accent)"><div class="ct">📅 매매일지 ('+p.startDate+' ~)</div><div class="ir"><label>시작일</label><input type="date" id="start-date-in" value="'+p.startDate+'" max="'+td()+'" onchange="setStartDate()"><span class="u">📅</span></div><button class="btn btn-fetch" onclick="buildDiary()">🔄 야후에서 일지 갱신 (오늘까지)</button><div class="note">※ 시작일 전날 = 참조 데이터 (체결 X, 흐리게)<br>※ 시작일부터 = 거래일 (체결 가능)</div></div>';
     
+    // 비중조절 적용 표시
+    const vWeight=p.virtualWeight||1.0;
+    const boss=p.bossRule;
+    
+    // 👑 형님 룰 발동 배너 (최우선)
+    if(boss&&boss.triggered){
+      h+='<div style="background:linear-gradient(135deg,#fbbf24,#f97316,#ef4444);color:#000;padding:14px;border-radius:12px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.6;border:2px solid #fff">';
+      h+='👑 <b style="font-size:15px">형님 룰 V4 발동!</b><br>';
+      h+='전월 ('+boss.prevKey+') '+boss.prevRet.toFixed(1)+'% (< '+boss.threshold+'%)<br>';
+      h+='<b style="font-size:14px">→ 이번달 HUNTER 100% + 부스터 +100% (2배 매수)</b>';
+      h+='</div>';
+    }else if(boss&&boss.prevRet!==null){
+      h+='<div style="background:#0a0a14;border:1px solid #333;color:var(--dim);padding:8px 12px;border-radius:8px;margin-bottom:10px;text-align:center;font-size:12px">';
+      h+='👑 형님 룰 대기 · 전월 '+boss.prevKey+' '+boss.prevRet.toFixed(1)+'% (트리거 '+boss.threshold+'%)';
+      h+='</div>';
+    }
+    
+    if(vWeight<1.0&&!(boss&&boss.triggered)){
+      h+='<div style="background:linear-gradient(135deg,#3b82f6,#22c55e);color:#fff;padding:10px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">⚙️ 비중조절 적용 · 비중 <b>'+(vWeight*100).toFixed(0)+'%</b>'+(p.hybrid?' · '+p.hybrid.trendLabel:'')+'</div>';
+    }
+    
     const tradingDays=p.diary.filter(d=>!d.isRef);
     const refDay=p.diary.find(d=>d.isRef);
     
@@ -301,7 +405,14 @@ function render(){
         let sharesDisplay;
         if(filledInPos){sharesDisplay=filledInPos.s+'주';}
         else if(filledInHist){sharesDisplay=filledInHist.s+'주';}
-        else{const uw=p.seed/TU;sharesDisplay=Math.floor(d.units*uw/d.close)+'주';}
+        else{
+          const uw=p.seed/TU;
+          // 형님 룰 발동 시: 비중 100% + 부스터 +100% (2배)
+          const effW=(boss&&boss.triggered)?1.0:vWeight;
+          const effBoost=(boss&&boss.triggered)?2.0:1.0;
+          const actualU=d.units*effW*effBoost;
+          sharesDisplay=Math.floor(actualU*uw/d.close)+'주';
+        }
         
         let actionBtn;
         if(isRef){
@@ -327,8 +438,11 @@ function render(){
       const uw=p.seed/TU;
       const loc1Price=(lastClose*1.15).toFixed(2);
       const loc2Price=(lastClose-0.01).toFixed(2);
-      const loc1Shares=Math.floor(UP*uw/lastClose);
-      const loc2Shares=Math.floor(DN*uw/lastClose)-loc1Shares;
+      // 형님 룰 발동 시: 비중 100% + 부스터 +100%
+      const effW=(boss&&boss.triggered)?1.0:vWeight;
+      const effBoost=(boss&&boss.triggered)?2.0:1.0;
+      const loc1Shares=Math.floor(UP*effW*effBoost*uw/lastClose);
+      const loc2Shares=Math.floor(DN*effW*effBoost*uw/lastClose)-loc1Shares;
       const lastDate=new Date(last.date);
       let nextDate=new Date(lastDate);
       nextDate.setDate(nextDate.getDate()+1);
@@ -393,6 +507,88 @@ function render(){
   }
   if(tab==='s'){
     h+='<div class="card"><div class="ct">⚙️ 기본 설정</div><div class="ir"><label>시드</label><input type="number" id="seed-in" value="'+p.seed+'" onchange="updSeed()"><span class="u">$</span></div><div class="note">시드 변경 시 유닛 크기도 함께 변경됨 ($시드/20)</div></div>';
+    
+    // 👑 형님 룰 V4 상태 카드
+    const boss=p.bossRule;
+    h+='<div class="card" style="border:2px solid var(--gold)"><div class="ct" style="color:var(--gold)">👑 형님 룰 V4 (월 -20% 트리거)</div>';
+    if(boss&&boss.prevRet!==null){
+      if(boss.triggered){
+        h+='<div style="padding:14px;background:linear-gradient(135deg,#fbbf24,#f97316);color:#000;border-radius:10px;text-align:center;font-weight:800">';
+        h+='🔥 발동 중!<br><div style="font-size:18px;margin-top:6px">전월 ('+boss.prevKey+') '+boss.prevRet.toFixed(1)+'%</div>';
+        h+='<div style="font-size:13px;margin-top:6px">이번달 1개월간 HUNTER 100% + 부스터 +100%</div></div>';
+      }else{
+        h+='<div style="padding:12px;background:#0a0a14;border-radius:10px;text-align:center">';
+        h+='<div style="color:var(--dim);font-size:11px">대기 중</div>';
+        h+='<div style="color:var(--gold);font-size:14px;font-weight:700;margin-top:4px">전월 '+boss.prevKey+' '+boss.prevRet.toFixed(1)+'%</div>';
+        h+='<div style="color:var(--dim);font-size:11px;margin-top:4px">트리거: 월 < -20%</div></div>';
+      }
+    }else{
+      h+='<div style="padding:12px;background:#0a0a14;border-radius:10px;text-align:center;color:var(--dim);font-size:13px">데이터 없음 (일지 갱신 필요)</div>';
+    }
+    h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:var(--gold);font-weight:700;padding:6px">💡 룰 설명</summary>';
+    h+='<div style="margin-top:8px;padding:10px;background:#0a0a14;border-radius:8px;font-size:11px;line-height:1.8;color:var(--text)">';
+    h+='1. 매월 1일 전월 SOXL 월간 수익률 체크<br>';
+    h+='2. 전월 < <b style="color:var(--red)">-20%</b> → 이번달 HUNTER 100% + 부스터 +100% (2배)<br>';
+    h+='3. 전월 >= -20% → 비중조절 자동 적용<br><br>';
+    h+='<b style="color:var(--gold)">5년 백테:</b> +4,888% (50배)<br>';
+    h+='<b style="color:var(--red)">MDD:</b> -51.7%<br>';
+    h+='<b style="color:#22c55e">승률:</b> 80% (10회 중 8회)';
+    h+='</div></details></div>';
+    
+    // 비중조절 카드
+    const hybrid=p.hybrid;
+    const curWeight=p.virtualWeight||1.0;
+    h+='<div class="card" style="border:2px solid var(--accent)"><div class="ct" style="color:var(--accent)">⚙️ 비중조절 자동 (V자 안전)</div>';
+    
+    if(hybrid&&hybrid.weight!==undefined){
+      const wc=hybrid.weight>=1.0?'#22c55e':(hybrid.weight>=0.9?'#84cc16':(hybrid.weight>=0.6?'#fbbf24':(hybrid.weight>=0.4?'#f97316':'#ef4444')));
+      h+='<div style="padding:12px;background:#0a0a14;border-radius:10px;margin-bottom:10px;text-align:center">';
+      h+='<div style="font-size:11px;color:var(--dim);margin-bottom:4px">현재 시장 상태</div>';
+      h+='<div style="font-size:14px;font-weight:800;color:'+wc+';margin-bottom:4px">'+hybrid.trendLabel+'</div>';
+      h+='<div style="font-size:11px;color:var(--dim);font-family:\'JetBrains Mono\',monospace">trend '+(hybrid.trend>=0?'+':'')+hybrid.trend.toFixed(1)+'% · gap '+(hybrid.gap>=0?'+':'')+hybrid.gap.toFixed(1)+'%</div>';
+      h+='<div style="font-size:11px;color:var(--dim);font-family:\'JetBrains Mono\',monospace;margin-top:2px">50MA $'+hybrid.ma50.toFixed(2)+' · 200MA $'+hybrid.ma200.toFixed(2)+'</div></div>';
+      
+      h+='<div style="padding:18px;background:rgba(59,130,246,0.08);border:2px solid '+wc+';border-radius:10px;text-align:center;margin-bottom:10px">';
+      h+='<div style="font-size:12px;color:var(--dim);margin-bottom:6px">🎯 추천 매수 비중</div>';
+      h+='<div style="font-size:42px;font-weight:800;font-family:\'JetBrains Mono\',monospace;color:'+wc+'">'+(hybrid.weight*100).toFixed(0)+'%</div>';
+      h+='<div style="font-size:11px;color:var(--dim);margin-top:4px">부스트: X (V자 안전)</div></div>';
+      
+      const isMatch=Math.abs(curWeight-hybrid.weight)<0.001;
+      if(!isMatch){
+        h+='<button class="btn btn-b" onclick="setVirtualWeight('+hybrid.weight+')">✨ 비중조절 적용 ('+(hybrid.weight*100).toFixed(0)+'%)</button>';
+        h+='<div style="font-size:11px;color:var(--dim);text-align:center;margin-top:6px">현재 설정: <b>'+(curWeight*100).toFixed(0)+'%</b></div>';
+      }else{
+        h+='<div style="padding:10px;background:#0a1a0a;border-radius:8px;text-align:center;color:var(--green);font-size:13px;font-weight:700">✅ 자동 비중 적용 중</div>';
+      }
+    }else{
+      h+='<div style="padding:14px;background:#0a0a14;border-radius:8px;text-align:center;color:var(--dim);font-size:13px;margin-bottom:10px">데이터 없음<br><small>일지 갱신 또는 아래 버튼으로 가져오기</small></div>';
+    }
+    
+    h+='<button class="btn btn-fetch" style="margin-top:8px" onclick="autoUpdateRsi()">🔄 야후에서 자동 가져오기 + 적용</button>';
+    
+    // 수동 비중
+    h+='<div style="margin-top:14px;padding:12px;background:#0a0a14;border-radius:10px">';
+    h+='<div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:8px">🎯 수동 비중 선택 (자동 무시)</div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">';
+    const ws=[0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0];
+    const cs=['#ef4444','#f97316','#3b82f6','#fbbf24','#84cc16','#84cc16','#22c55e','#22c55e'];
+    for(let i=0;i<ws.length;i++){
+      const sel=Math.abs(curWeight-ws[i])<0.001;
+      h+='<button onclick="setVirtualWeight('+ws[i]+')" style="padding:10px 4px;border-radius:8px;font-weight:800;cursor:pointer;font-size:13px;border:1px solid '+cs[i]+';background:'+(sel?cs[i]:'transparent')+';color:'+(sel?'#000':cs[i])+'">'+(ws[i]*100).toFixed(0)+'%</button>';
+    }
+    h+='</div><div style="font-size:10px;color:var(--dim);margin-top:6px;text-align:center">현재: <b style="color:var(--gold)">'+(curWeight*100).toFixed(0)+'%</b></div></div>';
+    
+    // 6단계 룰 설명
+    h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:var(--accent);font-weight:700;padding:6px">💡 6단계 룰</summary>';
+    h+='<div style="margin-top:8px;padding:10px;background:#0a0a14;border-radius:8px;font-size:11px;line-height:1.8">';
+    h+='<b style="color:#22c55e">🟢 강세 강</b> (trend>5% + gap>0): 100%<br>';
+    h+='<b style="color:#84cc16">🟢 강세 약</b> (trend>0%): 90%<br>';
+    h+='<b style="color:#fbbf24">🟡 중립</b> (trend>-5%): 60%<br>';
+    h+='<b style="color:#f97316">🟠 약세</b> (trend>-10%): 40%<br>';
+    h+='<b style="color:#3b82f6">🔵 바닥 역발상</b> (gap&lt;-30%): 50%<br>';
+    h+='<b style="color:#ef4444">🔴 폭락</b> (else): 30%</div></details>';
+    h+='</div>';
+    
     h+='<div class="card"><div class="ct">📅 매매일지 시작일</div><div class="ir"><label>시작일</label><input type="date" id="start-date-in" value="'+(p.startDate||td())+'" max="'+td()+'" onchange="setStartDate()"><span class="u">📅</span></div><div class="note">시작일 변경 시 일지 다시 갱신 필요</div></div>';
     h+='<div class="card"><div class="ct">💵 시드 재설정</div><button class="btn btn-g" onclick="promptSeedReset()">시드 변경</button></div>';
     h+='<div class="card"><div class="danger-zone"><div class="title">⚠️ 위험 영역</div><div style="color:var(--dim);font-size:13px;margin-bottom:8px">'+activeSymbol+' 데이터 초기화 (시드/일지/티어/기록 모두)</div><button class="btn btn-r" onclick="confirmFullReset()">💀 '+activeSymbol+' 초기화</button></div></div>';
