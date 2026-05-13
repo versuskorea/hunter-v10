@@ -115,7 +115,6 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 <div class="tabs">
   <button class="tab on" id="tab-d" onclick="sw('d')">📋 주문</button>
   <button class="tab" id="tab-t" onclick="sw('t')">📦 보유</button>
-  <button class="tab" id="tab-r" onclick="sw('r')">🎯 떨사</button>
   <button class="tab" id="tab-s" onclick="sw('s')">⚙️ 설정</button>
   <button class="tab" id="tab-h" onclick="sw('h')">📜 기록</button>
 </div>
@@ -377,7 +376,7 @@ async function buildDiary(){
   }catch(e){alert('실패: '+e.message);}
 }
 function setStartDate(){const dateEl=$('start-date-in');if(!dateEl)return;curPort().startDate=dateEl.value;save();render();}
-function sw(t){tab=t;document.querySelectorAll('.tab').forEach((b,i)=>{b.classList.toggle('on',['d','t','r','s','h'][i]===t);});render();}
+function sw(t){tab=t;document.querySelectorAll('.tab').forEach((b,i)=>{b.classList.toggle('on',['d','t','s','h'][i]===t);});render();}
 function renderZones(){const z=getZone();['top','mid','bot'].forEach(x=>{const el=$('zbox-'+x);el.className=(x===z)?'zone-box on-'+x:'zone-box';});}
 function render(){
   renderTickers();renderZones();
@@ -558,9 +557,6 @@ function render(){
       h+='<button class="btn btn-s" onclick="promptBulkSell()" style="margin-top:0">🔥 전체 '+p.pos.length+'개 티어 한번에 매도</button>';
       h+='<div class="note" style="margin-top:6px">⚠️ 모든 티어 같은 가격에 매도 (사이클 종료용)</div></div>';
     }
-  }
-  if(tab==='r'){
-    h+='<div class="card"><div class="ct">🎯 떨사</div><div class="note">곧 추가됩니다</div></div>';
   }
   if(tab==='s'){
     h+='<div class="card"><div class="ct">⚙️ 기본 설정</div><div class="ir"><label>시드</label><input type="number" id="seed-in" value="'+p.seed+'" onchange="updSeed()"><span class="u">$</span></div><div class="note">시드 변경 시 유닛 크기도 함께 변경됨 ($시드/20)</div></div>';
