@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -214,7 +213,7 @@ function setSeed() {
 }
 
 function setClose() {
-  state.close = parseFloat(document.getElementById('closeIn').value) || 0;
+  state.close = parseFloat((parseFloat(document.getElementById('closeIn').value) || 0).toFixed(2));
   save(); render();
 }
 
@@ -247,7 +246,7 @@ async function fetchYahoo() {
     if (data.error || !data.bars || data.bars.length === 0) throw new Error('데이터 없음');
     
     const lastBar = data.bars[data.bars.length - 1];
-    state.close = lastBar.close;
+    state.close = parseFloat(lastBar.close.toFixed(2));
     save();
     render();
     status.innerText = '✅ ' + lastBar.date + ' 종가 $' + lastBar.close.toFixed(2);
@@ -396,7 +395,7 @@ function bizDaysFromToday(start) {
 
 function render() {
   document.getElementById('seedIn').value = state.seed;
-  document.getElementById('closeIn').value = state.close;
+  document.getElementById('closeIn').value = state.close.toFixed(2);
   document.getElementById('proIn').value = state.pro;
   
   const pro = PROS[state.pro];
@@ -503,6 +502,5 @@ setTimeout(() => {
   }
 }, 500);
 </script>
-
 </body>
 </html>
