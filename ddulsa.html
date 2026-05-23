@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>떨사오팔 Pro 매매 v4</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root { --bg:#0a0e14; --bg2:#11161e; --panel:#161c26; --line:#1f2937; --txt:#e5e7eb; --dim:#6b7280; --green:#10b981; --red:#ef4444; --yellow:#fbbf24; --blue:#3b82f6; --orange:#f97316; --purple:#a855f7; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:var(--bg); color:var(--txt); font-family:'Space Grotesk',sans-serif; padding:12px; min-height:100vh; }
+.container { max-width:1200px; margin:0 auto; }
+h1 { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
+.subtitle { color:var(--dim); font-size:12px; font-family:'JetBrains Mono',monospace; margin-bottom:16px; }
+.card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:12px; }
+.card-title { font-size:11px; text-transform:uppercase; letter-spacing:1.2px; color:var(--dim); margin-bottom:12px; font-weight:700; }
+.green { color:var(--green); } .red { color:var(--red); } .yellow { color:var(--yellow); } .blue { color:var(--blue); } .orange { color:var(--orange); } .purple { color:var(--purple); }
+.section-title { font-size:14px; font-weight:700; margin:20px 0 8px; padding-bottom:8px; border-bottom:2px solid var(--line); }
+.stage-badge { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:20px; font-size:13px; font-weight:700; font-family:'JetBrains Mono',monospace; }
+.stage-active { background:var(--green); color:#000; box-shadow:0 0 20px rgba(16,185,129,0.5); animation:pulse 2s infinite; }
+.stage-warning { background:var(--yellow); color:#000; }
+.stage-danger { background:var(--red); color:#fff; }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.7; } }
+.pro-selector { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.pro-btn { background:var(--bg2); border:2px solid var(--line); color:var(--txt); padding:14px; border-radius:8px; cursor:pointer; transition:all 0.15s; text-align:center; }
+.pro-btn:hover { border-color:var(--blue); transform:translateY(-1px); }
+.pro-btn.active { background:linear-gradient(135deg,var(--blue),var(--purple)); border-color:#fff; color:#fff; box-shadow:0 4px 20px rgba(59,130,246,0.4); }
+.pro-btn-name { font-size:16px; font-weight:700; font-family:'JetBrains Mono',monospace; margin-bottom:4px; }
+.pro-btn-desc { font-size:10px; opacity:0.8; }
+.btn-row { display:flex; gap:6px; flex-wrap:wrap; }
+.btn-row button { flex:1; min-width:60px; padding:10px; background:var(--bg2); border:1px solid var(--line); color:var(--txt); border-radius:6px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; transition:all 0.15s; }
+.btn-row button:hover { border-color:var(--blue); }
+.btn-row button.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+.trade-table { width:100%; border-collapse:collapse; margin-top:8px; }
+.trade-table th, .trade-table td { padding:10px 8px; text-align:right; border-bottom:1px solid var(--line); font-family:'JetBrains Mono',monospace; font-size:13px; }
+.trade-table th { background:var(--bg2); color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:1px; font-weight:700; }
+.trade-table td:first-child, .trade-table th:first-child { text-align:left; }
+.trade-table tr:hover { background:rgba(59,130,246,0.05); }
+.tier-cell { display:inline-block; padding:4px 10px; border-radius:4px; font-weight:700; font-size:11px; color:#000; }
+.tier-1 { background:#3b82f6; color:#fff; }
+.tier-2 { background:#06b6d4; }
+.tier-3 { background:#10b981; }
+.tier-4 { background:#fbbf24; }
+.tier-5 { background:#f97316; }
+.tier-6 { background:#ef4444; color:#fff; }
+.tier-7 { background:#6b7280; color:#fff; }
+.tier-bar { height:28px; display:flex; border-radius:6px; overflow:hidden; margin:8px 0; }
+.tier-seg { display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:'JetBrains Mono',monospace; color:#000; }
+.result-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.result-item { background:var(--bg2); padding:14px; border-radius:8px; text-align:center; }
+.result-label { font-size:10px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+.result-value { font-size:22px; font-weight:700; font-family:'JetBrains Mono',monospace; }
+.trade-guide { background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(168,85,247,0.15)); border:2px solid var(--blue); border-radius:10px; padding:16px; }
+.trade-num { font-size:32px; font-weight:700; font-family:'JetBrains Mono',monospace; color:var(--blue); line-height:1; }
+.seed-input { background:var(--bg2); border:1px solid var(--blue); color:var(--txt); padding:8px 12px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; width:120px; text-align:right; }
+#dateInfo { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--dim); }
+.boost-stages { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:8px; }
+.boost-stage { background:var(--bg2); padding:10px; border-radius:6px; text-align:center; border:2px solid transparent; transition:all 0.2s; }
+.boost-stage.current { border-color:var(--green); background:rgba(16,185,129,0.15); box-shadow:0 0 15px rgba(16,185,129,0.4); }
+.boost-stage-label { font-size:10px; color:var(--dim); margin-bottom:4px; }
+.boost-stage-val { font-size:16px; font-weight:700; font-family:'JetBrains Mono',monospace; color:var(--blue); }
+.boost-stage.current .boost-stage-val { color:var(--green); }
+.price-row { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:8px 12px; background:var(--bg2); border-radius:6px; margin-top:8px; }
+.refresh-btn { background:var(--blue); color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:700; font-family:'JetBrains Mono',monospace; }
+.refresh-btn:hover { background:#2563eb; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+    <h1>🎯 떨사오팔 Pro 매매 v4</h1>
+    <a href="/" style="background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:8px 14px; border-radius:6px; text-decoration:none; font-size:13px; font-weight:700; font-family:'JetBrains Mono',monospace;">🏠 홈</a>
+  </div>
+  <div class="subtitle">단계별 부스트 + 자동 100% + Yahoo 가격</div>
+  <div id="dateInfo"></div>
+</header>
+
+<!-- 오늘 단계 -->
+<div class="card">
+  <div class="card-title">📍 오늘 단계</div>
+  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+    <span class="stage-badge stage-active" id="stageBadge">로딩...</span>
+    <span style="font-size:12px; color:var(--dim);" id="stageNote"></span>
+  </div>
+  <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:14px;">
+    <div><div style="font-size:10px; color:var(--dim);">마지막 손실</div><div style="font-family:monospace; font-size:13px;" id="lastLoss">-</div></div>
+    <div><div style="font-size:10px; color:var(--dim);">경과</div><div style="font-family:monospace; font-size:13px;" id="daysSince">-</div></div>
+    <div><div style="font-size:10px; color:var(--dim);">예상 사이클 위치</div><div style="font-family:monospace; font-size:13px;" id="cyclePos">-</div></div>
+    <div><div style="font-size:10px; color:var(--dim);">90일 내 손실 확률</div><div style="font-family:monospace; font-size:13px;" id="riskProb">-</div></div>
+  </div>
+</div>
+
+<!-- SOXL 가격 -->
+<div class="card">
+  <div class="card-title">📈 SOXL 가격 (자동/수동)</div>
+  <div class="price-row">
+    <span style="font-family:monospace; font-size:14px; font-weight:700;">SOXL $</span>
+    <input type="number" id="manualPrice" placeholder="가격 직접 입력" step="0.01" min="0" style="background:var(--bg2); border:1px solid var(--blue); color:var(--green); padding:8px 12px; border-radius:6px; font-family:monospace; font-size:18px; font-weight:700; width:100%; text-align:center;">
+    <button class="refresh-btn" onclick="fetchPrice()">↻ Yahoo</button>
+  </div>
+  <div style="font-size:10px; color:var(--dim); margin-top:6px;" id="priceTime">가격 입력 또는 Yahoo 새로고침</div>
+</div>
+
+<!-- Pro 선택 -->
+<div class="section-title">⚙️ Pro 전략 선택</div>
+<div class="card">
+  <div class="pro-selector">
+    <button class="pro-btn" data-pro="Pro1">
+      <div class="pro-btn-name">Pro1</div>
+      <div class="pro-btn-desc">느림 / 안전<br>5/10/15/20/25/25</div>
+    </button>
+    <button class="pro-btn" data-pro="Pro2">
+      <div class="pro-btn-name">Pro2</div>
+      <div class="pro-btn-desc">균형<br>10/15/20/25/20/10</div>
+    </button>
+    <button class="pro-btn active" data-pro="Pro3">
+      <div class="pro-btn-name">Pro3</div>
+      <div class="pro-btn-desc">빠름 / 균등<br>16.67 × 6</div>
+    </button>
+  </div>
+</div>
+
+<!-- 부스트 N -->
+<div class="card">
+  <div class="card-title">📊 부스트 설정</div>
+  <div style="margin-bottom:14px;">
+    <div style="font-size:11px; color:var(--dim); margin-bottom:6px;">N 사이클</div>
+    <div class="btn-row" id="nSelector">
+      <button data-n="0">단독</button>
+      <button data-n="10">N=10</button>
+      <button class="active" data-n="20">N=20</button>
+      <button data-n="30">N=30</button>
+    </div>
+  </div>
+  
+  <div style="margin-bottom:14px;">
+    <div style="font-size:11px; color:var(--dim); margin-bottom:6px;">최강 부스트 강도 (사이클 1~25%)</div>
+    <div class="btn-row" id="strengthSelector">
+      <button data-strength="solo">단독 ×1</button>
+      <button data-strength="safe">안전 ×1.5</button>
+      <button class="active" data-strength="balance">균형 ×2</button>
+      <button data-strength="aggressive">공격 ×2.5</button>
+      <button data-strength="extreme">극공격 ×3</button>
+    </div>
+  </div>
+  
+  <!-- 100% 채우기 토글 -->
+  <div style="margin-bottom:14px; padding:10px; background:var(--bg2); border-radius:6px;">
+    <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+      <input type="checkbox" id="fillToggle" style="width:18px; height:18px; cursor:pointer; accent-color:var(--blue);">
+      <div>
+        <div style="font-size:13px; font-weight:700;">🎯 자본 100% 채우기 (자동 보정)</div>
+        <div style="font-size:10px; color:var(--dim); margin-top:2px;">합계 100% 미만 시 가중치 자동 스케일링 (Pro1/Pro2 부족분 보정)</div>
+      </div>
+    </label>
+  </div>
+  
+  <!-- 단계별 부스트 시각화 -->
+  <div>
+    <div style="font-size:11px; color:var(--dim); margin-bottom:6px;">N 단계별 부스트 (오늘 위치 자동 표시)</div>
+    <div class="boost-stages" id="boostStages"></div>
+  </div>
+</div>
+
+<!-- 매매표 -->
+<div class="section-title">🎯 오늘 매매 비중표</div>
+<div class="card">
+  <table class="trade-table">
+    <thead>
+      <tr>
+        <th>티어</th>
+        <th>기본 %</th>
+        <th>오늘 가중치</th>
+        <th>실제 매매 %</th>
+      </tr>
+    </thead>
+    <tbody id="tradeTable"></tbody>
+    <tfoot>
+      <tr style="background:var(--bg2); font-weight:700;">
+        <td>합계</td>
+        <td>100%</td>
+        <td>-</td>
+        <td id="totalPct">-</td>
+      </tr>
+    </tfoot>
+  </table>
+  <div style="margin-top:12px;">
+    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+      <span style="font-size:11px; color:var(--dim);">자본 사용</span>
+      <span style="font-family:monospace; font-size:12px;" id="capStatus">100%</span>
+    </div>
+    <div class="tier-bar" id="capitalBar"></div>
+    <div style="font-size:11px; margin-top:6px;" id="capitalWarning"></div>
+  </div>
+</div>
+
+<!-- 실매매 -->
+<div class="section-title">💰 실매매 금액 + 주식 수</div>
+<div class="card">
+  <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+    <span style="font-size:13px;">시드:</span>
+    <input type="number" class="seed-input" id="seedInput" placeholder="0" min="0" step="100">
+    <select id="seedUnit" style="background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:8px 12px; border-radius:6px; font-family:monospace; font-size:13px;">
+      <option value="dollar" selected>달러</option>
+      <option value="100000000">억원</option>
+      <option value="10000">만원</option>
+    </select>
+    <span style="font-size:11px; color:var(--dim);" id="seedHint">시드 입력 시 금액/주식수 표시</span>
+  </div>
+  <table class="trade-table" id="amountTable" style="display:none;">
+    <thead>
+      <tr>
+        <th>티어</th>
+        <th>매매 %</th>
+        <th>금액</th>
+        <th>주식 수 (SOXL)</th>
+      </tr>
+    </thead>
+    <tbody id="amountBody"></tbody>
+    <tfoot>
+      <tr style="background:var(--bg2); font-weight:700;">
+        <td>합계</td>
+        <td id="amtTotalPct">-</td>
+        <td id="amtTotal">-</td>
+        <td id="amtTotalShares">-</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<!-- 매매 가이드 -->
+<div class="section-title">📍 오늘 LOC 주문 가이드</div>
+<div class="trade-guide">
+  <div id="todayGuide" style="font-family:monospace; font-size:13px; line-height:1.8;">로딩...</div>
+</div>
+
+<!-- 백테 결과 -->
+<div class="section-title">📈 백테 결과 (234 사이클 / 6.4년)</div>
+<div class="card">
+  <div class="result-grid">
+    <div class="result-item"><div class="result-label">CAGR</div><div class="result-value green" id="resCagr">+62%</div></div>
+    <div class="result-item"><div class="result-label">6.4년 배수</div><div class="result-value blue" id="resMult">22배</div></div>
+    <div class="result-item"><div class="result-label">코로나 MDD</div><div class="result-value red" id="resMdd">-30%</div></div>
+  </div>
+  <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--line);">
+    <div id="backtestDetail" style="font-family:monospace; font-size:12px; line-height:1.7;"></div>
+  </div>
+</div>
+
+<!-- 손실 히스토리 -->
+<div class="section-title">📅 손실 사이클 (13개)</div>
+<div class="card">
+  <div id="lossList" style="max-height:280px; overflow-y:auto; font-family:monospace; font-size:12px;"></div>
+</div>
+
+<div style="text-align:center; color:var(--dim); font-size:10px; margin:24px 0 12px;">
+  떨사오팔 Pro v4 / 234 사이클 / 단계별 부스트 + Yahoo 가격
+</div>
+
+</div>
+
+<script>
+const lossCycles = [
+  { date:'2020-03-26', ret:-23.16, label:'코로나' },
+  { date:'2020-11-04', ret:-16.57, label:'대선' },
+  { date:'2021-08-25', ret:-4.17, label:'단기' },
+  { date:'2021-10-14', ret:-5.20, label:'단기' },
+  { date:'2022-05-04', ret:-0.38, label:'약세장' },
+  { date:'2022-07-15', ret:-5.22, label:'약세장' },
+  { date:'2022-09-14', ret:-8.80, label:'인플레' },
+  { date:'2023-05-08', ret:-7.90, label:'은행위기' },
+  { date:'2023-10-06', ret:-12.32, label:'AI조정' },
+  { date:'2024-12-02', ret:-4.11, label:'연말' },
+  { date:'2025-02-13', ret:-2.36, label:'단기' },
+  { date:'2025-03-12', ret:-1.26, label:'단기' },
+  { date:'2026-02-25', ret:-2.40, label:'단기' }
+];
+
+const PRO_BASE = {
+  Pro1: [5, 10, 15, 20, 25, 25],
+  Pro2: [10, 15, 20, 25, 20, 10],
+  Pro3: [16.67, 16.67, 16.67, 16.67, 16.67, 16.67]
+};
+
+// 최강 부스트 가중치 (단계 1 적용)
+const MAX_STRENGTH = {
+  solo:       [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+  safe:       [1.5, 1.3, 1.1, 1.0, 0.9, 0.6, 0],
+  balance:    [2.0, 1.5, 1.2, 0.6, 0.5, 0.4, 0],
+  aggressive: [2.5, 1.5, 1.0, 0.3, 0.3, 0.3, 0],
+  extreme:    [3.0, 2.0, 1.5, 0.3, 0.3, 0.3, 0]
+};
+
+// 단계별 강도 비율 (1~4단계)
+const STAGE_STRENGTH = [1.0, 0.7, 0.4, 0.1];
+
+const CYCLES_DATA = [
+  [1.15,2],[0.64,1],[0.79,1],[0.39,1],[4.66,4],[1.77,2],[-23.16,5],[1.50,1],[8.01,2],[1.67,1],
+  [0.56,1],[1.12,1],[1.45,2],[0.30,1],[0.70,1],[1.30,2],[4.24,3],[0.14,1],[0.70,1],[0.63,1],
+  [2.51,3],[0.67,1],[4.24,3],[3.96,3],[0.58,1],[4.36,4],[0.90,2],[0.56,3],[0.91,1],[0.93,1],
+  [3.24,6],[0.88,1],[0.30,1],[-16.57,7],[2.77,2],[1.13,2],[0.44,1],[0.56,1],[1.94,3],[4.41,6],
+  [0.56,1],[1.82,1],[1.58,1],[0.21,1],[0.02,1],[4.38,2],[1.11,1],[1.43,2],[2.59,2],[0.95,1],
+  [7.96,3],[0.45,1],[4.14,2],[2.31,2],[0.31,1],[1.63,1],[1.15,1],[0.36,1],[0.32,1],[0.76,3],
+  [0.31,2],[0.33,1],[1.20,1],[0.20,7],[-4.17,7],[0.97,1],[1.73,3],[1.21,2],[-5.20,7],[0.31,1],
+  [0.37,1],[1.83,2],[2.45,2],[0.87,1],[0.90,2],[1.74,1],[8.84,4],[7.94,4],[0.03,1],[1.41,2],
+  [0.32,4],[2.56,2],[8.33,6],[3.57,2],[1.40,1],[-0.38,7],[7.20,3],[1.13,3],[1.27,2],[0.41,2],
+  [-5.22,5],[2.24,1],[3.08,3],[0.40,1],[-8.80,7],[0.47,1],[5.05,6],[0.10,5],[1.35,2],[0.32,1],
+  [1.74,2],[1.39,1],[0.83,1],[0.09,1],[0.40,1],[6.56,3],[2.91,7],[1.29,1],[2.66,2],[0.54,1],
+  [2.79,2],[1.69,2],[1.04,2],[3.74,4],[3.06,3],[1.90,1],[0.49,1],[1.25,1],[2.18,3],[-7.90,7],
+  [0.13,1],[1.14,2],[1.20,1],[6.59,3],[0.74,1],[3.00,2],[5.29,5],[2.21,3],[0.67,1],[2.19,2],
+  [1.05,1],[0.93,3],[-12.32,7],[0.17,1],[0.20,1],[1.89,5],[0.38,1],[1.18,1],[1.03,1],[5.09,5],
+  [2.19,2],[4.46,5],[3.68,3],[7.83,4],[0.25,1],[1.52,2],[1.13,1],[5.18,6],[1.90,4],[1.23,2],
+  [0.01,1],[0.44,1],[0.83,2],[0.14,1],[0.27,1],[5.60,4],[1.11,2],[0.42,1],[3.62,4],[0.67,1],
+  [0.47,1],[2.26,2],[10.82,4],[0.78,1],[0.66,1],[1.15,1],[0.46,1],[0.99,2],[2.76,3],[0.84,1],
+  [2.74,2],[0.72,1],[0.87,3],[0.36,1],[0.30,1],[3.64,3],[1.88,2],[-4.11,6],[0.19,1],[0.08,1],
+  [3.28,2],[6.32,4],[4.20,4],[-2.36,4],[-1.26,3],[1.56,1],[0.36,1],[2.32,2],[3.11,5],[4.29,3],
+  [3.39,2],[1.58,2],[2.23,7],[1.55,1],[4.42,3],[1.17,2],[0.53,1],[2.53,3],[2.54,3],[0.93,1],
+  [3.85,4],[1.87,3],[1.04,1],[0.70,1],[3.02,3],[0.89,1],[0.95,1],[5.42,3],[0.24,1],[0.83,1],
+  [1.94,2],[0.70,1],[4.32,4],[0.48,1],[0.65,1],[5.84,5],[1.88,2],[0.80,1],[1.52,1],[2.03,2],
+  [0.48,1],[2.53,3],[0.74,1],[0.36,1],[0.30,1],[0.28,1],[0.66,2],[-2.40,5],[1.49,2],[2.90,3],
+  [1.30,2],[0.63,1],[1.49,3],[0.61,1]
+];
+
+let currentPro = 'Pro3';
+let currentN = 20;
+let currentStrength = 'balance';
+let soxlPrice = 0;
+
+function daysBetween(d1, d2) { return Math.round((new Date(d2) - new Date(d1)) / (1000*60*60*24)); }
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+
+// 오늘 사이클 위치 계산 (마지막 손실 후 며칠 / 7일 = N번째 사이클)
+function getTodayCyclePos() {
+  const lastLoss = lossCycles[lossCycles.length - 1];
+  const days = daysBetween(lastLoss.date, todayStr());
+  // 1 사이클 ≈ 7일 가정
+  return Math.max(1, Math.round(days / 7));
+}
+
+// 현재 단계 (1~4) 계산
+function getCurrentStage() {
+  if (currentN === 0) return 0; // 단독
+  const pos = getTodayCyclePos();
+  if (pos > currentN) return 0; // 부스트 비활성
+  const ratio = pos / currentN;
+  if (ratio <= 0.25) return 1;
+  else if (ratio <= 0.50) return 2;
+  else if (ratio <= 0.75) return 3;
+  else return 4;
+}
+
+// 오늘 가중치 (단계별 감소 적용)
+function getTodayWeights() {
+  const stage = getCurrentStage();
+  let weights;
+  
+  if (stage === 0) {
+    weights = [1,1,1,1,1,1,1]; // 단독
+  } else {
+    const maxW = MAX_STRENGTH[currentStrength];
+    const ratio = STAGE_STRENGTH[stage - 1];
+    weights = maxW.map(w => {
+      if (w === 0) return 0; // 7티어 매수 X
+      return 1 + (w - 1) * ratio;
+    });
+  }
+  
+  // 100% 채우기 토글 적용
+  const fillToggle = document.getElementById('fillToggle');
+  if (fillToggle && fillToggle.checked) {
+    const base = PRO_BASE[currentPro];
+    let total = 0;
+    for (let i = 0; i < 6; i++) total += base[i] * weights[i];
+    if (total > 0 && total < 100) {
+      const scale = 100 / total;
+      weights = weights.map((w, i) => i < 6 ? w * scale : w);
+    }
+  }
+  
+  return weights;
+}
+
+function getActualPercents(weights) {
+  const base = PRO_BASE[currentPro];
+  const actuals = [];
+  for (let i = 0; i < 6; i++) actuals.push(base[i] * weights[i]);
+  return actuals;
+}
+
+function calculateStage() {
+  const today = todayStr();
+  const lastLoss = lossCycles[lossCycles.length - 1];
+  const daysSince = daysBetween(lastLoss.date, today);
+  let stage, color, note;
+  if (daysSince <= 30) { stage = '🔵 회복기 (0-1개월)'; color = 'stage-active'; note = '손실 직후 부스트 최강'; }
+  else if (daysSince <= 60) { stage = '🟢 안전 (1-2개월)'; color = 'stage-active'; note = '손실 재발 8%'; }
+  else if (daysSince <= 90) { stage = '🟢 안전 (2-3개월)'; color = 'stage-active'; note = '손실 재발 17%'; }
+  else if (daysSince <= 150) { stage = '🟢 최적 (3-5개월)'; color = 'stage-active'; note = '역사적 손실 0%! 풀가동'; }
+  else if (daysSince <= 180) { stage = '🟡 주의 (5-6개월)'; color = 'stage-warning'; note = '평균 도달, 손실 50%'; }
+  else if (daysSince <= 240) { stage = '🟡 경계 (6-8개월)'; color = 'stage-warning'; note = '손실 임박 75%'; }
+  else { stage = '🔴 위험 (8개월+)'; color = 'stage-danger'; note = '손실 매우 임박'; }
+  return { stage, color, note, daysSince, lastLoss };
+}
+
+function getRiskProb(daysSince, futureDays) {
+  const intervals = [223, 294, 50, 202, 72, 61, 236, 151, 423, 73, 27, 350];
+  const target = daysSince + futureDays;
+  const survived = intervals.filter(d => d > daysSince).length;
+  const occur = intervals.filter(d => d <= target && d > daysSince).length;
+  return survived > 0 ? (occur / survived * 100) : 0;
+}
+
+// 백테 - 단계별 가중치 적용
+function runBacktest() {
+  const maxW = MAX_STRENGTH[currentStrength];
+  const base = PRO_BASE[currentPro];
+  let cap = 10000;
+  let cyclesSinceLoss = 999;
+  let peak = cap;
+  let mdd = 0;
+  let winCycles = 0;
+  let lossCount = 0;
+  let boostActive = 0;
+  
+  for (const [ret, maxTier] of CYCLES_DATA) {
+    if (ret > 0) winCycles++;
+    if (ret < 0) lossCount++;
+    
+    const pos = cyclesSinceLoss;
+    let isBoosted = false;
+    let stageRatio = 0;
+    
+    if (currentN > 0 && pos > 0 && pos <= currentN) {
+      isBoosted = true;
+      boostActive++;
+      const r = pos / currentN;
+      if (r <= 0.25) stageRatio = STAGE_STRENGTH[0];
+      else if (r <= 0.50) stageRatio = STAGE_STRENGTH[1];
+      else if (r <= 0.75) stageRatio = STAGE_STRENGTH[2];
+      else stageRatio = STAGE_STRENGTH[3];
+    }
+    
+    if (isBoosted) {
+      // 단계별 가중치
+      const w = maxW.map(mw => mw === 0 ? 0 : 1 + (mw - 1) * stageRatio);
+      let baseSum = 0;
+      let weightedSum = 0;
+      const tierLimit = Math.min(maxTier, 6);
+      for (let t = 1; t <= tierLimit; t++) {
+        baseSum += base[t-1];
+        weightedSum += base[t-1] * w[t-1];
+      }
+      const cappedSum = Math.min(weightedSum, 100);
+      if (ret >= 0) {
+        const mult = baseSum > 0 ? cappedSum / baseSum : 1;
+        cap *= (1 + ret/100 * mult);
+      } else {
+        const tier1W = w[0];
+        const lossMult = 1 + (tier1W - 1) * 0.8;
+        cap *= (1 + ret/100 * lossMult);
+      }
+    } else {
+      cap *= (1 + ret/100);
+    }
+    
+    if (cap > peak) peak = cap;
+    const dd = (cap - peak) / peak * 100;
+    if (dd < mdd) mdd = dd;
+    
+    if (ret < 0) cyclesSinceLoss = 0;
+    else cyclesSinceLoss++;
+  }
+  
+  const mult = cap / 10000;
+  const cagr = (Math.pow(mult, 1/6.4) - 1) * 100;
+  return { cap, mult, cagr, mdd, totalCycles: CYCLES_DATA.length, winCycles, lossCount, winRate: (winCycles/CYCLES_DATA.length*100), boostActive, boostActivePct: (boostActive/CYCLES_DATA.length*100) };
+}
+
+function predictCoronaMDD() {
+  const maxW = MAX_STRENGTH[currentStrength];
+  return -30.54 * (1 + (maxW[0] - 1) * 0.8);
+}
+
+// Yahoo Finance 가격 (CORS 우회 - public API)
+async function fetchPrice() {
+  document.getElementById('soxlPrice').textContent = '불러오는 중...';
+  try {
+    // Yahoo Finance API (간접)
+    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/SOXL?interval=1m&range=1d';
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    const res = await fetch(proxyUrl);
+    const data = await res.json();
+    const price = data.chart.result[0].meta.regularMarketPrice;
+    soxlPrice = price;
+    document.getElementById('soxlPrice').textContent = `$${price.toFixed(2)}`;
+    document.getElementById('priceTime').textContent = `업데이트: ${new Date().toLocaleTimeString('ko-KR')}`;
+    updateAmountTable();
+  } catch (e) {
+    document.getElementById('soxlPrice').textContent = '실패 - 직접 입력 가능';
+    document.getElementById('priceTime').innerHTML = '<input type="number" id="manualPrice" placeholder="가격 입력" style="background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:4px 8px; border-radius:4px; width:100px; font-family:monospace;" onchange="soxlPrice=parseFloat(this.value); document.getElementById(\'soxlPrice\').textContent=\'$\'+this.value; updateAmountTable();">';
+  }
+}
+
+function updateStage() {
+  const s = calculateStage();
+  const badge = document.getElementById('stageBadge');
+  badge.textContent = s.stage;
+  badge.className = 'stage-badge ' + s.color;
+  document.getElementById('stageNote').textContent = s.note;
+  document.getElementById('lastLoss').textContent = `${s.lastLoss.date} (${s.lastLoss.ret.toFixed(2)}%, ${s.lastLoss.label})`;
+  document.getElementById('daysSince').textContent = `${s.daysSince}일 (${(s.daysSince/30).toFixed(1)}개월)`;
+  
+  const pos = getTodayCyclePos();
+  document.getElementById('cyclePos').textContent = `~${pos}번째 사이클`;
+  document.getElementById('riskProb').textContent = `${getRiskProb(s.daysSince, 90).toFixed(0)}%`;
+}
+
+function updateBoostStages() {
+  const container = document.getElementById('boostStages');
+  const stage = getCurrentStage();
+  const maxW = MAX_STRENGTH[currentStrength];
+  
+  container.innerHTML = '';
+  const labels = ['1단계 (1~25%)', '2단계 (25~50%)', '3단계 (50~75%)', '4단계 (75~100%)'];
+  
+  for (let i = 0; i < 4; i++) {
+    const isCurrent = stage === (i + 1);
+    const ratio = STAGE_STRENGTH[i];
+    const tier1W = maxW[0] === 1 ? 1 : (1 + (maxW[0] - 1) * ratio);
+    
+    container.innerHTML += `<div class="boost-stage${isCurrent ? ' current' : ''}">
+      <div class="boost-stage-label">${labels[i]}</div>
+      <div class="boost-stage-val">×${tier1W.toFixed(1)}</div>
+      ${isCurrent ? '<div style="font-size:9px; color:var(--green); margin-top:2px;">▼ 오늘</div>' : ''}
+    </div>`;
+  }
+  
+  if (stage === 0) {
+    container.innerHTML = `<div style="grid-column:span 4; padding:20px; text-align:center; background:var(--bg2); border-radius:6px; color:var(--dim);">
+      ${currentN === 0 ? '단독 모드 (부스트 X)' : '부스트 비활성 (N=' + currentN + ' 초과)'}
+    </div>`;
+  }
+}
+
+function updateTradeTable() {
+  const base = PRO_BASE[currentPro];
+  const w = getTodayWeights();
+  const actuals = getActualPercents(w);
+  const tbody = document.getElementById('tradeTable');
+  
+  tbody.innerHTML = '';
+  let totalActual = 0;
+  
+  for (let i = 0; i < 6; i++) {
+    const tier = i + 1;
+    const baseP = base[i];
+    const weight = w[i];
+    let actual = actuals[i];
+    let capped = actual;
+    if (totalActual + actual > 100) capped = Math.max(0, 100 - totalActual);
+    totalActual += capped;
+    const capWarning = actual !== capped ? '⚠️' : '';
+    const weightDisplay = `×${weight.toFixed(2)}`;
+    tbody.innerHTML += `<tr><td><span class="tier-cell tier-${tier}">${tier}티어</span></td><td>${baseP.toFixed(1)}%</td><td style="color:var(--blue);">${weightDisplay}</td><td style="font-weight:700;">${capped.toFixed(1)}% ${capWarning}</td></tr>`;
+  }
+  if (w[6] === 0) {
+    tbody.innerHTML += `<tr style="opacity:0.5;"><td><span class="tier-cell tier-7">7티어</span></td><td>-</td><td style="color:var(--red);">매수 X</td><td>0%</td></tr>`;
+  }
+  
+  document.getElementById('totalPct').textContent = `${totalActual.toFixed(1)}%`;
+  
+  const capBar = document.getElementById('capitalBar');
+  const colors = ['#3b82f6', '#06b6d4', '#10b981', '#fbbf24', '#f97316', '#ef4444'];
+  capBar.innerHTML = '';
+  let shown = 0;
+  for (let i = 0; i < 6; i++) {
+    const segW = actuals[i];
+    if (segW > 0 && shown < 100) {
+      const displayed = Math.min(segW, 100 - shown);
+      capBar.innerHTML += `<div class="tier-seg" style="width:${displayed}%; background:${colors[i]};">${i+1}T</div>`;
+      shown += displayed;
+    }
+  }
+  
+  const rawTotal = actuals.reduce((s, x) => s + x, 0);
+  document.getElementById('capStatus').textContent = `${rawTotal.toFixed(1)}%`;
+  const warning = document.getElementById('capitalWarning');
+  if (rawTotal > 110) warning.innerHTML = `⚠️ <span class="red">자본 ${(rawTotal-100).toFixed(0)}% 초과 (4-6티어 일부 매수 X)</span>`;
+  else if (rawTotal > 100) warning.innerHTML = `⚠️ <span class="yellow">자본 ${(rawTotal-100).toFixed(0)}% 살짝 초과</span>`;
+  else if (rawTotal >= 95) warning.innerHTML = `✅ <span class="green">자본 ${rawTotal.toFixed(0)}% 사용 (적정)</span>`;
+  else warning.innerHTML = `📊 <span style="color:var(--dim);">자본 ${rawTotal.toFixed(0)}% 사용 (여유 ${(100-rawTotal).toFixed(0)}%)</span>`;
+}
+
+function updateAmountTable() {
+  const seedRaw = parseFloat(document.getElementById('seedInput').value);
+  const unit = document.getElementById('seedUnit').value;
+  const table = document.getElementById('amountTable');
+  const hint = document.getElementById('seedHint');
+  
+  if (!seedRaw || seedRaw <= 0) {
+    table.style.display = 'none';
+    hint.textContent = '시드 입력 시 금액/주식수 표시';
+    return;
+  }
+  
+  let seedDollar, displayUnit;
+  if (unit === 'dollar') {
+    seedDollar = seedRaw;
+    displayUnit = '$';
+  } else if (unit === '100000000') {
+    seedDollar = seedRaw * 100000000 / 1370;  // 1370원 = $1 가정
+    displayUnit = '원';
+  } else {
+    seedDollar = seedRaw * parseFloat(unit) / 1370;
+    displayUnit = '원';
+  }
+  
+  table.style.display = 'table';
+  hint.textContent = `시드: ${displayUnit === '$' ? '$'+seedRaw.toLocaleString() : seedRaw.toLocaleString()+displayUnit} (≈ $${seedDollar.toFixed(0)})`;
+  
+  const w = getTodayWeights();
+  const actuals = getActualPercents(w);
+  const tbody = document.getElementById('amountBody');
+  tbody.innerHTML = '';
+  
+  let totalPct = 0;
+  let totalAmt = 0;
+  let totalShares = 0;
+  
+  for (let i = 0; i < 6; i++) {
+    let actual = actuals[i];
+    let capped = actual;
+    if (totalPct + actual > 100) capped = Math.max(0, 100 - totalPct);
+    const amount = seedDollar * capped / 100;
+    const shares = soxlPrice > 0 ? Math.floor(amount / soxlPrice) : 0;
+    totalPct += capped;
+    totalAmt += amount;
+    totalShares += shares;
+    const tier = i + 1;
+    const sharesDisplay = soxlPrice > 0 ? `<strong style="color:var(--yellow);">${shares}주</strong>` : '<span style="color:var(--dim);">가격 필요</span>';
+    tbody.innerHTML += `<tr><td><span class="tier-cell tier-${tier}">${tier}티어</span></td><td>${capped.toFixed(1)}%</td><td style="color:var(--green); font-weight:700;">$${amount.toFixed(0)}</td><td>${sharesDisplay}</td></tr>`;
+  }
+  if (w[6] === 0) {
+    tbody.innerHTML += `<tr style="opacity:0.5;"><td><span class="tier-cell tier-7">7티어</span></td><td>0%</td><td>-</td><td>-</td></tr>`;
+  }
+  
+  document.getElementById('amtTotalPct').textContent = `${totalPct.toFixed(1)}%`;
+  document.getElementById('amtTotal').textContent = `$${totalAmt.toFixed(0)}`;
+  document.getElementById('amtTotalShares').textContent = soxlPrice > 0 ? `${totalShares}주` : '-';
+}
+
+function updateResults() {
+  const r = runBacktest();
+  const coronaMDD = predictCoronaMDD();
+  document.getElementById('resCagr').textContent = `+${r.cagr.toFixed(0)}%`;
+  document.getElementById('resMult').textContent = `${r.mult.toFixed(1)}배`;
+  document.getElementById('resMdd').textContent = `${coronaMDD.toFixed(0)}%`;
+  document.getElementById('backtestDetail').innerHTML = `<div style="display:grid; grid-template-columns:repeat(2,1fr); gap:8px;"><div>📊 5년 예상: <strong>${Math.pow(1 + r.cagr/100, 5).toFixed(1)}배</strong></div><div>💰 6.4년 누적: <strong>${(r.mult * 100 - 100).toFixed(0)}% 수익</strong></div><div>✅ 승률: <strong class="green">${r.winRate.toFixed(1)}%</strong></div><div>🔴 손실: <strong class="red">${r.lossCount}회</strong></div><div>⚡ 부스트 활성: <strong>${r.boostActive}/${r.totalCycles} (${r.boostActivePct.toFixed(0)}%)</strong></div><div>📉 실제 MDD: <strong class="red">${r.mdd.toFixed(1)}%</strong></div></div>`;
+}
+
+function updateTodayGuide() {
+  const w = getTodayWeights();
+  const actuals = getActualPercents(w);
+  const stage = getCurrentStage();
+  
+  let guide = '';
+  if (stage === 0) {
+    if (currentN === 0) guide = `<strong>📊 단독 매매 - 가중치 X</strong><br><br>`;
+    else guide = `<strong style="color:var(--dim);">⏸️ 부스트 비활성</strong><br><br>`;
+  } else {
+    guide = `<strong style="color:var(--green);">🟢 부스트 ${stage}단계 활성</strong><br>`;
+    guide += `<span style="color:var(--dim); font-size:11px;">1티어 가중치: ×${w[0].toFixed(2)} (최강 ×${MAX_STRENGTH[currentStrength][0]})</span><br><br>`;
+  }
+  
+  let totalPct = 0;
+  for (let i = 0; i < 6; i++) {
+    let actualP = actuals[i];
+    let capped = actualP;
+    if (totalPct + actualP > 100) capped = Math.max(0, 100 - totalPct);
+    totalPct += capped;
+    const tierColor = ['#3b82f6', '#06b6d4', '#10b981', '#fbbf24', '#f97316', '#ef4444'][i];
+    guide += `<span style="color:${tierColor};">${i+1}T</span>: <strong>${capped.toFixed(1)}%</strong><br>`;
+  }
+  if (w[6] === 0) guide += `<span style="color:var(--red);">7T: 매수 X</span><br>`;
+  guide += `<br><strong>합계: ${totalPct.toFixed(1)}%</strong>`;
+  
+  document.getElementById('todayGuide').innerHTML = guide;
+}
+
+function renderLossList() {
+  const list = document.getElementById('lossList');
+  const today = todayStr();
+  list.innerHTML = lossCycles.slice().reverse().map(l => {
+    const days = daysBetween(l.date, today);
+    const color = l.ret <= -10 ? 'var(--red)' : l.ret <= -5 ? 'var(--orange)' : 'var(--yellow)';
+    return `<div style="display:grid; grid-template-columns:110px 80px 100px 1fr; gap:8px; padding:6px 0; border-bottom:1px solid var(--line);"><span>${l.date}</span><span style="color:${color}; font-weight:700;">${l.ret.toFixed(2)}%</span><span style="color:var(--dim);">${l.label}</span><span style="color:var(--dim); text-align:right;">${days}일 전</span></div>`;
+  }).join('');
+}
+
+function updateAll() {
+  updateBoostStages();
+  updateTradeTable();
+  updateResults();
+  updateTodayGuide();
+  updateAmountTable();
+}
+
+document.querySelectorAll('.pro-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.pro-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPro = btn.dataset.pro;
+    updateAll();
+  });
+});
+
+document.querySelectorAll('#nSelector button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#nSelector button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentN = parseInt(btn.dataset.n);
+    updateAll();
+  });
+});
+
+document.querySelectorAll('#strengthSelector button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#strengthSelector button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentStrength = btn.dataset.strength;
+    updateAll();
+  });
+});
+
+document.getElementById('seedInput').addEventListener('input', updateAmountTable);
+document.getElementById('seedUnit').addEventListener('change', updateAmountTable);
+document.getElementById('fillToggle').addEventListener('change', updateAll);
+
+function init() {
+  const today = new Date();
+  document.getElementById('dateInfo').textContent = `${today.toISOString().split('T')[0]} ${today.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})}`;
+  updateStage();
+  renderLossList();
+  updateAll();
+  fetchPrice();
+}
+
+init();
+setInterval(updateStage, 60000);
+</script>
+</body>
+</html>
