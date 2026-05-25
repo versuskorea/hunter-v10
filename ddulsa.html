@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>떨사오팔 Pro 매매 v13</title>
+<title>떨사오팔 Pro 매매 v14</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root { --bg:#0a0e14; --bg2:#11161e; --panel:#161c26; --line:#1f2937; --txt:#e5e7eb; --dim:#6b7280; --green:#10b981; --red:#ef4444; --yellow:#fbbf24; --blue:#3b82f6; --orange:#f97316; --purple:#a855f7; }
@@ -151,10 +151,10 @@ h1 { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
 
 <header>
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-    <h1>🎯 떨사오팔 Pro 매매 v13</h1>
+    <h1>🎯 떨사오팔 Pro 매매 v14</h1>
     <a href="/" style="background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:8px 14px; border-radius:6px; text-decoration:none; font-size:13px; font-weight:700; font-family:'JetBrains Mono',monospace;">🏠 홈</a>
   </div>
-  <div class="subtitle">리셋 버튼 + 자동 청산</div>
+  <div class="subtitle">체결 모달 부스트 수량</div>
   <div id="dateInfo"></div>
 </header>
 
@@ -495,7 +495,7 @@ h1 { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
 </div>
 
 <div style="text-align:center; color:var(--dim); font-size:10px; margin:24px 0 12px;">
-  떨사오팔 Pro v13 / 234 사이클 / 완전 초기화
+  떨사오팔 Pro v14 / 234 사이클 / 부스트 default
 </div>
 
 </div>
@@ -519,6 +519,11 @@ h1 { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
     <div class="modal-title">📈 <span id="fillTierLabel">1티어</span> 체결 기록</div>
     <div style="font-size:11px; color:var(--dim); margin-bottom:14px;">실제 체결 가격과 수량을 입력하세요</div>
     
+    <!-- 🆕 예상 수량 표시 (빠른 선택) -->
+    <div id="fillSharesHint" style="padding:10px; background:rgba(59,130,246,0.1); border:1px solid var(--blue); border-radius:6px; margin-bottom:14px; font-size:11px; font-family:monospace;">
+      예상 수량 계산 중...
+    </div>
+    
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
       <div>
         <div style="font-size:10px; color:var(--dim); margin-bottom:4px;">체결 날짜</div>
@@ -531,8 +536,16 @@ h1 { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
     </div>
     
     <div style="margin-bottom:14px;">
-      <div style="font-size:10px; color:var(--dim); margin-bottom:4px;">체결 수량 (주)</div>
-      <input type="number" id="fillShares" min="1" step="1" placeholder="예: 100" style="width:100%; background:var(--bg2); border:1px solid var(--yellow); color:var(--yellow); padding:8px; border-radius:6px; font-family:monospace; font-size:14px; font-weight:700; text-align:center;">
+      <div style="font-size:10px; color:var(--dim); margin-bottom:4px;">체결 수량 (주) <span style="color:var(--yellow);">⚠️ 메리츠에 실제 입력한 주식 수</span></div>
+      <input type="number" id="fillShares" min="1" step="1" placeholder="예: 131" style="width:100%; background:var(--bg2); border:1px solid var(--yellow); color:var(--yellow); padding:8px; border-radius:6px; font-family:monospace; font-size:14px; font-weight:700; text-align:center;">
+      <div style="display:flex; gap:6px; margin-top:6px;">
+        <button onclick="useDdulsaShares()" style="flex:1; background:var(--bg2); border:1px solid var(--blue); color:var(--blue); padding:6px 8px; border-radius:4px; cursor:pointer; font-family:monospace; font-size:11px; font-weight:700;">
+          📋 떨사 수량 <span id="ddulsaSharesBtn">--</span>주
+        </button>
+        <button onclick="useBoostShares()" style="flex:1; background:var(--bg2); border:1px solid var(--yellow); color:var(--yellow); padding:6px 8px; border-radius:4px; cursor:pointer; font-family:monospace; font-size:11px; font-weight:700;">
+          ⚡ 부스트 수량 <span id="boostSharesBtn">--</span>주
+        </button>
+      </div>
     </div>
     
     <div id="fillSummary" style="padding:10px; background:var(--bg2); border-radius:6px; font-size:11px; font-family:monospace; color:var(--dim); margin-bottom:12px;">
@@ -752,14 +765,68 @@ function openFillModal() {
   const nextTier = (data.tier || 0) + 1;
   document.getElementById('fillTierLabel').textContent = nextTier + '티어';
   document.getElementById('fillDate').value = todayStr();
-  // 기본값: 현재 SOXL 가격 (수동/자동 fetch)
+  
+  // 가격: 현재 SOXL 가격 (매수 LOC 기준)
   const priceInput = document.getElementById('manualPrice');
-  const defaultPrice = parseFloat(priceInput.value) || soxlPrice || '';
-  document.getElementById('fillPrice').value = defaultPrice ? defaultPrice.toFixed(2) : '';
-  document.getElementById('fillShares').value = '';
-  document.getElementById('fillSummary').innerHTML = '가격과 수량 입력 시 자동 계산';
+  const manualVal = parseFloat(priceInput.value) || soxlPrice || 0;
+  const rule = PRO_RULES[currentPro];
+  // 매수 LOC 가격 = 전날 종가 × (1 - 매수기준%)
+  const buyLocPrice = manualVal > 0 ? manualVal * (1 + rule.buyPct/100) : 0;
+  document.getElementById('fillPrice').value = buyLocPrice > 0 ? buyLocPrice.toFixed(2) : '';
+  
+  // 시드 + Pro 비율로 수량 계산
+  const seedDollar = getSeedDollar();
+  const base = PRO_BASE[currentPro];
+  const ratio = base[nextTier - 1];
+  const alloc = seedDollar * ratio / 100;
+  const ddulsaShares = (alloc > 0 && buyLocPrice > 0) ? Math.floor(alloc / buyLocPrice) : 0;
+  
+  // 부스트 수량
+  const w = getTodayWeights();
+  const weight = w[nextTier - 1];
+  const boostedAlloc = alloc * weight;
+  const boostedShares = (boostedAlloc > 0 && buyLocPrice > 0) ? Math.floor(boostedAlloc / buyLocPrice) : 0;
+  const showBoost = (weight !== 1) && currentN > 0 && currentStrength !== 'solo';
+  
+  // 빠른 선택 버튼 업데이트
+  document.getElementById('ddulsaSharesBtn').textContent = ddulsaShares > 0 ? ddulsaShares : '?';
+  document.getElementById('boostSharesBtn').textContent = boostedShares > 0 ? boostedShares : '?';
+  
+  // 기본값: 부스트 수량이 있으면 부스트, 아니면 떨사
+  const defaultShares = showBoost && boostedShares > 0 ? boostedShares : ddulsaShares;
+  document.getElementById('fillShares').value = defaultShares > 0 ? defaultShares : '';
+  
+  // 힌트 메시지
+  let hintHtml = `<strong style="color:var(--blue);">${nextTier}티어 매수 예상</strong><br>`;
+  hintHtml += `할당: <strong style="color:var(--green);">$${alloc.toLocaleString(undefined,{maximumFractionDigits:0})}</strong> `;
+  hintHtml += `(${ratio.toFixed(1)}% × 시드 $${seedDollar.toLocaleString(undefined,{maximumFractionDigits:0})})<br>`;
+  hintHtml += `매수 LOC: <strong style="color:var(--yellow);">$${buyLocPrice.toFixed(2)}</strong><br>`;
+  hintHtml += `<br>📋 떨사 기본: <strong style="color:var(--blue);">${ddulsaShares}주</strong>`;
+  if (showBoost) {
+    hintHtml += `<br>⚡ 부스트 ×${weight.toFixed(2)}: <strong style="color:var(--yellow);">${boostedShares}주</strong> (메리츠 입력)`;
+  }
+  document.getElementById('fillSharesHint').innerHTML = hintHtml;
+  
+  updateFillSummary();
   document.getElementById('fillModal').classList.add('show');
-  setTimeout(() => document.getElementById('fillPrice').focus(), 100);
+  setTimeout(() => document.getElementById('fillShares').focus(), 100);
+}
+
+// 빠른 선택 버튼
+function useDdulsaShares() {
+  const val = document.getElementById('ddulsaSharesBtn').textContent;
+  if (val !== '?' && val !== '--') {
+    document.getElementById('fillShares').value = val;
+    updateFillSummary();
+  }
+}
+
+function useBoostShares() {
+  const val = document.getElementById('boostSharesBtn').textContent;
+  if (val !== '?' && val !== '--') {
+    document.getElementById('fillShares').value = val;
+    updateFillSummary();
+  }
 }
 
 function closeFillModal() {
@@ -1016,7 +1083,7 @@ function resetAll() {
   const data = loadCycleData();
   const lastLossDate = data.lastLossDate;
   
-  // 완전 초기화 (마지막 손실 날짜만 유지)
+  // 부스트 default (마지막 손실 날짜만 유지)
   const fresh = {
     count: 0,
     tier: 0,
