@@ -479,7 +479,7 @@ function render(){
           if(nsMode==='attack'){ nsU=isUpD?NS.atkUp:NS.atkDn; }
           else { nsU=isUpD?0:NS.defDn; }
           if(nsU>0){
-            actionBtn='<button onclick="quickFillBuy(\''+d.date+'\','+d.close+','+nsU+')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">체결</button>';
+            actionBtn='<button onclick="quickFillBuy(\''+d.date+'\','+d.close+','+nsU+',\''+nsMode+'\')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">체결</button>';
           }else{
             actionBtn='<span style="color:var(--dim);font-size:11px">매수X</span>';
           }
@@ -499,14 +499,25 @@ function render(){
       const uw=p.seed/TU;
       // NEW SYSTEM 모드별 주문
       // 공격: LOC①=전날×1.15(3u) + LOC②=전날×0.999(추가2u, 합5u)
-      // 방어: LOC②=전날×0.999(3u)만, 상승 매수 없음
+      // 방어: LOC②=전날×0.999(3u)만 · 직전 방어가 -8% 더 빠져야 매수
       const loc1Price=(lastClose*1.15).toFixed(2);
-      const loc2Price=(lastClose*0.999).toFixed(2);
+      let loc2PriceNum=lastClose*0.999;
+      let defGapNote='';
+      if(nsMode==='defense'){
+        // 보유 방어 티어 중 최저 매수가 대비 -8% 와 전날×0.999 중 낮은 가격
+        const defBuys=p.pos.filter(pp=>pp.nsMode==='defense');
+        if(defBuys.length>0){
+          const lowestDef=Math.min(...defBuys.map(pp=>pp.e));
+          const gapPrice=lowestDef*0.92;
+          if(gapPrice<loc2PriceNum){ loc2PriceNum=gapPrice; defGapNote=' (직전 방어 $'+lowestDef.toFixed(2)+' -8%)'; }
+        }
+      }
+      const loc2Price=loc2PriceNum.toFixed(2);
       let loc1U,loc2U; // 유닛
       if(nsMode==='attack'){ loc1U=NS.atkUp; loc2U=NS.atkDn-NS.atkUp; }  // 3u / +2u
       else { loc1U=0; loc2U=NS.defDn; }                                   // 0 / 3u
       const loc1Shares=loc1U>0?Math.floor(loc1U*uw/lastClose):0;
-      const loc2Shares=loc2U>0?Math.floor(loc2U*uw/lastClose):0;
+      const loc2Shares=loc2U>0?Math.floor(loc2U*uw/loc2PriceNum):0;
       const lastDate=new Date(last.date);
       let nextDate=new Date(lastDate);
       nextDate.setDate(nextDate.getDate()+1);
@@ -549,7 +560,7 @@ function render(){
       if(nsMode==='attack'){
         h+='</tbody></table><div class="note" style="margin-top:8px">💡 <b style="color:#22c55e">공격모드</b><br>💡 매수①: 전날×1.15 (상승 대응 '+NS.atkUp+'u)<br>💡 매수②: 전날×0.999 (하락 추가 '+(NS.atkDn-NS.atkUp)+'u → 합 '+NS.atkDn+'u, 하락일만 체결)<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X</div></div>';
       }else{
-        h+='</tbody></table><div class="note" style="margin-top:8px">💡 <b style="color:#3b82f6">방어모드</b><br>💡 매수: 전날×0.999 ('+NS.defDn+'u, 하락일만 체결)<br>💡 상승일은 매수 없음<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X</div></div>';
+        h+='</tbody></table><div class="note" style="margin-top:8px">💡 <b style="color:#3b82f6">방어모드</b><br>💡 매수: 전날×0.999'+defGapNote+' ('+NS.defDn+'u, 하락일만 체결)<br>💡 직전 방어 매수가보다 8% 더 빠져야 다음 티어 매수<br>💡 상승일은 매수 없음<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X</div></div>';
       }
     }
   }
@@ -721,8 +732,9 @@ function render(){
 }
 function updSeed(){const v=gv('seed-in');if(v>0)curPort().seed=v;save();render();}
 function updSeedQuick(){const v=gv('seed-quick');if(v>0){curPort().seed=v;save();render();}}
-function quickFillBuy(date,close,units){
+function quickFillBuy(date,close,units,mode){
   const p=curPort();
+  mode=mode||'attack';
   const diaryEntry=p.diary.find(d=>d.date===date);
   if(!diaryEntry)return alert('일지에 없는 날');
   if(diaryEntry.isRef){alert('참조 데이터는 체결할 수 없습니다 (시작일 전날)');return;}
@@ -730,18 +742,20 @@ function quickFillBuy(date,close,units){
   const zone=diaryEntry.zone;
   const uw=p.seed/TU;
   const shares=Math.floor(units*uw/close);
-  showModal('<h3>📈 '+date+' 체결 기록</h3><div class="desc">백테 기준: <b>$'+close+'</b> · '+units+'u<br>형님 실제 체결가가 다르면 수정하세요.<br><span style="color:var(--green)">매도점은 일지 종가 기준으로 고정됩니다 ($'+(close*(1+ZONES[zone].tp)).toFixed(2)+')</span></div><div class="ir"><label>매수 날짜</label><input type="date" id="qf-date" value="'+date+'"><span class="u">📅</span></div><div class="ir"><label>실제 체결가</label><input type="number" step="0.01" id="qf-price" value="'+close+'"><span class="u">$</span></div><div class="ir"><label>유닛</label><input type="number" id="qf-units" value="'+units+'" readonly style="background:#0a0a14;color:var(--accent)"><span class="u">u</span></div><div class="ir"><label>실제 주수</label><input type="number" id="qf-shares" value="'+shares+'"><span class="u">주</span></div><div class="note" style="margin-top:8px">💡 매도 LOC = <b style="color:var(--green)">$'+(close*(1+ZONES[zone].tp)).toFixed(2)+'</b> (일지 종가 기준 고정)<br>💡 형님이 다른 가격에 사도 매도점은 일지 기준 유지</div><div class="btn-row"><button class="btn btn-d" onclick="closeModal()">취소</button><button class="btn btn-b" onclick="confirmQuickFill(\''+date+'\','+close+',\''+zone+'\')">체결 기록</button></div>');
+  const modeLabel=mode==='attack'?'🟢 공격':'🔵 방어';
+  showModal('<h3>📈 '+date+' 체결 기록 · '+modeLabel+'</h3><div class="desc">백테 기준: <b>$'+close+'</b> · '+units+'u<br>형님 실제 체결가가 다르면 수정하세요.<br><span style="color:var(--green)">매도점은 일지 종가 기준으로 고정됩니다 ($'+(close*(1+ZONES[zone].tp)).toFixed(2)+')</span></div><div class="ir"><label>매수 날짜</label><input type="date" id="qf-date" value="'+date+'"><span class="u">📅</span></div><div class="ir"><label>실제 체결가</label><input type="number" step="0.01" id="qf-price" value="'+close+'"><span class="u">$</span></div><div class="ir"><label>유닛</label><input type="number" id="qf-units" value="'+units+'" readonly style="background:#0a0a14;color:var(--accent)"><span class="u">u</span></div><div class="ir"><label>실제 주수</label><input type="number" id="qf-shares" value="'+shares+'"><span class="u">주</span></div><div class="note" style="margin-top:8px">💡 매도 LOC = <b style="color:var(--green)">$'+(close*(1+ZONES[zone].tp)).toFixed(2)+'</b> (일지 종가 기준 고정)<br>💡 형님이 다른 가격에 사도 매도점은 일지 기준 유지</div><div class="btn-row"><button class="btn btn-d" onclick="closeModal()">취소</button><button class="btn btn-b" onclick="confirmQuickFill(\''+date+'\','+close+',\''+zone+'\',\''+mode+'\')">체결 기록</button></div>');
 }
-function confirmQuickFill(diaryDate,diaryClose,zone){
+function confirmQuickFill(diaryDate,diaryClose,zone,mode){
   const p=curPort();
+  mode=mode||'attack';
   const actualPrice=parseFloat($('qf-price').value)||diaryClose;
   const actualShares=parseInt($('qf-shares').value);
   const actualDate=$('qf-date').value||diaryDate;
   const units=parseInt($('qf-units').value);
   if(!actualShares||actualShares<=0)return alert('주수 입력');
   if(!units)return alert('유닛 입력');
-  p.pos.push({e:actualPrice,u:units,s:actualShares,d:actualDate,z:zone,diaryClose:diaryClose,diaryDate:diaryDate});
-  p.hist.push({a:'B',d:actualDate,e:actualPrice,u:units,s:actualShares,z:zone,diaryClose:diaryClose,diaryDate:diaryDate});
+  p.pos.push({e:actualPrice,u:units,s:actualShares,d:actualDate,z:zone,diaryClose:diaryClose,diaryDate:diaryDate,nsMode:mode});
+  p.hist.push({a:'B',d:actualDate,e:actualPrice,u:units,s:actualShares,z:zone,diaryClose:diaryClose,diaryDate:diaryDate,nsMode:mode});
   save();closeModal();
   const sellPoint=(diaryClose*(1+ZONES[zone].tp)).toFixed(2);
   alert('✅ T'+p.pos.length+' 체결 기록!\n\n매수: '+actualShares+'주 @ $'+actualPrice+'\n매도 LOC: $'+sellPoint+' (일지 기준 고정)');
