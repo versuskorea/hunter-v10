@@ -3939,16 +3939,25 @@ function simulateNewSystem(bars, userStartIdx) {
       }
     } else {
       if (usedU < TU && cash > 0 && !fi) {
-        const a = SEED / TU * 3;
-        const thr = Math.round(pv * 0.999 * 100) / 100;
-        if (p <= thr) {
-          const sh = Math.floor(Math.min(a, cash) / p);
-          if (sh > 0) {
-            cash -= sh * p;
-            pos.push({ bp: p, sh, bi: i, mode: 'defense', zone, uu: 3 });
-            nBuys++;
-            if (!inCycle) { inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 0; }
-            const cu = pos.reduce((s,x)=>s+x.uu,0); if (cu>cycleMaxU) cycleMaxU=Math.round(cu);
+        // 방어모드 티어간격: 직전 방어 매수가보다 8% 더 빠져야 다음 티어 매수
+        const defPos = pos.filter(x => x.mode === 'defense');
+        let canBuy = true;
+        if (defPos.length > 0) {
+          const lowestDef = Math.min(...defPos.map(x => x.bp));
+          if (p > lowestDef * 0.92) canBuy = false;
+        }
+        if (canBuy) {
+          const a = SEED / TU * 3;
+          const thr = Math.round(pv * 0.999 * 100) / 100;
+          if (p <= thr) {
+            const sh = Math.floor(Math.min(a, cash) / p);
+            if (sh > 0) {
+              cash -= sh * p;
+              pos.push({ bp: p, sh, bi: i, mode: 'defense', zone, uu: 3 });
+              nBuys++;
+              if (!inCycle) { inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 0; }
+              const cu = pos.reduce((s,x)=>s+x.uu,0); if (cu>cycleMaxU) cycleMaxU=Math.round(cu);
+            }
           }
         }
       }
@@ -4129,7 +4138,7 @@ async function runNewSystem() {
       html += '</div>';
     }
 
-    html += '<div class="def-info"><b>📐 NEW HUNTER 로직:</b> 공격모드(wRSI↑) 상승3u(×1.15)/하락5u(×0.999) · 방어모드(wRSI↓) 하락3u만 · 천중바 매도(천장+2.5%/7일·중간+0.5%/7일·바닥+3%/10일) · T1 매도 시 SEED 갱신 후 공격 즉시 재매수(복리)</div>';
+    html += '<div class="def-info"><b>📐 NEW HUNTER 로직:</b> 공격모드(wRSI↑) 상승3u(×1.15)/하락5u(×0.999) · 방어모드(wRSI↓) 하락3u만(직전 방어가 -8% 더 빠져야 다음 티어) · 천중바 매도(천장+2.5%/7일·중간+0.5%/7일·바닥+3%/10일) · T1 매도 시 SEED 갱신 후 공격 즉시 재매수(복리)</div>';
     html += '</div>';
     html += '</div>';
 
