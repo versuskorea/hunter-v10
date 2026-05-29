@@ -3819,6 +3819,16 @@ function simulateNewSystem(bars, userStartIdx) {
 
   const modeArr = buildModeMap(bars, n);
 
+  // 전년 SOXL 연수익률 (V자 룰: 전년 -50%↓면 올해 공격 고정)
+  const yrFirst = {}, yrLast = {};
+  for (let i = 0; i < n; i++) {
+    const y = dates[i].slice(0, 4);
+    if (yrFirst[y] === undefined) yrFirst[y] = closes[i];
+    yrLast[y] = closes[i];
+  }
+  const yrRet = {};
+  for (const y in yrFirst) yrRet[y] = (yrLast[y] / yrFirst[y] - 1) * 100;
+
   let SEED = 100000;
   let cash = SEED;
   let pos  = [];
@@ -3850,13 +3860,16 @@ function simulateNewSystem(bars, userStartIdx) {
     const p  = closes[i];
     const pv = closes[i - 1];
     const fi = p > pv;
-    const mode = modeArr[i];
+    let mode = modeArr[i];
+    // V자 룰: 전년 SOXL -50%↓면 올해는 wRSI 방어 무시하고 공격 고정
+    const prevYr = (parseInt(dates[i].slice(0, 4)) - 1).toString();
+    if (yrRet[prevYr] !== undefined && yrRet[prevYr] <= -50) mode = 'attack';
 
     const h20 = high20(i);
     const drop = (p - h20) / h20 * 100;
     let zone;
-    if (drop > -10)      zone = 'top';
-    else if (drop > -15) zone = 'middle';
+    if (drop > -12)      zone = 'top';
+    else if (drop > -20) zone = 'middle';
     else                 zone = 'bottom';
 
     const yr = dates[i].slice(0, 4);
@@ -4138,7 +4151,7 @@ async function runNewSystem() {
       html += '</div>';
     }
 
-    html += '<div class="def-info"><b>📐 NEW HUNTER 로직:</b> 공격모드(wRSI↑) 상승3u(×1.15)/하락5u(×0.999) · 방어모드(wRSI↓) 하락3u만(직전 방어가 -8% 더 빠져야 다음 티어) · 천중바 매도(천장+2.5%/7일·중간+0.5%/7일·바닥+3%/10일) · T1 매도 시 SEED 갱신 후 공격 즉시 재매수(복리)</div>';
+    html += '<div class="def-info"><b>📐 NEW HUNTER 로직:</b> 공격모드(wRSI↑) 상승3u(×1.15)/하락5u(×0.999) · 방어모드(wRSI↓) 하락3u만(직전 방어가 -8% 더 빠져야 다음 티어) · 천중바 매도(존경계 -12%/-20%, 천장+2.5%/7일·중간+0.5%/7일·바닥+3%/10일) · 전년 SOXL -50%↓면 올해 공격 고정(V자) · T1 매도 시 SEED 갱신 후 공격 즉시 재매수(복리)</div>';
     html += '</div>';
     html += '</div>';
 
