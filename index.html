@@ -108,9 +108,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   <div class="stats" id="us-status">매일 자동 기록 · 다음날 LOC 자동 계산</div>
 </div>
 <div class="zone-bar">
-  <div class="zone-box" id="zbox-top">천장<div class="pct">+2.5% / 7일</div><div class="rule">-10% 이내</div></div>
-  <div class="zone-box" id="zbox-mid">중간<div class="pct">+0.5% / 7일</div><div class="rule">-10~-15%</div></div>
-  <div class="zone-box" id="zbox-bot">바닥<div class="pct">+3% / 10일</div><div class="rule">-15% 이상</div></div>
+  <div class="zone-box" id="zbox-top">천장<div class="pct">+2.5% / 7일</div><div class="rule">-12% 이내</div></div>
+  <div class="zone-box" id="zbox-mid">중간<div class="pct">+0.5% / 7일</div><div class="rule">-12~-20%</div></div>
+  <div class="zone-box" id="zbox-bot">바닥<div class="pct">+3% / 10일</div><div class="rule">-20% 이상</div></div>
 </div>
 <div class="tabs">
   <button class="tab on" id="tab-d" onclick="sw('d')">📋 주문</button>
@@ -123,7 +123,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 <div style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:10px;color:#333;margin-top:16px">HUNTER v14 매매일지 · 멀티종목 지원</div>
 <div id="modal-container"></div>
 <script>
-const TU=20,UP=2,DN=4,TOP_TH=-10,BOT_TH=-15;
+const TU=20,UP=2,DN=4,TOP_TH=-12,BOT_TH=-20;
 // NEW SYSTEM 유닛: 공격모드 상승3u/하락5u, 방어모드 하락3u(상승 매수X)
 const NS={atkUp:3,atkDn:5,defDn:3};
 const ZONES={top:{tp:0.025,fd:7,label:'천장'},mid:{tp:0.005,fd:7,label:'중간'},bot:{tp:0.030,fd:10,label:'바닥'}};
@@ -217,7 +217,17 @@ function calcNewSystemMode(bars){
   else if (!rising&&c2>=40&&c2<=50) mode='defense';
   else if (!rising&&c2>65)         mode='defense';
   else mode = (c2>=50?'attack':'defense'); // 경계 외 구간은 50 기준
-  return{mode,wrsi:c2,prevWrsi:p2,rising,ready:true};
+
+  // V자 룰: 전년 SOXL -50%↓면 올해는 wRSI 방어 무시하고 공격 고정
+  let vrule=false, prevYrRet=null;
+  {
+    const yrFirst={}, yrLast={};
+    for(const b of bars){ const y=b.date.slice(0,4); if(yrFirst[y]===undefined)yrFirst[y]=b.close; yrLast[y]=b.close; }
+    const curYr=bars[bars.length-1].date.slice(0,4);
+    const py=(parseInt(curYr)-1).toString();
+    if(yrFirst[py]!==undefined){ prevYrRet=(yrLast[py]/yrFirst[py]-1)*100; if(prevYrRet<=-50){ mode='attack'; vrule=true; } }
+  }
+  return{mode,wrsi:c2,prevWrsi:p2,rising,ready:true,vrule,prevYrRet};
 }
 
 // 비중조절 6단계 (V자 안전)
@@ -427,7 +437,8 @@ function render(){
     const nsMode=(p.nsMode&&p.nsMode.ready)?p.nsMode.mode:'attack';
     const nsReady=p.nsMode&&p.nsMode.ready;
     if(nsMode==='attack'){
-      h+='<div style="background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:12px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">🟢 공격모드'+(nsReady?' · 주간RSI '+p.nsMode.wrsi.toFixed(1):' (RSI 대기)')+'<br><span style="font-size:11px;font-weight:600;opacity:0.9">상승일 3u(전날×1.15) · 하락일 5u(전날×0.999)</span></div>';
+      const vr=(p.nsMode&&p.nsMode.vrule)?'<br><span style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:6px">⚡ V자 룰 발동 · 전년 SOXL '+p.nsMode.prevYrRet.toFixed(0)+'% → 공격 고정</span>':'';
+      h+='<div style="background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:12px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">🟢 공격모드'+(nsReady?' · 주간RSI '+p.nsMode.wrsi.toFixed(1):' (RSI 대기)')+'<br><span style="font-size:11px;font-weight:600;opacity:0.9">상승일 3u(전날×1.15) · 하락일 5u(전날×0.999)</span>'+vr+'</div>';
     }else{
       h+='<div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;padding:12px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">🔵 방어모드'+(nsReady?' · 주간RSI '+p.nsMode.wrsi.toFixed(1):' (RSI 대기)')+'<br><span style="font-size:11px;font-weight:600;opacity:0.9">하락일 3u(전날×0.999)만 · 상승일 매수 X</span></div>';
     }
@@ -593,118 +604,6 @@ function render(){
   }
   if(tab==='s'){
     h+='<div class="card"><div class="ct">⚙️ 기본 설정</div><div class="ir"><label>시드</label><input type="number" id="seed-in" value="'+p.seed+'" onchange="updSeed()"><span class="u">$</span></div><div class="note">시드 변경 시 유닛 크기도 함께 변경됨 ($시드/20)</div></div>';
-    
-    // 👑 형님 룰 V4 상태 카드
-    const boss=p.bossRule;
-    const curTh=p.bossThreshold||-20;
-    const curBoost=p.bossBoost!==undefined?p.bossBoost:1.0;
-    const curBoostPct=Math.round(curBoost*100);
-    h+='<div class="card" style="border:2px solid var(--gold)"><div class="ct" style="color:var(--gold)">👑 형님 룰 V4 (월 '+curTh+'% 트리거, 부스터 +'+curBoostPct+'%)</div>';
-    if(boss&&boss.prevRet!==null){
-      if(boss.triggered){
-        h+='<div style="padding:14px;background:linear-gradient(135deg,#fbbf24,#f97316);color:#000;border-radius:10px;text-align:center;font-weight:800;margin-bottom:10px">';
-        h+='🔥 발동 중!<br><div style="font-size:18px;margin-top:6px">전월 ('+boss.prevKey+') '+boss.prevRet.toFixed(1)+'%</div>';
-        h+='<div style="font-size:13px;margin-top:6px">이번달 HUNTER 100% + 부스터 +'+curBoostPct+'%</div></div>';
-      }else{
-        h+='<div style="padding:12px;background:#0a0a14;border-radius:10px;text-align:center;margin-bottom:10px">';
-        h+='<div style="color:var(--dim);font-size:11px">대기 중</div>';
-        h+='<div style="color:var(--gold);font-size:14px;font-weight:700;margin-top:4px">전월 '+boss.prevKey+' '+boss.prevRet.toFixed(1)+'%</div>';
-        h+='<div style="color:var(--dim);font-size:11px;margin-top:4px">트리거: 월 < '+curTh+'%</div></div>';
-      }
-    }else{
-      h+='<div style="padding:12px;background:#0a0a14;border-radius:10px;text-align:center;color:var(--dim);font-size:13px;margin-bottom:10px">데이터 없음 (일지 갱신 필요)</div>';
-    }
-    
-    // 임계값 설정
-    h+='<div style="padding:12px;background:#0a0a14;border-radius:10px;margin-bottom:8px">';
-    h+='<div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:8px">🎯 임계값 (전월 폭락 기준)</div>';
-    h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
-    const ths=[-15,-20,-25];
-    const thCs=['#22c55e','#fbbf24','#ef4444'];
-    for(let i=0;i<ths.length;i++){
-      const sel=curTh===ths[i];
-      h+='<button onclick="setBossThreshold('+ths[i]+')" style="padding:10px 4px;border-radius:8px;font-weight:800;cursor:pointer;font-size:13px;border:1px solid '+thCs[i]+';background:'+(sel?thCs[i]:'transparent')+';color:'+(sel?'#000':thCs[i])+'">'+ths[i]+'%</button>';
-    }
-    h+='</div></div>';
-    
-    // 부스터 설정
-    h+='<div style="padding:12px;background:#0a0a14;border-radius:10px;margin-bottom:8px">';
-    h+='<div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:8px">🔥 부스터 (매수량 배수)</div>';
-    h+='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">';
-    const boosts=[0,0.2,0.3,0.5,1.0];
-    const boostCs=['#888','#22c55e','#84cc16','#f97316','#ef4444'];
-    for(let i=0;i<boosts.length;i++){
-      const sel=Math.abs(curBoost-boosts[i])<0.001;
-      const bp=Math.round(boosts[i]*100);
-      h+='<button onclick="setBossBoost('+boosts[i]+')" style="padding:10px 4px;border-radius:8px;font-weight:800;cursor:pointer;font-size:12px;border:1px solid '+boostCs[i]+';background:'+(sel?boostCs[i]:'transparent')+';color:'+(sel?'#000':boostCs[i])+'">+'+bp+'%</button>';
-    }
-    h+='</div><div style="font-size:10px;color:var(--dim);margin-top:6px;text-align:center">매수량 <b style="color:var(--gold)">'+(1+curBoost).toFixed(1)+'배</b> (상승 '+(UP*(1+curBoost)).toFixed(1)+'u / 하락 '+(DN*(1+curBoost)).toFixed(1)+'u)</div></div>';
-    
-    // 추천 + 백테 결과
-    h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:var(--gold);font-weight:700;padding:6px">💡 룰 설명 + 백테 결과</summary>';
-    h+='<div style="margin-top:8px;padding:10px;background:#0a0a14;border-radius:8px;font-size:11px;line-height:1.8;color:var(--text)">';
-    h+='<b style="color:var(--gold)">5년 백테 (2021-2026):</b><br>';
-    h+='• -20% × +100% (최강): <b style="color:#22c55e">+4,888%</b> (50배)<br>';
-    h+='• -25% × +50% (균형): <b style="color:#fbbf24">+4,168%</b> (43배)<br>';
-    h+='• -25% × +0% (안전): <b style="color:#3b82f6">+3,876%</b> (40배)<br><br>';
-    h+='<b style="color:var(--gold)">16년 백테 (2011-2026):</b><br>';
-    h+='• -20% × +100%: <b style="color:#22c55e">+79,751%</b> (799배)<br>';
-    h+='• MDD: <b style="color:var(--red)">-65.8%</b>';
-    h+='</div></details></div>';
-    
-    // 비중조절 카드
-    const hybrid=p.hybrid;
-    const curWeight=p.virtualWeight||1.0;
-    h+='<div class="card" style="border:2px solid var(--accent)"><div class="ct" style="color:var(--accent)">⚙️ 비중조절 자동 (V자 안전)</div>';
-    
-    if(hybrid&&hybrid.weight!==undefined){
-      const wc=hybrid.weight>=1.0?'#22c55e':(hybrid.weight>=0.9?'#84cc16':(hybrid.weight>=0.6?'#fbbf24':(hybrid.weight>=0.4?'#f97316':'#ef4444')));
-      h+='<div style="padding:12px;background:#0a0a14;border-radius:10px;margin-bottom:10px;text-align:center">';
-      h+='<div style="font-size:11px;color:var(--dim);margin-bottom:4px">현재 시장 상태</div>';
-      h+='<div style="font-size:14px;font-weight:800;color:'+wc+';margin-bottom:4px">'+hybrid.trendLabel+'</div>';
-      h+='<div style="font-size:11px;color:var(--dim);font-family:\'JetBrains Mono\',monospace">trend '+(hybrid.trend>=0?'+':'')+hybrid.trend.toFixed(1)+'% · gap '+(hybrid.gap>=0?'+':'')+hybrid.gap.toFixed(1)+'%</div>';
-      h+='<div style="font-size:11px;color:var(--dim);font-family:\'JetBrains Mono\',monospace;margin-top:2px">50MA $'+hybrid.ma50.toFixed(2)+' · 200MA $'+hybrid.ma200.toFixed(2)+'</div></div>';
-      
-      h+='<div style="padding:18px;background:rgba(59,130,246,0.08);border:2px solid '+wc+';border-radius:10px;text-align:center;margin-bottom:10px">';
-      h+='<div style="font-size:12px;color:var(--dim);margin-bottom:6px">🎯 추천 매수 비중</div>';
-      h+='<div style="font-size:42px;font-weight:800;font-family:\'JetBrains Mono\',monospace;color:'+wc+'">'+(hybrid.weight*100).toFixed(0)+'%</div>';
-      h+='<div style="font-size:11px;color:var(--dim);margin-top:4px">부스트: X (V자 안전)</div></div>';
-      
-      const isMatch=Math.abs(curWeight-hybrid.weight)<0.001;
-      if(!isMatch){
-        h+='<button class="btn btn-b" onclick="setVirtualWeight('+hybrid.weight+')">✨ 비중조절 적용 ('+(hybrid.weight*100).toFixed(0)+'%)</button>';
-        h+='<div style="font-size:11px;color:var(--dim);text-align:center;margin-top:6px">현재 설정: <b>'+(curWeight*100).toFixed(0)+'%</b></div>';
-      }else{
-        h+='<div style="padding:10px;background:#0a1a0a;border-radius:8px;text-align:center;color:var(--green);font-size:13px;font-weight:700">✅ 자동 비중 적용 중</div>';
-      }
-    }else{
-      h+='<div style="padding:14px;background:#0a0a14;border-radius:8px;text-align:center;color:var(--dim);font-size:13px;margin-bottom:10px">데이터 없음<br><small>일지 갱신 또는 아래 버튼으로 가져오기</small></div>';
-    }
-    
-    h+='<button class="btn btn-fetch" style="margin-top:8px" onclick="autoUpdateRsi()">🔄 야후에서 자동 가져오기 + 적용</button>';
-    
-    // 수동 비중
-    h+='<div style="margin-top:14px;padding:12px;background:#0a0a14;border-radius:10px">';
-    h+='<div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:8px">🎯 수동 비중 선택 (자동 무시)</div>';
-    h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">';
-    const ws=[0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0];
-    const cs=['#ef4444','#f97316','#3b82f6','#fbbf24','#84cc16','#84cc16','#22c55e','#22c55e'];
-    for(let i=0;i<ws.length;i++){
-      const sel=Math.abs(curWeight-ws[i])<0.001;
-      h+='<button onclick="setVirtualWeight('+ws[i]+')" style="padding:10px 4px;border-radius:8px;font-weight:800;cursor:pointer;font-size:13px;border:1px solid '+cs[i]+';background:'+(sel?cs[i]:'transparent')+';color:'+(sel?'#000':cs[i])+'">'+(ws[i]*100).toFixed(0)+'%</button>';
-    }
-    h+='</div><div style="font-size:10px;color:var(--dim);margin-top:6px;text-align:center">현재: <b style="color:var(--gold)">'+(curWeight*100).toFixed(0)+'%</b></div></div>';
-    
-    // 6단계 룰 설명
-    h+='<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:var(--accent);font-weight:700;padding:6px">💡 6단계 룰</summary>';
-    h+='<div style="margin-top:8px;padding:10px;background:#0a0a14;border-radius:8px;font-size:11px;line-height:1.8">';
-    h+='<b style="color:#22c55e">🟢 강세 강</b> (trend>5% + gap>0): 100%<br>';
-    h+='<b style="color:#84cc16">🟢 강세 약</b> (trend>0%): 90%<br>';
-    h+='<b style="color:#fbbf24">🟡 중립</b> (trend>-5%): 60%<br>';
-    h+='<b style="color:#f97316">🟠 약세</b> (trend>-10%): 40%<br>';
-    h+='<b style="color:#3b82f6">🔵 바닥 역발상</b> (gap&lt;-30%): 50%<br>';
-    h+='<b style="color:#ef4444">🔴 폭락</b> (else): 30%</div></details>';
-    h+='</div>';
     
     h+='<div class="card"><div class="ct">📅 매매일지 시작일</div><div class="ir"><label>시작일</label><input type="date" id="start-date-in" value="'+(p.startDate||td())+'" max="'+td()+'" onchange="setStartDate()"><span class="u">📅</span></div><div class="note">시작일 변경 시 일지 다시 갱신 필요</div></div>';
     h+='<div class="card"><div class="ct">💵 시드 재설정</div><button class="btn btn-g" onclick="promptSeedReset()">시드 변경</button></div>';
