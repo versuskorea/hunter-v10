@@ -431,6 +431,7 @@ async function buildDiary(){
   }catch(e){alert('실패: '+e.message);}
 }
 function setStartDate(){const dateEl=$('start-date-in');if(!dateEl)return;curPort().startDate=dateEl.value;save();render();}
+function setManualMode(m){curPort().manualMode=m;save();render();}
 function sw(t){tab=t;document.querySelectorAll('.tab').forEach((b,i)=>{b.classList.toggle('on',['d','t','s','h'][i]===t);});render();}
 function renderZones(){const z=getZone();['top','mid','bot'].forEach(x=>{const el=$('zbox-'+x);el.className=(x===z)?'zone-box on-'+x:'zone-box';});}
 function render(){
@@ -444,13 +445,26 @@ function render(){
     h+='<div class="card" style="border:1px solid var(--accent)"><div class="ct">📅 매매일지 ('+p.startDate+' ~)</div><div class="ir"><label>시작일</label><input type="date" id="start-date-in" value="'+p.startDate+'" max="'+td()+'" onchange="setStartDate()"><span class="u">📅</span></div><button class="btn btn-fetch" onclick="buildDiary()">🔄 야후에서 일지 갱신 (오늘까지)</button><div class="note">※ 시작일 전날 = 참조 데이터 (체결 X, 흐리게)<br>※ 시작일부터 = 거래일 (체결 가능)</div></div>';
     
     // NEW SYSTEM 모드 배너
-    const nsMode=(p.nsMode&&p.nsMode.ready)?p.nsMode.mode:'attack';
+    const autoMode=(p.nsMode&&p.nsMode.ready)?p.nsMode.mode:'attack';
     const nsReady=p.nsMode&&p.nsMode.ready;
+    // 수동 오버라이드 (종목별 저장: 'auto'면 자동, 'attack'/'defense'면 강제)
+    const manualMode=(p.manualMode||'auto');
+    const nsMode=(manualMode==='auto')?autoMode:manualMode;
     if(nsMode==='attack'){
       const vr=(p.nsMode&&p.nsMode.vrule)?'<br><span style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:6px">⚡ V자 룰 발동 · 전년 SOXL '+p.nsMode.prevYrRet.toFixed(0)+'% → 공격 고정</span>':'';
       h+='<div style="background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:12px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">🟢 공격모드'+(nsReady?' · 주간RSI '+p.nsMode.wrsi.toFixed(1):' (RSI 대기)')+'<br><span style="font-size:11px;font-weight:600;opacity:0.9">상승일 3u(전날×1.15) · 하락일 5u(전날×0.999)</span>'+vr+'</div>';
     }else{
       h+='<div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;padding:12px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">🔵 방어모드'+(nsReady?' · 주간RSI '+p.nsMode.wrsi.toFixed(1):' (RSI 대기)')+'<br><span style="font-size:11px;font-weight:600;opacity:0.9">하락일 3u(전날×0.999)만 · 상승일 매수 X</span></div>';
+    }
+    // 모드 수동 선택 (자동 / 공격 고정 / 방어 고정)
+    const mm=manualMode;
+    h+='<div style="display:flex;gap:6px;margin-bottom:12px">'+
+      '<button onclick="setManualMode(\'auto\')" style="flex:1;padding:9px;border-radius:8px;border:1px solid '+(mm==='auto'?'#a78bfa':'var(--border)')+';background:'+(mm==='auto'?'#a78bfa':'var(--card)')+';color:'+(mm==='auto'?'#fff':'var(--dim)')+';font-size:12px;font-weight:700;cursor:pointer">🤖 자동'+(mm==='auto'?' ('+(autoMode==='attack'?'공격':'방어')+')':'')+'</button>'+
+      '<button onclick="setManualMode(\'attack\')" style="flex:1;padding:9px;border-radius:8px;border:1px solid '+(mm==='attack'?'#22c55e':'var(--border)')+';background:'+(mm==='attack'?'#16a34a':'var(--card)')+';color:'+(mm==='attack'?'#fff':'var(--dim)')+';font-size:12px;font-weight:700;cursor:pointer">🟢 공격 고정</button>'+
+      '<button onclick="setManualMode(\'defense\')" style="flex:1;padding:9px;border-radius:8px;border:1px solid '+(mm==='defense'?'#3b82f6':'var(--border)')+';background:'+(mm==='defense'?'#1d4ed8':'var(--card)')+';color:'+(mm==='defense'?'#fff':'var(--dim)')+';font-size:12px;font-weight:700;cursor:pointer">🔵 방어 고정</button>'+
+      '</div>';
+    if(mm!=='auto'){
+      h+='<div style="background:rgba(251,191,36,0.12);border:1px solid var(--gold);color:var(--gold);padding:8px 12px;border-radius:8px;font-size:11px;font-weight:600;margin-bottom:12px;text-align:center">⚠️ 수동 '+(mm==='attack'?'공격':'방어')+' 고정 중 · 자동 판정('+(autoMode==='attack'?'공격':'방어')+') 무시</div>';
     }
     
     const tradingDays=p.diary.filter(d=>!d.isRef);
