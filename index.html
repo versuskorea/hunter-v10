@@ -125,8 +125,16 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 <div id="modal-container"></div>
 <script>
 const TU=20,UP=2,DN=4,TOP_TH=-12,BOT_TH=-20;
-// NEW SYSTEM 유닛: 공격모드 상승3u/하락5u, 방어모드 하락3u(상승 매수X)
+// NEW SYSTEM 유닛: 공격모드 상승3u/하락5u, 방어모드 점증 2·4·6·8u(상승 매수X)
 const NS={atkUp:3,atkDn:5,defDn:3};
+const DEF_TIERS=[2,4,6,8];  // 방어모드 점증: 떨어질수록 크게
+// 현재 보유 방어 티어 수 → 다음 방어 매수 유닛 (남은 한도 고려)
+function defNextUnit(pos){
+  const defCnt=(pos||[]).filter(pp=>pp.nsMode==='defense').length;
+  const usedU=(pos||[]).reduce((s,pp)=>s+(pp.uu||0),0);
+  let u=defCnt<DEF_TIERS.length?DEF_TIERS[defCnt]:DEF_TIERS[DEF_TIERS.length-1];
+  return Math.max(0,Math.min(u,20-usedU));
+}
 const ZONES={top:{tp:0.025,fd:7,label:'천장'},mid:{tp:0.005,fd:7,label:'중간'},bot:{tp:0.030,fd:10,label:'바닥'}};
 let tab='d';
 let portfolios=JSON.parse(localStorage.getItem('v13-portfolios')||'null');
@@ -454,14 +462,24 @@ function render(){
       const vr=(p.nsMode&&p.nsMode.vrule)?'<br><span style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:6px">⚡ V자 룰 발동 · 전년 SOXL '+p.nsMode.prevYrRet.toFixed(0)+'% → 공격 고정</span>':'';
       h+='<div style="background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:12px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">🟢 공격모드'+(nsReady?' · 주간RSI '+p.nsMode.wrsi.toFixed(1):' (RSI 대기)')+'<br><span style="font-size:11px;font-weight:600;opacity:0.9">상승일 3u(전날×1.15) · 하락일 5u(전날×0.999)</span>'+vr+'</div>';
     }else{
-      h+='<div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;padding:12px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">🔵 방어모드'+(nsReady?' · 주간RSI '+p.nsMode.wrsi.toFixed(1):' (RSI 대기)')+'<br><span style="font-size:11px;font-weight:600;opacity:0.9">하락일 3u(전날×0.999)만 · 상승일 매수 X</span></div>';
+      h+='<div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;padding:12px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">🔵 방어모드'+(nsReady?' · 주간RSI '+p.nsMode.wrsi.toFixed(1):' (RSI 대기)')+'<br><span style="font-size:11px;font-weight:600;opacity:0.9">하락일 점증 2·4·6·8u(전날×0.999)만 · 상승일 매수 X</span></div>';
     }
     // 모드 수동 선택 (자동 / 공격 고정 / 방어 고정)
     const mm=manualMode;
+    const mbtn=(val,emoji,label,onColor)=>{
+      const on=(mm===val);
+      const extra=on?';box-shadow:0 0 14px '+onColor+'88;transform:scale(1.04);font-weight:800':'';
+      const bg=on?onColor:'var(--card)';
+      const bd=on?onColor:'var(--border)';
+      const tc=on?'#fff':'var(--dim)';
+      const chk=on?'✓ ':'';
+      const autoLbl=(val==='auto'&&on)?' ('+(autoMode==='attack'?'공격':'방어')+')':'';
+      return '<button onclick="setManualMode(\''+val+'\')" style="flex:1;padding:10px 4px;border-radius:8px;border:2px solid '+bd+';background:'+bg+';color:'+tc+';font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;overflow:hidden;transition:all 0.15s'+extra+'">'+chk+emoji+' '+label+autoLbl+'</button>';
+    };
     h+='<div style="display:flex;gap:6px;margin-bottom:12px">'+
-      '<button onclick="setManualMode(\'auto\')" style="flex:1;padding:9px;border-radius:8px;border:1px solid '+(mm==='auto'?'#a78bfa':'var(--border)')+';background:'+(mm==='auto'?'#a78bfa':'var(--card)')+';color:'+(mm==='auto'?'#fff':'var(--dim)')+';font-size:12px;font-weight:700;cursor:pointer">🤖 자동'+(mm==='auto'?' ('+(autoMode==='attack'?'공격':'방어')+')':'')+'</button>'+
-      '<button onclick="setManualMode(\'attack\')" style="flex:1;padding:9px;border-radius:8px;border:1px solid '+(mm==='attack'?'#22c55e':'var(--border)')+';background:'+(mm==='attack'?'#16a34a':'var(--card)')+';color:'+(mm==='attack'?'#fff':'var(--dim)')+';font-size:12px;font-weight:700;cursor:pointer">🟢 공격 고정</button>'+
-      '<button onclick="setManualMode(\'defense\')" style="flex:1;padding:9px;border-radius:8px;border:1px solid '+(mm==='defense'?'#3b82f6':'var(--border)')+';background:'+(mm==='defense'?'#1d4ed8':'var(--card)')+';color:'+(mm==='defense'?'#fff':'var(--dim)')+';font-size:12px;font-weight:700;cursor:pointer">🔵 방어 고정</button>'+
+      mbtn('auto','🤖','자동','#a78bfa')+
+      mbtn('attack','🟢','공격','#16a34a')+
+      mbtn('defense','🔵','방어','#1d4ed8')+
       '</div>';
     if(mm!=='auto'){
       h+='<div style="background:rgba(251,191,36,0.12);border:1px solid var(--gold);color:var(--gold);padding:8px 12px;border-radius:8px;font-size:11px;font-weight:600;margin-bottom:12px;text-align:center">⚠️ 수동 '+(mm==='attack'?'공격':'방어')+' 고정 중 · 자동 판정('+(autoMode==='attack'?'공격':'방어')+') 무시</div>';
@@ -498,7 +516,7 @@ function render(){
           const isUpDay=d.vsPrev>0;
           let actualU;
           if(nsMode==='attack'){ actualU=isUpDay?NS.atkUp:NS.atkDn; }
-          else { actualU=isUpDay?0:NS.defDn; }
+          else { actualU=isUpDay?0:defNextUnit(p.pos); }
           sharesDisplay=actualU>0?Math.floor(actualU*uw/d.close)+'주':'-';
         }
         
@@ -512,7 +530,7 @@ function render(){
           const isUpD=d.vsPrev>0;
           let nsU;
           if(nsMode==='attack'){ nsU=isUpD?NS.atkUp:NS.atkDn; }
-          else { nsU=isUpD?0:NS.defDn; }
+          else { nsU=isUpD?0:defNextUnit(p.pos); }
           if(nsU>0){
             actionBtn='<button onclick="quickFillBuy(\''+d.date+'\','+d.close+','+nsU+',\''+nsMode+'\')" style="background:var(--accent);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer">체결</button>';
           }else{
@@ -550,7 +568,7 @@ function render(){
       const loc2Price=loc2PriceNum.toFixed(2);
       let loc1U,loc2U; // 유닛
       if(nsMode==='attack'){ loc1U=NS.atkUp; loc2U=NS.atkDn-NS.atkUp; }  // 3u / +2u
-      else { loc1U=0; loc2U=NS.defDn; }                                   // 0 / 3u
+      else { loc1U=0; loc2U=defNextUnit(p.pos); }                          // 0 / 점증(2·4·6·8)
       // 주수는 각 LOC 가격 기준 → 체결가(종가)는 LOC가격 이하라 유닛 초과 없음
       const loc1Shares=loc1U>0?Math.floor(loc1U*uw/parseFloat(loc1Price)):0;
       const loc2Shares=loc2U>0?Math.floor(loc2U*uw/loc2PriceNum):0;
