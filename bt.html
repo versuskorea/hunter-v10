@@ -132,6 +132,15 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
 
   <div class="quick-sym" style="margin-top:12px" id="sym-buttons"></div>
 
+  <div style="margin-top:12px;display:flex;gap:6px">
+    <label style="flex:1;cursor:pointer"><input type="radio" name="bt-mode" value="auto" checked style="display:none"><div class="bt-mode-btn" style="padding:10px;border-radius:8px;border:1px solid #444;background:#1a1a2a;color:#aaa;text-align:center;font-size:13px;font-weight:700">🤖 자동 모드전환</div></label>
+    <label style="flex:1;cursor:pointer"><input type="radio" name="bt-mode" value="attack" style="display:none"><div class="bt-mode-btn" style="padding:10px;border-radius:8px;border:1px solid #444;background:#1a1a2a;color:#aaa;text-align:center;font-size:13px;font-weight:700">🟢 공격 고정</div></label>
+    <label style="flex:1;cursor:pointer"><input type="radio" name="bt-mode" value="defense" style="display:none"><div class="bt-mode-btn" style="padding:10px;border-radius:8px;border:1px solid #444;background:#1a1a2a;color:#aaa;text-align:center;font-size:13px;font-weight:700">🔵 방어 고정</div></label>
+  </div>
+  <style>
+    label input[name="bt-mode"]:checked + .bt-mode-btn { border-color:#00b4d8; background:#00b4d8; color:#fff; }
+  </style>
+
 <button class="btn btn-primary" onclick="runNewSystem()" style="background:linear-gradient(135deg,#00b4d8,#0077b6,#03045e) !important;color:#fff !important;font-weight:800;font-size:16px;padding:16px">🚀 HUNTER 백테 실행!<br><small style="font-size:11px;font-weight:500">공격 상승3u/하락5u · 방어 하락3u · wRSI 모드전환 · 천중바 매도 · T1복리</small></button>
 
   <div class="progress" id="bt-progress"></div>
@@ -3810,7 +3819,8 @@ function buildModeMap(bars, n) {
   return modeArr;
 }
 
-function simulateNewSystem(bars, userStartIdx) {
+function simulateNewSystem(bars, userStartIdx, manualMode) {
+  manualMode = manualMode || 'auto';
   const TU = 20;
   const closes = bars.map(b => b.close);
   const dates  = bars.map(b => b.date);
@@ -3861,9 +3871,14 @@ function simulateNewSystem(bars, userStartIdx) {
     const pv = closes[i - 1];
     const fi = p > pv;
     let mode = modeArr[i];
-    // V자 룰: 전년 SOXL -50%↓면 올해는 wRSI 방어 무시하고 공격 고정
-    const prevYr = (parseInt(dates[i].slice(0, 4)) - 1).toString();
-    if (yrRet[prevYr] !== undefined && yrRet[prevYr] <= -50) mode = 'attack';
+    // 수동 모드 고정 (auto면 자동, attack/defense면 강제)
+    if (manualMode === 'attack') mode = 'attack';
+    else if (manualMode === 'defense') mode = 'defense';
+    // V자 룰: 전년 SOXL -50%↓면 올해는 wRSI 방어 무시하고 공격 고정 (자동일 때만)
+    if (manualMode === 'auto') {
+      const prevYr = (parseInt(dates[i].slice(0, 4)) - 1).toString();
+      if (yrRet[prevYr] !== undefined && yrRet[prevYr] <= -50) mode = 'attack';
+    }
 
     const h20 = high20(i);
     const drop = (p - h20) / h20 * 100;
@@ -4034,7 +4049,10 @@ async function runNewSystem() {
     for (let i = 0; i < data.bars.length; i++) {
       if (new Date(data.bars[i].date).getTime() >= userStartTs) { userStartIdx = i; break; }
     }
-    const result = simulateNewSystem(data.bars, userStartIdx);
+    const manualMode = (document.querySelector('input[name="bt-mode"]:checked')||{}).value || 'auto';
+    const modeLabel = manualMode==='attack'?'🟢 공격 고정':(manualMode==='defense'?'🔵 방어 고정':'🤖 자동 모드전환');
+    progressEl.innerHTML = '🚀 HUNTER 백테 중... ('+modeLabel+')';
+    const result = simulateNewSystem(data.bars, userStartIdx, manualMode);
     const userStartPrice = data.bars[userStartIdx].close;
     const userEndPrice   = data.bars[data.bars.length - 1].close;
     const buyHoldMult = userEndPrice / userStartPrice;
