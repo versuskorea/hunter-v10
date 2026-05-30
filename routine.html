@@ -11,6 +11,11 @@
     background:#0a0a14; color:#fff; padding:18px; padding-bottom:60px;
     max-width:480px; margin:0 auto; min-height:100vh;
   }
+  .back-btn {
+    display:inline-flex; align-items:center; gap:6px; margin-bottom:12px;
+    padding:8px 16px; background:#16162a; color:#a78bfa; text-decoration:none;
+    border-radius:20px; font-size:13px; font-weight:700; border:1px solid rgba(167,139,250,0.3);
+  }
   .top-date { text-align:center; font-size:14px; color:#8b8ba0; margin-bottom:6px; }
   .streak-card {
     background:linear-gradient(135deg,#1a1a3e,#2a1a3e);
@@ -30,15 +35,27 @@
     border-radius:14px; padding:16px 18px; margin-bottom:10px; cursor:pointer;
     border:2px solid transparent; transition:all 0.15s;
   }
-  .check-item.on { border-color:#22c55e; background:#16291e; }
   .check-box {
     width:26px; height:26px; border-radius:8px; border:2px solid #444;
     flex-shrink:0; display:flex; align-items:center; justify-content:center;
     font-size:16px; color:#fff; transition:all 0.15s;
   }
-  .check-item.on .check-box { background:#22c55e; border-color:#22c55e; }
   .check-label { font-size:15px; font-weight:600; }
   .check-sub { font-size:11px; color:#777; margin-top:2px; }
+  .check-item.on.c-rule { border-color:#3b82f6; background:#0f1d33; }
+  .check-item.on.c-rule .check-box { background:#3b82f6; border-color:#3b82f6; }
+  .check-item.on.c-ex { border-color:#22c55e; background:#0f2918; }
+  .check-item.on.c-ex .check-box { background:#22c55e; border-color:#22c55e; }
+  .check-item.on.c-sleep { border-color:#a855f7; background:#1d0f33; }
+  .check-item.on.c-sleep .check-box { background:#a855f7; border-color:#a855f7; }
+  .check-item.on.c-thx { border-color:#fbbf24; background:#33290f; }
+  .check-item.on.c-thx .check-box { background:#fbbf24; border-color:#fbbf24; color:#000; }
+  .thx-input {
+    width:100%; margin-top:8px; background:#0a0a14; border:1px solid #333;
+    border-radius:10px; padding:10px 12px; color:#fff; font-size:14px;
+    font-family:inherit; outline:none; resize:none;
+  }
+  .thx-input:focus { border-color:#fbbf24; }
   .cal-card { background:#16162a; border-radius:18px; padding:16px; }
   .cal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
   .cal-nav { font-size:22px; color:#a78bfa; cursor:pointer; padding:4px 12px; user-select:none; }
@@ -48,26 +65,28 @@
   .cal-day {
     aspect-ratio:1; border-radius:10px; display:flex; flex-direction:column;
     align-items:center; justify-content:center; font-size:13px; color:#888;
-    background:#1e1e34; cursor:pointer; position:relative; transition:all 0.15s;
+    background:#1e1e34; cursor:pointer; position:relative; overflow:hidden;
   }
   .cal-day.empty { background:transparent; cursor:default; }
   .cal-day.future { opacity:0.3; cursor:default; }
-  .cal-day.lv1 { background:#1f3a28; color:#86efac; }
-  .cal-day.lv2 { background:#236b3a; color:#fff; }
-  .cal-day.lv3 { background:#22c55e; color:#fff; font-weight:700;
-    box-shadow:0 0 12px rgba(34,197,94,0.5); }
-  .cal-day.today { border:2px solid #a78bfa; }
-  .cal-check { font-size:11px; line-height:1; margin-top:1px; }
-  .legend { display:flex; justify-content:center; gap:14px; margin-top:14px; font-size:10px; color:#777; }
+  .cal-day.today { border:2px solid #fff; }
+  .cal-day .daynum { position:relative; z-index:2; }
+  .cal-day.perfect { box-shadow:0 0 12px rgba(255,255,255,0.4); font-weight:700; }
+  .cal-bars { position:absolute; bottom:0; left:0; right:0; height:6px; display:flex; z-index:1; }
+  .cal-bars i { flex:1; }
+  .cal-check { font-size:10px; line-height:1; margin-top:1px; position:relative; z-index:2; }
+  .legend { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:14px; font-size:10px; color:#999; }
   .legend span { display:flex; align-items:center; gap:4px; }
   .dot { width:10px; height:10px; border-radius:3px; }
-  .stats { display:flex; gap:10px; margin-top:16px; }
-  .stat { flex:1; background:#16162a; border-radius:14px; padding:14px; text-align:center; }
-  .stat-num { font-size:24px; font-weight:700; color:#a78bfa; }
-  .stat-lbl { font-size:11px; color:#777; margin-top:2px; }
+  .stats { display:flex; gap:8px; margin-top:16px; }
+  .stat { flex:1; background:#16162a; border-radius:14px; padding:12px 6px; text-align:center; }
+  .stat-num { font-size:22px; font-weight:700; }
+  .stat-lbl { font-size:10px; color:#777; margin-top:2px; }
 </style>
 </head>
 <body>
+  <a href="index.html" class="back-btn">← 헌터로</a>
+
   <div class="top-date" id="topDate"></div>
 
   <div class="streak-card">
@@ -79,78 +98,102 @@
 
   <div class="checks">
     <div class="check-title">오늘 한 거 탭하기</div>
-    <div class="check-item" data-k="rule" onclick="toggleToday('rule')">
-      <div class="check-box">✓</div>
+
+    <div class="check-item c-rule" data-k="rule" onclick="toggleToday('rule')">
+      <div class="check-box">&#10003;</div>
       <div><div class="check-label">매매 원칙 지켰다</div>
-      <div class="check-sub">장중 안 보고 룰대로 — 이게 제일 중요</div></div>
+      <div class="check-sub">장중 안 보고 룰대로 &mdash; 제일 중요</div></div>
     </div>
-    <div class="check-item" data-k="del" onclick="toggleToday('del')">
-      <div class="check-box">✓</div>
-      <div><div class="check-label">주문 후 앱 지웠다</div>
-      <div class="check-sub">충동 들어올 구멍 막기</div></div>
-    </div>
-    <div class="check-item" data-k="ex" onclick="toggleToday('ex')">
-      <div class="check-box">✓</div>
+
+    <div class="check-item c-ex" data-k="ex" onclick="toggleToday('ex')">
+      <div class="check-box">&#10003;</div>
       <div><div class="check-label">운동했다</div>
-      <div class="check-sub">아침 10분이라도 — 도파민 옮기기</div></div>
+      <div class="check-sub">아침 10분이라도 &mdash; 도파민 옮기기</div></div>
     </div>
+
+    <div class="check-item c-sleep" data-k="sleep" onclick="toggleToday('sleep')">
+      <div class="check-box">&#10003;</div>
+      <div><div class="check-label">일찍 잤다</div>
+      <div class="check-sub">수면&middot;컨디션 &mdash; 우울한 아침 끊기</div></div>
+    </div>
+
+    <div class="check-item c-thx" data-k="thx" onclick="toggleToday('thx')">
+      <div class="check-box">&#10003;</div>
+      <div style="flex:1"><div class="check-label">감사 한 줄 &mdash; 하루 마무리</div>
+      <div class="check-sub">오늘 좋았던 거 하나</div></div>
+    </div>
+    <textarea class="thx-input" id="thxInput" rows="2" placeholder="오늘 감사한 거 한 줄&hellip; (적으면 자동 체크)" oninput="onThxInput()"></textarea>
   </div>
 
   <div class="cal-card">
     <div class="cal-head">
-      <div class="cal-nav" onclick="moveMonth(-1)">‹</div>
+      <div class="cal-nav" onclick="moveMonth(-1)">&#8249;</div>
       <div class="cal-month" id="calMonth"></div>
-      <div class="cal-nav" onclick="moveMonth(1)">›</div>
+      <div class="cal-nav" onclick="moveMonth(1)">&#8250;</div>
     </div>
     <div class="cal-grid" id="calGrid"></div>
     <div class="legend">
-      <span><i class="dot" style="background:#1f3a28"></i>1개</span>
-      <span><i class="dot" style="background:#236b3a"></i>2개</span>
-      <span><i class="dot" style="background:#22c55e"></i>완벽한 날</span>
+      <span><i class="dot" style="background:#3b82f6"></i>원칙</span>
+      <span><i class="dot" style="background:#22c55e"></i>운동</span>
+      <span><i class="dot" style="background:#a855f7"></i>수면</span>
+      <span><i class="dot" style="background:#fbbf24"></i>감사</span>
     </div>
   </div>
 
   <div class="stats">
-    <div class="stat"><div class="stat-num" id="statPerfect">0</div><div class="stat-lbl">완벽한 날</div></div>
-    <div class="stat"><div class="stat-num" id="statRule">0</div><div class="stat-lbl">원칙 지킨 날</div></div>
-    <div class="stat"><div class="stat-num" id="statEx">0</div><div class="stat-lbl">운동한 날</div></div>
+    <div class="stat"><div class="stat-num" style="color:#fff" id="statPerfect">0</div><div class="stat-lbl">완벽한 날</div></div>
+    <div class="stat"><div class="stat-num" style="color:#3b82f6" id="statRule">0</div><div class="stat-lbl">원칙</div></div>
+    <div class="stat"><div class="stat-num" style="color:#22c55e" id="statEx">0</div><div class="stat-lbl">운동</div></div>
+    <div class="stat"><div class="stat-num" style="color:#a855f7" id="statSleep">0</div><div class="stat-lbl">수면</div></div>
+    <div class="stat"><div class="stat-num" style="color:#fbbf24" id="statThx">0</div><div class="stat-lbl">감사</div></div>
   </div>
 
 <script>
-  const KEY='routine_data_v2';
-  let data = load();
-  let viewYM = (function(){ const d=new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })();
+  var KEY='routine_data_v3';
+  var ITEMS=['rule','ex','sleep','thx'];
+  var COLORS={rule:'#3b82f6', ex:'#22c55e', sleep:'#a855f7', thx:'#fbbf24'};
+  var data = load();
+  var viewYM = (function(){ var d=new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })();
 
   function load(){ try{ return JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ return {}; } }
   function save(){ try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){} }
-  function todayKey(){ const d=new Date(); return ymd(d.getFullYear(),d.getMonth(),d.getDate()); }
+  function todayKey(){ var d=new Date(); return ymd(d.getFullYear(),d.getMonth(),d.getDate()); }
   function ymd(y,m,d){ return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
+  function blank(){ return {rule:false,ex:false,sleep:false,thx:false,note:''}; }
 
   function toggleToday(k){
-    const t=todayKey();
-    if(!data[t]) data[t]={rule:false,del:false,ex:false};
+    var t=todayKey();
+    if(!data[t]) data[t]=blank();
     data[t][k]=!data[t][k];
+    if(k==='thx' && !data[t][k]) data[t].note='';
+    save(); render();
+  }
+
+  function onThxInput(){
+    var t=todayKey();
+    if(!data[t]) data[t]=blank();
+    var v=document.getElementById('thxInput').value;
+    data[t].note=v;
+    data[t].thx = v.trim().length>0;
     save(); render();
   }
 
   function toggleDay(key){
-    const d=data[key]||{rule:false,del:false,ex:false};
-    const cnt=(d.rule?1:0)+(d.del?1:0)+(d.ex?1:0);
-    // 탭하면: 비어있으면 완벽한날로, 뭔가 있으면 비우기
-    if(cnt===0) data[key]={rule:true,del:true,ex:true};
-    else data[key]={rule:false,del:false,ex:false};
+    var c=dayCount(key);
+    if(c===0) data[key]={rule:true,ex:true,sleep:true,thx:true,note:(data[key]&&data[key].note)||''};
+    else data[key]=blank();
     save(); render();
   }
 
   function dayCount(key){
-    const d=data[key]; if(!d) return 0;
-    return (d.rule?1:0)+(d.del?1:0)+(d.ex?1:0);
+    var d=data[key]; if(!d) return 0;
+    return ITEMS.reduce(function(s,k){return s+(d[k]?1:0);},0);
   }
 
   function calcStreak(){
-    let s=0; const d=new Date();
-    for(let i=0;i<3650;i++){
-      const k=ymd(d.getFullYear(),d.getMonth(),d.getDate());
+    var s=0; var d=new Date();
+    for(var i=0;i<3650;i++){
+      var k=ymd(d.getFullYear(),d.getMonth(),d.getDate());
       if(data[k] && data[k].rule) s++;
       else { if(i===0){ d.setDate(d.getDate()-1); continue; } break; }
       d.setDate(d.getDate()-1);
@@ -168,60 +211,68 @@
   }
 
   function render(){
-    const now=new Date();
-    const dows=['일','월','화','수','목','금','토'];
+    var now=new Date();
+    var dows=['일','월','화','수','목','금','토'];
     document.getElementById('topDate').textContent =
       now.getFullYear()+'년 '+(now.getMonth()+1)+'월 '+now.getDate()+'일 '+dows[now.getDay()]+'요일';
 
-    const s=calcStreak();
+    var s=calcStreak();
     document.getElementById('streakNum').textContent=s;
     document.getElementById('streakMsg').textContent=msgFor(s);
 
-    const t=todayKey();
-    document.querySelectorAll('.check-item').forEach(el=>{
-      const k=el.dataset.k;
-      const on = data[t] && data[t][k];
-      el.classList.toggle('on', !!on);
-    });
+    var t=todayKey();
+    var td=data[t]||blank();
+    var items=document.querySelectorAll('.check-item');
+    for(var ii=0;ii<items.length;ii++){
+      var k=items[ii].dataset.k;
+      if(td[k]) items[ii].classList.add('on'); else items[ii].classList.remove('on');
+    }
+    var thxBox=document.getElementById('thxInput');
+    if(document.activeElement!==thxBox) thxBox.value = td.note||'';
 
-    // 달력
     document.getElementById('calMonth').textContent = viewYM.y+'년 '+(viewYM.m+1)+'월';
-    const grid=document.getElementById('calGrid');
+    var grid=document.getElementById('calGrid');
     grid.innerHTML='';
-    dows.forEach(d=>{ const e=document.createElement('div'); e.className='cal-dow'; e.textContent=d; grid.appendChild(e); });
-    const first=new Date(viewYM.y,viewYM.m,1).getDay();
-    const days=new Date(viewYM.y,viewYM.m+1,0).getDate();
-    for(let i=0;i<first;i++){ const e=document.createElement('div'); e.className='cal-day empty'; grid.appendChild(e); }
-    const todayStr=todayKey();
-    for(let d=1;d<=days;d++){
-      const key=ymd(viewYM.y,viewYM.m,d);
-      const e=document.createElement('div'); e.className='cal-day';
-      const cellDate=new Date(viewYM.y,viewYM.m,d);
-      const isFuture = cellDate > new Date(now.getFullYear(),now.getMonth(),now.getDate());
-      const cnt=dayCount(key);
-      if(cnt===1) e.classList.add('lv1');
-      else if(cnt===2) e.classList.add('lv2');
-      else if(cnt===3) e.classList.add('lv3');
+    for(var di=0;di<dows.length;di++){ var de=document.createElement('div'); de.className='cal-dow'; de.textContent=dows[di]; grid.appendChild(de); }
+    var first=new Date(viewYM.y,viewYM.m,1).getDay();
+    var days=new Date(viewYM.y,viewYM.m+1,0).getDate();
+    for(var f=0;f<first;f++){ var ee=document.createElement('div'); ee.className='cal-day empty'; grid.appendChild(ee); }
+    var todayStr=todayKey();
+    for(var d=1;d<=days;d++){
+      var key=ymd(viewYM.y,viewYM.m,d);
+      var e=document.createElement('div'); e.className='cal-day';
+      var cellDate=new Date(viewYM.y,viewYM.m,d);
+      var isFuture = cellDate > new Date(now.getFullYear(),now.getMonth(),now.getDate());
+      var cnt=dayCount(key);
+      var dd=data[key]||blank();
+      if(cnt===4) e.classList.add('perfect');
       if(key===todayStr) e.classList.add('today');
-      let inner='<div>'+d+'</div>';
-      if(cnt===3) inner+='<div class="cal-check">✓</div>';
+      var inner='<div class="daynum">'+d+'</div>';
+      if(cnt===4) inner+='<div class="cal-check">&#10003;</div>';
+      var bars='<div class="cal-bars">';
+      for(var bi=0;bi<ITEMS.length;bi++){ var bk=ITEMS[bi]; if(dd[bk]) bars+='<i style="background:'+COLORS[bk]+'"></i>'; }
+      bars+='</div>';
+      inner+=bars;
       e.innerHTML=inner;
       if(isFuture){ e.classList.add('future'); }
-      else { e.onclick=()=>toggleDay(key); }
+      else { (function(kk){ e.onclick=function(){ toggleDay(kk); }; })(key); }
       grid.appendChild(e);
     }
 
-    // 통계
-    let perfect=0, rule=0, ex=0;
-    Object.keys(data).forEach(k=>{
-      const c=dayCount(k);
-      if(c===3) perfect++;
+    var perfect=0,rule=0,ex=0,sleep=0,thx=0;
+    Object.keys(data).forEach(function(k){
+      var c=dayCount(k);
+      if(c===4) perfect++;
       if(data[k].rule) rule++;
       if(data[k].ex) ex++;
+      if(data[k].sleep) sleep++;
+      if(data[k].thx) thx++;
     });
     document.getElementById('statPerfect').textContent=perfect;
     document.getElementById('statRule').textContent=rule;
     document.getElementById('statEx').textContent=ex;
+    document.getElementById('statSleep').textContent=sleep;
+    document.getElementById('statThx').textContent=thx;
   }
 
   function moveMonth(dir){
