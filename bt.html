@@ -374,7 +374,41 @@ async function runBacktest() {
     html += '<div class="metric-row"><span class="metric-label">매수 / 매도</span><span class="metric-value">' + result.nBuys + '회 / ' + result.nSells + '회</span></div>';
     html += '<div class="metric-row"><span class="metric-label">티어 승률 (참고)</span><span class="metric-value" style="color:#aaa">' + result.tierWinRate.toFixed(0) + '%</span></div>';
     html += '<div class="metric-row"><span class="metric-label">🟢 공격모드 비중</span><span class="metric-value" style="color:#22c55e">' + result.atkPct.toFixed(1) + '% (' + result.atkDays + '일)</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">🟢 공격 동안 수익률</span><span class="metric-value" style="color:' + (result.atkReturn>=0?'#22c55e':'#f44') + '">' + (result.atkReturn>=0?'+':'') + result.atkReturn.toFixed(1) + '%</span></div>';
     html += '<div class="metric-row"><span class="metric-label">🔵 방어모드 비중</span><span class="metric-value" style="color:#3b82f6">' + result.defPct.toFixed(1) + '% (' + result.defDays + '일)</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">🔵 방어 동안 수익률</span><span class="metric-value" style="color:' + (result.defReturn>=0?'#3b82f6':'#f44') + '">' + (result.defReturn>=0?'+':'') + result.defReturn.toFixed(1) + '%</span></div>';
+
+    // 모드 타임라인 (언제부터 언제까지 공격/방어)
+    if (result.modeTimeline && result.modeTimeline.length > 0) {
+      const tl = result.modeTimeline;
+      const totalD = result.totalDays || 1;
+      // 시각적 바
+      let barHtml = '<div style="display:flex;height:24px;border-radius:6px;overflow:hidden;margin:10px 0">';
+      tl.forEach(s => {
+        const w = s.days / totalD * 100;
+        const c = s.mode === 'attack' ? '#22c55e' : '#3b82f6';
+        barHtml += '<div style="width:' + w + '%;background:' + c + '" title="' + (s.mode==='attack'?'공격':'방어') + ' ' + s.startDate + '~' + s.endDate + '"></div>';
+      });
+      barHtml += '</div>';
+      // 구간 리스트
+      let listHtml = '';
+      tl.forEach(s => {
+        const isAtk = s.mode === 'attack';
+        const emoji = isAtk ? '🟢' : '🔵';
+        const nm = isAtk ? '공격' : '방어';
+        const col = isAtk ? '#22c55e' : '#3b82f6';
+        const segRet = (s.startCap > 0) ? (s.endCap / s.startCap - 1) * 100 : 0;
+        const retCol = segRet >= 0 ? '#22c55e' : '#f44';
+        listHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid #222;font-size:12px">' +
+          '<span style="color:' + col + ';font-weight:700;width:48px">' + emoji + ' ' + nm + '</span>' +
+          '<span style="color:#bbb;font-family:monospace;flex:1;text-align:center">' + s.startDate + ' ~ ' + s.endDate + '</span>' +
+          '<span style="color:#888;width:46px;text-align:right">' + s.days + '일</span>' +
+          '<span style="color:' + retCol + ';width:62px;text-align:right;font-weight:700">' + (segRet>=0?'+':'') + segRet.toFixed(1) + '%</span>' +
+          '</div>';
+      });
+      html += '<div class="card" style="margin-top:14px"><div class="ct">📅 모드 타임라인 (공격/방어 구간) · 총 ' + tl.length + '개 구간</div>' +
+        barHtml + '<div style="max-height:280px;overflow-y:auto;margin-top:8px">' + listHtml + '</div></div>';
+    }
     
     // 연도별 (생략 - 기존과 동일)
     const snapshots = result.periodSnapshots || {};
@@ -3848,6 +3882,8 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
   let pk = SEED, mdd = 0;
   let nBuys = 0, nSells = 0, W = 0, L = 0;
   let atkDays = 0, defDays = 0;  // 모드별 일수 카운트
+  const modeTimeline = [];  // 모드 구간 [{mode, startDate, endDate, days}]
+  let curSeg = null;
 
   function high20(i) { return Math.max(...closes.slice(Math.max(0, i - 19), i + 1)); }
   function snapTV(i) { let v = cash; for (const x of pos) v += x.sh * closes[i]; return v; }
@@ -3885,6 +3921,14 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
     }
     // 모드별 일수 카운트
     if (mode === 'attack') atkDays++; else defDays++;
+    // 모드 타임라인: 전환되면 구간 닫고 새로 시작
+    const tvNow = snapTV(i);
+    if (!curSeg || curSeg.mode !== mode) {
+      if (curSeg) { curSeg.endDate = dates[i-1]; curSeg.endCap = snapTV(i-1); modeTimeline.push(curSeg); }
+      curSeg = { mode: mode, startDate: dates[i], endDate: dates[i], days: 1, startPrice: p, startCap: tvNow, endCap: tvNow };
+    } else {
+      curSeg.days++;
+    }
 
     const h20 = high20(i);
     const drop = (p - h20) / h20 * 100;
@@ -4007,6 +4051,7 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
 
   const lastClose = closes[n - 1];
   const final = cash + pos.reduce((s, x) => s + x.sh * lastClose, 0);
+  if (curSeg) { curSeg.endDate = dates[n-1]; curSeg.endCap = snapTV(n-1); modeTimeline.push(curSeg); }
   let incompleteCount = 0;
   if (inCycle) {
     incompleteCount = 1;
@@ -4028,6 +4073,18 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
     worstCycle = completed.reduce((w,c)=>c.pnl<w.pnl?c:w);
   }
 
+  // 모드별 누적 수익률 (각 구간 수익률 복리 합성)
+  let atkMult = 1, defMult = 1;
+  for (const seg of modeTimeline) {
+    if (seg.startCap > 0 && seg.endCap > 0) {
+      const segMult = seg.endCap / seg.startCap;
+      if (seg.mode === 'attack') atkMult *= segMult;
+      else defMult *= segMult;
+    }
+  }
+  const atkReturn = (atkMult - 1) * 100;
+  const defReturn = (defMult - 1) * 100;
+
   return {
     mult: final / 100000, mdd, nBuys, nSells,
     tierWinRate: nSells > 0 ? W / nSells * 100 : 0,
@@ -4038,7 +4095,8 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
     bestCycle, worstCycle, incompleteCount,
     atkDays, defDays, totalDays: atkDays + defDays,
     atkPct: (atkDays+defDays)>0 ? atkDays/(atkDays+defDays)*100 : 0,
-    defPct: (atkDays+defDays)>0 ? defDays/(atkDays+defDays)*100 : 0
+    defPct: (atkDays+defDays)>0 ? defDays/(atkDays+defDays)*100 : 0,
+    modeTimeline, atkReturn, defReturn
   };
 }
 
