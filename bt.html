@@ -133,15 +133,16 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
   <div class="quick-sym" style="margin-top:12px" id="sym-buttons"></div>
 
   <div style="margin-top:12px;display:flex;gap:6px">
-    <label style="flex:1;cursor:pointer"><input type="radio" name="bt-mode" value="auto" checked style="display:none"><div class="bt-mode-btn" style="padding:10px;border-radius:8px;border:1px solid #444;background:#1a1a2a;color:#aaa;text-align:center;font-size:13px;font-weight:700">🤖 자동 모드전환</div></label>
-    <label style="flex:1;cursor:pointer"><input type="radio" name="bt-mode" value="attack" style="display:none"><div class="bt-mode-btn" style="padding:10px;border-radius:8px;border:1px solid #444;background:#1a1a2a;color:#aaa;text-align:center;font-size:13px;font-weight:700">🟢 공격 고정</div></label>
-    <label style="flex:1;cursor:pointer"><input type="radio" name="bt-mode" value="defense" style="display:none"><div class="bt-mode-btn" style="padding:10px;border-radius:8px;border:1px solid #444;background:#1a1a2a;color:#aaa;text-align:center;font-size:13px;font-weight:700">🔵 방어 고정</div></label>
+    <label style="flex:1;cursor:pointer"><input type="radio" name="bt-mode" value="auto" checked style="display:none"><div class="bt-mode-btn">🤖 자동</div></label>
+    <label style="flex:1;cursor:pointer"><input type="radio" name="bt-mode" value="attack" style="display:none"><div class="bt-mode-btn">🟢 공격</div></label>
+    <label style="flex:1;cursor:pointer"><input type="radio" name="bt-mode" value="defense" style="display:none"><div class="bt-mode-btn">🔵 방어</div></label>
   </div>
   <style>
-    label input[name="bt-mode"]:checked + .bt-mode-btn { border-color:#00b4d8; background:#00b4d8; color:#fff; }
+    .bt-mode-btn { padding:11px 4px; border-radius:8px; border:2px solid #444; background:#1a1a2a; color:#888; text-align:center; font-size:13px; font-weight:700; transition:all 0.15s; white-space:nowrap; overflow:hidden; }
+    label input[name="bt-mode"]:checked + .bt-mode-btn { border-color:#00d8ff; background:#00b4d8; color:#fff; box-shadow:0 0 14px rgba(0,180,216,0.5); transform:scale(1.03); }
   </style>
 
-<button class="btn btn-primary" onclick="runNewSystem()" style="background:linear-gradient(135deg,#00b4d8,#0077b6,#03045e) !important;color:#fff !important;font-weight:800;font-size:16px;padding:16px">🚀 HUNTER 백테 실행!<br><small style="font-size:11px;font-weight:500">공격 상승3u/하락5u · 방어 하락3u · wRSI 모드전환 · 천중바 매도 · T1복리</small></button>
+<button class="btn btn-primary" onclick="runNewSystem()" style="background:linear-gradient(135deg,#00b4d8,#0077b6,#03045e) !important;color:#fff !important;font-weight:800;font-size:16px;padding:16px">🚀 HUNTER 백테 실행!<br><small style="font-size:11px;font-weight:500">공격 상승3u/하락5u · 방어 하락3u · wRSI 모드전환 · 천중바매도 · T1익절시 3u재진입</small></button>
 
   <div class="progress" id="bt-progress"></div>
 </div>
@@ -159,7 +160,7 @@ function getRecentSyms() {
   }
   return DEFAULT_SYMS.slice();
 }
-function saveRecentSyms(syms) { localStorage.setItem('bt-recent-syms', JSON.stringify(syms.slice(0, 15))); }
+function saveRecentSyms(syms) { localStorage.setItem('bt-recent-syms', JSON.stringify(syms.slice(0, 20))); }
 function addRecentSym(sym) {
   if (!sym) return;
   const u = sym.toUpperCase().trim();
@@ -167,7 +168,7 @@ function addRecentSym(sym) {
   let recent = getRecentSyms();
   recent = recent.filter(s => s !== u);
   recent.unshift(u);
-  recent = recent.slice(0, 15);
+  recent = recent.slice(0, 20);
   saveRecentSyms(recent);
   renderSymButtons();
 }
@@ -372,6 +373,8 @@ async function runBacktest() {
     html += '<div class="metric-row"><span class="metric-label">최대 낙폭 (MDD)</span><span class="metric-value" style="color:#f88">' + result.mdd.toFixed(1) + '%</span></div>';
     html += '<div class="metric-row"><span class="metric-label">매수 / 매도</span><span class="metric-value">' + result.nBuys + '회 / ' + result.nSells + '회</span></div>';
     html += '<div class="metric-row"><span class="metric-label">티어 승률 (참고)</span><span class="metric-value" style="color:#aaa">' + result.tierWinRate.toFixed(0) + '%</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">🟢 공격모드 비중</span><span class="metric-value" style="color:#22c55e">' + result.atkPct.toFixed(1) + '% (' + result.atkDays + '일)</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">🔵 방어모드 비중</span><span class="metric-value" style="color:#3b82f6">' + result.defPct.toFixed(1) + '% (' + result.defDays + '일)</span></div>';
     
     // 연도별 (생략 - 기존과 동일)
     const snapshots = result.periodSnapshots || {};
@@ -3844,6 +3847,7 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
   let pos  = [];
   let pk = SEED, mdd = 0;
   let nBuys = 0, nSells = 0, W = 0, L = 0;
+  let atkDays = 0, defDays = 0;  // 모드별 일수 카운트
 
   function high20(i) { return Math.max(...closes.slice(Math.max(0, i - 19), i + 1)); }
   function snapTV(i) { let v = cash; for (const x of pos) v += x.sh * closes[i]; return v; }
@@ -3879,6 +3883,8 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
       const prevYr = (parseInt(dates[i].slice(0, 4)) - 1).toString();
       if (yrRet[prevYr] !== undefined && yrRet[prevYr] <= -50) mode = 'attack';
     }
+    // 모드별 일수 카운트
+    if (mode === 'attack') atkDays++; else defDays++;
 
     const h20 = high20(i);
     const drop = (p - h20) / h20 * 100;
@@ -3896,7 +3902,7 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
     // ── 매도 (천중바, 공격·방어 공통) ──
     const sorted = [...pos].sort((a, b) => a.bi - b.bi);
     const newPos = [];
-    let t1Sold = false;
+    let t1Sold = false, t1Profit = false;
     sorted.forEach((x, idx) => {
       const td = i - x.bi;
       let sell = false;
@@ -3906,27 +3912,34 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
       if (sell) {
         cash += x.sh * p; nSells++;
         (p >= x.bp) ? W++ : L++;
-        if (idx === 0) t1Sold = true;
+        if (idx === 0) { t1Sold = true; t1Profit = (p >= x.bp); }
       } else newPos.push(x);
     });
     pos = newPos;
 
-    // ── T1 매도 시 SEED 갱신 + 공격모드 즉시 재매수 ──
+    // ── T1 매도 = 사이클 종료 (질질 안 끌고 1티어 팔리면 끝) ──
     if (t1Sold) {
-      SEED = cash + pos.reduce((s, x) => s + x.sh * p, 0);
-      if (mode === 'attack') {
-        const a = SEED / TU * 2;
+      const tv = snapTV(i);
+      if (inCycle) {
+        cycles.push({ startIdx: cycleStartIdx, endIdx: i, startDate: dates[cycleStartIdx], endDate: dates[i],
+          duration: i - cycleStartIdx + 1, pnl: (tv - cycleStartCap) / cycleStartCap * 100, incomplete: false, maxUnits: cycleMaxU });
+        inCycle = false;
+      }
+      SEED = tv;
+      // 공격모드 & 익절(올라서 팔림)일 때만 3u 재매수 → 새 사이클. 손절(기간만료)이면 쉼
+      if (mode === 'attack' && t1Profit) {
+        const a = SEED / TU * 3;
         const sh = Math.floor(Math.min(a, cash) / p);
         if (sh > 0) {
           cash -= sh * p;
-          pos.push({ bp: p, sh, bi: i, mode: 'attack', zone, uu: 2 });
+          pos.push({ bp: p, sh, bi: i, mode: 'attack', zone, uu: 3 });
           nBuys++;
-          const cu = pos.reduce((s,x)=>s+x.uu,0); if (cu>cycleMaxU) cycleMaxU=Math.round(cu);
+          inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 3;
         }
       }
     }
 
-    // ── 사이클 종료 ──
+    // ── 잔여 포지션도 모두 청산되면 사이클 종료 (방어모드 등 T1 없이 끝나는 경우) ──
     if (inCycle && pos.length === 0) {
       const tv = snapTV(i);
       cycles.push({ startIdx: cycleStartIdx, endIdx: i, startDate: dates[cycleStartIdx], endDate: dates[i],
@@ -4022,7 +4035,10 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
     cycleTotal: cycles.length, cycleWins, cycleLosses,
     cycleWinRate: completed.length ? cycleWins / completed.length * 100 : 0,
     avgCyclePnl: avgPnl, avgCycleDuration: avgDur, medianCycleDuration: medianDur,
-    bestCycle, worstCycle, incompleteCount
+    bestCycle, worstCycle, incompleteCount,
+    atkDays, defDays, totalDays: atkDays + defDays,
+    atkPct: (atkDays+defDays)>0 ? atkDays/(atkDays+defDays)*100 : 0,
+    defPct: (atkDays+defDays)>0 ? defDays/(atkDays+defDays)*100 : 0
   };
 }
 
@@ -4032,6 +4048,7 @@ async function runNewSystem() {
   const userEndDate   = document.getElementById('bt-end').value;
   if (!sym)                           { alert('종목 입력!'); return; }
   if (!userStartDate || !userEndDate) { alert('날짜 선택!'); return; }
+  addRecentSym(sym);  // 검색한 티커 하단 히스토리에 저장 (최근 20개)
   const progressEl = document.getElementById('bt-progress');
   const resultEl   = document.getElementById('result');
   progressEl.innerHTML = '🚀 HUNTER 백테 중...';
