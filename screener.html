@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>스크리너</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:#0a0a14; color:#fff; padding:16px; padding-bottom:60px; max-width:560px; margin:0 auto; }
+  .back-btn { display:inline-flex; align-items:center; gap:6px; margin-bottom:14px;
+    padding:8px 16px; background:#16162a; color:#00b4d8; text-decoration:none;
+    border-radius:20px; font-size:13px; font-weight:700; border:1px solid rgba(0,180,216,0.3); }
+  h1 { font-size:20px; margin-bottom:4px; }
+  .sub { font-size:12px; color:#8b8ba0; margin-bottom:16px; line-height:1.5; }
+  .panel { background:#16162a; border-radius:16px; padding:16px; margin-bottom:14px; }
+  .lbl { font-size:12px; color:#8b8ba0; margin-bottom:6px; font-weight:600; }
+  textarea { width:100%; background:#0a0a14; border:1px solid #333; border-radius:10px;
+    padding:12px; color:#fff; font-size:15px; font-family:inherit; outline:none; resize:vertical; min-height:80px; }
+  textarea:focus { border-color:#00b4d8; }
+  .row { display:flex; gap:8px; margin-top:10px; }
+  .row input { flex:1; background:#0a0a14; border:1px solid #333; border-radius:10px;
+    padding:10px 12px; color:#fff; font-size:14px; font-family:inherit; outline:none; }
+  .row input:focus { border-color:#00b4d8; }
+  .btn { width:100%; margin-top:12px; background:linear-gradient(135deg,#00b4d8,#0077b6,#03045e);
+    color:#fff; border:none; border-radius:12px; padding:15px; font-size:16px; font-weight:800; cursor:pointer; }
+  .btn:disabled { opacity:0.5; }
+  .prog { font-size:13px; color:#00b4d8; margin:12px 0; text-align:center; min-height:18px; }
+  .sortbar { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+  .sortbar button { flex:1; min-width:60px; background:#16162a; color:#aaa; border:1px solid #333;
+    border-radius:8px; padding:8px 4px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .sortbar button.active { background:#0077b6; color:#fff; border-color:#00b4d8; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { color:#8b8ba0; font-size:11px; font-weight:600; padding:8px 4px; text-align:right; border-bottom:1px solid #333; }
+  th:first-child, td:first-child { text-align:left; }
+  td { padding:10px 4px; border-bottom:1px solid #1e1e34; text-align:right; }
+  .rank { color:#666; font-size:11px; width:20px; }
+  .sym { font-weight:800; font-size:14px; }
+  .pos { color:#22c55e; } .neg { color:#ef4444; }
+  .win-hi { color:#fbbf24; font-weight:800; }
+  .row1 td { background:rgba(251,191,36,0.06); }
+  .err { color:#ef4444; font-size:11px; }
+  .note { font-size:11px; color:#777; margin-top:12px; line-height:1.6; }
+  .badge { display:inline-block; font-size:9px; padding:1px 5px; border-radius:4px; background:#333; color:#aaa; margin-left:4px; }
+</style>
+</head>
+<body>
+  <a href="index.html" class="back-btn">← 헌터로</a>
+  <h1>📊 종목 스크리너</h1>
+  <div class="sub">여러 종목을 HUNTER 시스템으로 한 번에 백테. 승률·수익률·MDD·칼마로 순위를 매겨 어떤 종목이 이 시스템에 맞는지 골라냅니다.</div>
+
+  <div class="panel">
+    <div class="lbl">AI 밸류체인 티어별 프리셋 (탭하면 자동 입력 · 위→아래 = 칩에서 에너지까지)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+      <button onclick="setPreset('t1_chip')" style="background:#0077b6;color:#fff;border:none;border-radius:8px;padding:9px 6px;font-size:11px;font-weight:700;cursor:pointer">T1 🧠 칩 제조</button>
+      <button onclick="setPreset('t2_cloud')" style="background:#16162a;color:#aaa;border:1px solid #333;border-radius:8px;padding:9px 6px;font-size:11px;font-weight:700;cursor:pointer">T2 ☁️ 네오클라우드</button>
+      <button onclick="setPreset('t3_dc')" style="background:#16162a;color:#aaa;border:1px solid #333;border-radius:8px;padding:9px 6px;font-size:11px;font-weight:700;cursor:pointer">T3 🏢 데이터센터·냉각</button>
+      <button onclick="setPreset('t4_cpo')" style="background:#16162a;color:#aaa;border:1px solid #333;border-radius:8px;padding:9px 6px;font-size:11px;font-weight:700;cursor:pointer">T4 💡 CPO·광연결</button>
+      <button onclick="setPreset('t5_pwr')" style="background:#16162a;color:#aaa;border:1px solid #333;border-radius:8px;padding:9px 6px;font-size:11px;font-weight:700;cursor:pointer">T5 🔌 전력 반도체</button>
+      <button onclick="setPreset('t6_energy')" style="background:#16162a;color:#aaa;border:1px solid #333;border-radius:8px;padding:9px 6px;font-size:11px;font-weight:700;cursor:pointer">T6 ⚡ 에너지·발전</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <button onclick="setPreset('full')" style="flex:1;background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:9px 6px;font-size:11px;font-weight:700;cursor:pointer">🌐 전 티어 대표주</button>
+      <button onclick="setPreset('lev')" style="flex:1;background:#16162a;color:#aaa;border:1px solid #333;border-radius:8px;padding:9px 6px;font-size:11px;font-weight:700;cursor:pointer">⚡ 레버리지</button>
+    </div>
+    <div class="lbl" style="margin-top:6px">종목 (쉼표/줄바꿈 · 최대 20개 · 직접 추가 가능)</div>
+    <textarea id="syms" placeholder="NVDA, CRWV, VRT, GEV ...">NVDA, AVGO, MU, CRWV, NBIS, VRT, LITE, GEV, VST, CEG</textarea>
+    <div class="row">
+      <input id="startDate" type="date" value="2016-01-01">
+      <input id="endDate" type="date" value="2026-05-30">
+    </div>
+    <button class="btn" id="runBtn" onclick="runScreen()">🔍 스크리닝 실행</button>
+  </div>
+
+  <div class="prog" id="prog"></div>
+  <div id="result"></div>
+
+<script>
+function buildModeMap(bars, n) {
+  const weekClose = {};
+  const weekOrder = [];
+  for (let i = 0; i < n; i++) {
+    const d = new Date(bars[i].date);
+    const day = d.getDay();
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+    const key = monday.toISOString().slice(0, 10);
+    if (weekClose[key] === undefined) weekOrder.push(key);
+    weekClose[key] = bars[i].close;
+    bars[i]._wk = key;
+  }
+  const wkeys = weekOrder.slice().sort();
+  const wcloses = wkeys.map(k => weekClose[k]);
+  function rsiSeries(arr) {
+    const out = new Array(arr.length).fill(50);
+    if (arr.length < 16) return out;
+    let ag = 0, al = 0;
+    for (let i = 1; i <= 14; i++) { const d = arr[i]-arr[i-1]; if (d>0) ag+=d; else al-=d; }
+    ag/=14; al/=14;
+    out[14] = al === 0 ? 100 : 100 - 100/(1+ag/al);
+    for (let i = 15; i < arr.length; i++) {
+      const d = arr[i]-arr[i-1];
+      if (d>0){ ag=(ag*13+d)/14; al=(al*13)/14; } else { ag=(ag*13)/14; al=(al*13-d)/14; }
+      out[i] = al === 0 ? 100 : 100 - 100/(1+ag/al);
+    }
+    return out;
+  }
+  const wrsi = rsiSeries(wcloses);
+  const wkIndex = {}; wkeys.forEach((k,j)=>wkIndex[k]=j);
+  const modeArr = new Array(n).fill('attack');
+  let cur = 'attack', prevWk = null;
+  for (let i = 0; i < n; i++) {
+    const wk = bars[i]._wk;
+    if (wk !== prevWk) {
+      const mi = wkIndex[wk];
+      const ri = mi - 1;
+      if (ri >= 15) {
+        const c2 = wrsi[ri], p2 = wrsi[ri-1], rising = c2 > p2;
+        if      (p2 < 50 && c2 >= 50)          cur = 'attack';
+        else if (rising && c2 >= 50 && c2 <= 60) cur = 'attack';
+        else if (rising && c2 < 35)             cur = 'attack';
+        else if (p2 >= 50 && c2 < 50)           cur = 'defense';
+        else if (!rising && c2 >= 40 && c2 <= 50) cur = 'defense';
+        else if (!rising && c2 > 65)            cur = 'defense';
+      }
+      prevWk = wk;
+    }
+    modeArr[i] = cur;
+  }
+  return modeArr;
+}
+
+function simulateNewSystem(bars, userStartIdx, manualMode) {
+  manualMode = manualMode || 'auto';
+  const TU = 20;
+  const closes = bars.map(b => b.close);
+  const dates  = bars.map(b => b.date);
+  const n = closes.length;
+  const warmup = Math.max(userStartIdx, 1);
+
+  const modeArr = buildModeMap(bars, n);
+
+  // 전년 SOXL 연수익률 (V자 룰: 전년 -50%↓면 올해 공격 고정)
+  const yrFirst = {}, yrLast = {};
+  for (let i = 0; i < n; i++) {
+    const y = dates[i].slice(0, 4);
+    if (yrFirst[y] === undefined) yrFirst[y] = closes[i];
+    yrLast[y] = closes[i];
+  }
+  const yrRet = {};
+  for (const y in yrFirst) yrRet[y] = (yrLast[y] / yrFirst[y] - 1) * 100;
+
+  let SEED = 100000;
+  let cash = SEED;
+  let pos  = [];
+  let pk = SEED, mdd = 0;
+  let nBuys = 0, nSells = 0, W = 0, L = 0;
+  let atkDays = 0, defDays = 0;  // 모드별 일수 카운트
+  const modeTimeline = [];  // 모드 구간 [{mode, startDate, endDate, days}]
+  let curSeg = null;
+  const equityCurve = [];  // 일별 [{date, value, mode}] 누적 자산곡선
+
+  function high20(i) { return Math.max(...closes.slice(Math.max(0, i - 19), i + 1)); }
+  function snapTV(i) { let v = cash; for (const x of pos) v += x.sh * closes[i]; return v; }
+
+  const periodSnapshots = {};
+  let lastYear = '', lastMonth = '';
+  const cycles = [];
+  let inCycle = false, cycleStartCap = SEED, cycleStartIdx = warmup, cycleMaxU = 0;
+
+  // 시작 시드 진입 (공격 2u)
+  {
+    const p0 = closes[warmup];
+    const sh0 = Math.floor((SEED / TU * 2) / p0);
+    if (sh0 > 0) {
+      cash -= sh0 * p0;
+      pos.push({ bp: p0, sh: sh0, bi: warmup, mode: 'attack', zone: 'top', uu: 2 });
+      inCycle = true; cycleStartCap = SEED; cycleStartIdx = warmup; cycleMaxU = 2;
+    }
+    const tv = snapTV(warmup);
+    if (tv > pk) pk = tv;
+  }
+
+  for (let i = warmup + 1; i < n; i++) {
+    const p  = closes[i];
+    const pv = closes[i - 1];
+    const fi = p > pv;
+    let mode = modeArr[i];
+    // 수동 모드 고정 (auto면 자동, attack/defense면 강제)
+    if (manualMode === 'attack') mode = 'attack';
+    else if (manualMode === 'defense') mode = 'defense';
+    // V자 룰: 전년 SOXL -50%↓면 올해는 wRSI 방어 무시하고 공격 고정 (자동일 때만)
+    if (manualMode === 'auto') {
+      const prevYr = (parseInt(dates[i].slice(0, 4)) - 1).toString();
+      if (yrRet[prevYr] !== undefined && yrRet[prevYr] <= -50) mode = 'attack';
+    }
+    // 모드별 일수 카운트
+    if (mode === 'attack') atkDays++; else defDays++;
+    // 모드 타임라인: 전환되면 구간 닫고 새로 시작
+    const tvNow = snapTV(i);
+    if (!curSeg || curSeg.mode !== mode) {
+      if (curSeg) { curSeg.endDate = dates[i-1]; curSeg.endCap = snapTV(i-1); modeTimeline.push(curSeg); }
+      curSeg = { mode: mode, startDate: dates[i], endDate: dates[i], days: 1, startPrice: p, startCap: tvNow, endCap: tvNow };
+    } else {
+      curSeg.days++;
+    }
+
+    const h20 = high20(i);
+    const drop = (p - h20) / h20 * 100;
+    let zone;
+    if (drop > -12)      zone = 'top';
+    else if (drop > -20) zone = 'middle';
+    else                 zone = 'bottom';
+
+    const yr = dates[i].slice(0, 4);
+    const mo = dates[i].slice(0, 7);
+    const tv0 = snapTV(i);
+    if (yr !== lastYear) { if (!periodSnapshots[yr]) periodSnapshots[yr] = { startCap: tv0, endCap: tv0, peak: tv0, mdd: 0 }; lastYear = yr; }
+    if (mo !== lastMonth) { if (!periodSnapshots[mo]) periodSnapshots[mo] = { startCap: tv0, endCap: tv0, peak: tv0, mdd: 0 }; lastMonth = mo; }
+
+    // ── 매도 (천중바, 공격·방어 공통) ──
+    const sorted = [...pos].sort((a, b) => a.bi - b.bi);
+    const newPos = [];
+    let t1Sold = false, t1Profit = false;
+    sorted.forEach((x, idx) => {
+      const td = i - x.bi;
+      let sell = false;
+      if (x.zone === 'top')         { if (td >= 7  || p >= x.bp * 1.025) sell = true; }
+      else if (x.zone === 'middle') { if (td >= 7  || p >= x.bp * 1.005) sell = true; }
+      else                          { if (td >= 10 || p >= x.bp * 1.03)  sell = true; }
+      if (sell) {
+        cash += x.sh * p; nSells++;
+        (p >= x.bp) ? W++ : L++;
+        if (idx === 0) { t1Sold = true; t1Profit = (p >= x.bp); }
+      } else newPos.push(x);
+    });
+    pos = newPos;
+
+    // ── T1 매도 = 사이클 종료 (질질 안 끌고 1티어 팔리면 끝) ──
+    if (t1Sold) {
+      const tv = snapTV(i);
+      if (inCycle) {
+        cycles.push({ startIdx: cycleStartIdx, endIdx: i, startDate: dates[cycleStartIdx], endDate: dates[i],
+          duration: i - cycleStartIdx + 1, pnl: (tv - cycleStartCap) / cycleStartCap * 100, incomplete: false, maxUnits: cycleMaxU });
+        inCycle = false;
+      }
+      SEED = tv;
+      // 공격모드 & 익절(올라서 팔림)일 때만 3u 재매수 → 새 사이클. 손절(기간만료)이면 쉼
+      if (mode === 'attack' && t1Profit) {
+        const a = SEED / TU * 3;
+        const sh = Math.floor(Math.min(a, cash) / p);
+        if (sh > 0) {
+          cash -= sh * p;
+          pos.push({ bp: p, sh, bi: i, mode: 'attack', zone, uu: 3 });
+          nBuys++;
+          inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 3;
+        }
+      }
+    }
+
+    // ── 잔여 포지션도 모두 청산되면 사이클 종료 (방어모드 등 T1 없이 끝나는 경우) ──
+    if (inCycle && pos.length === 0) {
+      const tv = snapTV(i);
+      cycles.push({ startIdx: cycleStartIdx, endIdx: i, startDate: dates[cycleStartIdx], endDate: dates[i],
+        duration: i - cycleStartIdx + 1, pnl: (tv - cycleStartCap) / cycleStartCap * 100, incomplete: false, maxUnits: cycleMaxU });
+      inCycle = false;
+      SEED = tv;
+    }
+
+    // 평가액(매수 전) 기록 + 전체 MDD
+    {
+      const tv = snapTV(i);
+      if (tv > pk) pk = tv;
+      const ddv = (tv - pk) / pk * 100;
+      if (ddv < mdd) mdd = ddv;
+      equityCurve.push({ date: dates[i], value: tv, mode: mode });
+      if (periodSnapshots[yr]) { periodSnapshots[yr].endCap = tv; if (tv > periodSnapshots[yr].peak) periodSnapshots[yr].peak = tv;
+        const dd = (tv - periodSnapshots[yr].peak) / periodSnapshots[yr].peak * 100; if (dd < periodSnapshots[yr].mdd) periodSnapshots[yr].mdd = dd; }
+      if (periodSnapshots[mo]) { periodSnapshots[mo].endCap = tv; if (tv > periodSnapshots[mo].peak) periodSnapshots[mo].peak = tv;
+        const dd = (tv - periodSnapshots[mo].peak) / periodSnapshots[mo].peak * 100; if (dd < periodSnapshots[mo].mdd) periodSnapshots[mo].mdd = dd; }
+    }
+
+    // ── 매수 ──
+    const usedU = pos.reduce((s, x) => s + x.uu, 0);
+    if (mode === 'attack') {
+      if (usedU < TU && cash > 0) {
+        const buyU = fi ? 3 : 5;
+        const a = SEED / TU * buyU;
+        const thr = fi ? Math.round(pv * 1.15 * 100) / 100 : Math.round(pv * 0.999 * 100) / 100;
+        if (p <= thr) {
+          const sh = Math.floor(Math.min(a, cash) / p);
+          if (sh > 0) {
+            cash -= sh * p;
+            pos.push({ bp: p, sh, bi: i, mode: 'attack', zone, uu: buyU });
+            nBuys++;
+            if (!inCycle) { inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 0; }
+            const cu = pos.reduce((s,x)=>s+x.uu,0); if (cu>cycleMaxU) cycleMaxU=Math.round(cu);
+          }
+        }
+      }
+    } else {
+      if (usedU < TU && cash > 0 && !fi) {
+        // 방어모드 티어간격: 직전 방어 매수가보다 8% 더 빠져야 다음 티어 매수
+        const defPos = pos.filter(x => x.mode === 'defense');
+        let canBuy = true;
+        if (defPos.length > 0) {
+          const lowestDef = Math.min(...defPos.map(x => x.bp));
+          if (p > lowestDef * 0.92) canBuy = false;
+        }
+        if (canBuy) {
+          // 방어모드 점증: 티어 순서대로 2,4,6,8u (그 이후는 8u), 남은 유닛 한도
+          const DEF_TIERS = [2, 4, 6, 8];
+          const tierIdx = defPos.length;
+          let defU = (tierIdx < DEF_TIERS.length) ? DEF_TIERS[tierIdx] : DEF_TIERS[DEF_TIERS.length - 1];
+          defU = Math.min(defU, TU - usedU);
+          const a = SEED / TU * defU;
+          const thr = Math.round(pv * 0.999 * 100) / 100;
+          if (p <= thr && defU > 0) {
+            const sh = Math.floor(Math.min(a, cash) / p);
+            if (sh > 0) {
+              cash -= sh * p;
+              pos.push({ bp: p, sh, bi: i, mode: 'defense', zone, uu: defU });
+              nBuys++;
+              if (!inCycle) { inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 0; }
+              const cu = pos.reduce((s,x)=>s+x.uu,0); if (cu>cycleMaxU) cycleMaxU=Math.round(cu);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const lastClose = closes[n - 1];
+  const final = cash + pos.reduce((s, x) => s + x.sh * lastClose, 0);
+  if (curSeg) { curSeg.endDate = dates[n-1]; curSeg.endCap = snapTV(n-1); modeTimeline.push(curSeg); }
+  let incompleteCount = 0;
+  if (inCycle) {
+    incompleteCount = 1;
+    cycles.push({ startIdx: cycleStartIdx, endIdx: n-1, startDate: dates[cycleStartIdx], endDate: dates[n - 1],
+      duration: n - cycleStartIdx, pnl: (final - cycleStartCap) / cycleStartCap * 100, incomplete: true, maxUnits: cycleMaxU });
+  }
+
+  const completed = cycles.filter(c => !c.incomplete);
+  const cycleWins = completed.filter(c => c.pnl > 0).length;
+  const cycleLosses = completed.length - cycleWins;
+  const avgPnl = completed.length ? completed.reduce((s, c) => s + c.pnl, 0) / completed.length : 0;
+  const durations = completed.map(c => c.duration);
+  const avgDur = durations.length ? durations.reduce((s,d)=>s+d,0)/durations.length : 0;
+  const sortedDur = [...durations].sort((a,b)=>a-b);
+  const medianDur = sortedDur.length ? sortedDur[Math.floor(sortedDur.length/2)] : 0;
+  let bestCycle = null, worstCycle = null;
+  if (completed.length) {
+    bestCycle = completed.reduce((b,c)=>c.pnl>b.pnl?c:b);
+    worstCycle = completed.reduce((w,c)=>c.pnl<w.pnl?c:w);
+  }
+
+  // 모드별 누적 수익률 (각 구간 수익률 복리 합성)
+  let atkMult = 1, defMult = 1;
+  for (const seg of modeTimeline) {
+    if (seg.startCap > 0 && seg.endCap > 0) {
+      const segMult = seg.endCap / seg.startCap;
+      if (seg.mode === 'attack') atkMult *= segMult;
+      else defMult *= segMult;
+    }
+  }
+  const atkReturn = (atkMult - 1) * 100;
+  const defReturn = (defMult - 1) * 100;
+
+  return {
+    mult: final / 100000, mdd, nBuys, nSells,
+    tierWinRate: nSells > 0 ? W / nSells * 100 : 0,
+    cycles, completedCycles: completed, periodSnapshots,
+    cycleTotal: cycles.length, cycleWins, cycleLosses,
+    cycleWinRate: completed.length ? cycleWins / completed.length * 100 : 0,
+    avgCyclePnl: avgPnl, avgCycleDuration: avgDur, medianCycleDuration: medianDur,
+    bestCycle, worstCycle, incompleteCount,
+    atkDays, defDays, totalDays: atkDays + defDays,
+    atkPct: (atkDays+defDays)>0 ? atkDays/(atkDays+defDays)*100 : 0,
+    defPct: (atkDays+defDays)>0 ? defDays/(atkDays+defDays)*100 : 0,
+    modeTimeline, atkReturn, defReturn, equityCurve
+  };
+}
+
+// ===== 스크리너 로직 =====
+const PRESETS = {
+  t1_chip:  'NVDA, AMD, AVGO, MU, ASML, TSM',
+  t2_cloud: 'CRWV, NBIS, IREN, APLD, ANET, ORCL',
+  t3_dc:    'VRT, DLR, EQIX, ETN, ANET',
+  t4_cpo:   'LITE, COHR, CRDO, ANET, CIEN',
+  t5_pwr:   'ON, MPWR, VICR, NVDA, AVGO',
+  t6_energy:'GEV, VST, CEG, OKLO, NRG, TLN',
+  full:     'NVDA, AVGO, MU, CRWV, NBIS, VRT, LITE, GEV, VST, CEG',
+  lev:      'SOXL, NVDL, USD, AMDL'
+};
+function setPreset(k) {
+  document.getElementById('syms').value = PRESETS[k] || '';
+}
+
+let SCREEN_RESULTS = [];
+let SORT_KEY = 'cycleWinRate';
+
+function fmtDate(d) {
+  const dt = (d instanceof Date) ? d : new Date(d);
+  return dt.toISOString().slice(0, 10);
+}
+
+async function runScreen() {
+  const raw = document.getElementById('syms').value;
+  const syms = raw.split(/[\s,]+/).map(s => s.trim().toUpperCase()).filter(Boolean).slice(0, 20);
+  if (syms.length === 0) { document.getElementById('prog').textContent = '종목을 입력하세요'; return; }
+  const startDate = document.getElementById('startDate').value;
+  const endDate = document.getElementById('endDate').value;
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  const prog = document.getElementById('prog');
+  SCREEN_RESULTS = [];
+
+  // warmup: 시작일보다 1.5년 앞에서 데이터 당겨오기(주간RSI 워밍업)
+  const warmupDays = 550;
+
+  for (let i = 0; i < syms.length; i++) {
+    const sym = syms[i];
+    prog.textContent = '⏳ ' + (i + 1) + '/' + syms.length + '  ' + sym + ' 백테 중...';
+    try {
+      const fs = new Date(startDate);
+      fs.setDate(fs.getDate() - warmupDays);
+      const url = '/api/history?symbol=' + sym + '&start=' + fmtDate(fs) + '&end=' + endDate;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.error || !data.bars || data.bars.length < 60) {
+        SCREEN_RESULTS.push({ sym, error: data.error || '데이터 부족' });
+        continue;
+      }
+      // 시작일 인덱스
+      const startTs = new Date(startDate).getTime();
+      let startIdx = -1;
+      for (let k = 0; k < data.bars.length; k++) {
+        if (new Date(data.bars[k].date).getTime() >= startTs) { startIdx = k; break; }
+      }
+      if (startIdx < 30) startIdx = Math.min(30, data.bars.length - 1);
+      const r = simulateNewSystem(data.bars, startIdx, 'auto');
+      // 단순보유
+      const sp = data.bars[startIdx].close, ep = data.bars[data.bars.length - 1].close;
+      const holdMult = ep / sp;
+      // 칼마 = CAGR / |MDD|
+      const years = (new Date(data.bars[data.bars.length-1].date) - new Date(data.bars[startIdx].date)) / (365.25*864e5);
+      const cagr = years > 0 ? (Math.pow(r.mult, 1/years) - 1) * 100 : 0;
+      const calmar = r.mdd < 0 ? cagr / Math.abs(r.mdd) : 0;
+      SCREEN_RESULTS.push({
+        sym, mult: r.mult, mdd: r.mdd, cagr, calmar,
+        cycleWinRate: r.cycleWinRate, tierWinRate: r.tierWinRate,
+        cycleTotal: r.completedCycles ? r.completedCycles.length : r.cycleTotal,
+        avgCyclePnl: r.avgCyclePnl, holdMult,
+        nBuys: r.nBuys
+      });
+    } catch (e) {
+      SCREEN_RESULTS.push({ sym, error: '오류: ' + e.message });
+    }
+  }
+  prog.textContent = '✅ ' + syms.length + '개 완료';
+  btn.disabled = false;
+  renderScreen();
+}
+
+function setSort(key) { SORT_KEY = key; renderScreen(); }
+
+function renderScreen() {
+  const ok = SCREEN_RESULTS.filter(r => !r.error);
+  const bad = SCREEN_RESULTS.filter(r => r.error);
+  // 정렬: 칼마/승률/수익률/MDD(작을수록 좋음은 절대값 작은 순)
+  ok.sort((a, b) => {
+    if (SORT_KEY === 'mdd') return Math.abs(a.mdd) - Math.abs(b.mdd);
+    return (b[SORT_KEY] || 0) - (a[SORT_KEY] || 0);
+  });
+
+  const labels = { cycleWinRate:'승률', mult:'수익', calmar:'칼마', mdd:'MDD', cagr:'CAGR' };
+  let h = '<div class="sortbar">';
+  ['cycleWinRate','mult','calmar','mdd','cagr'].forEach(k => {
+    h += '<button class="' + (SORT_KEY===k?'active':'') + '" onclick="setSort(\'' + k + '\')">' + labels[k] + '순</button>';
+  });
+  h += '</div>';
+
+  h += '<table><thead><tr><th></th><th>종목</th><th>승률</th><th>수익</th><th>CAGR</th><th>MDD</th><th>칼마</th><th>사이클</th></tr></thead><tbody>';
+  ok.forEach((r, i) => {
+    const winCls = r.cycleWinRate >= 70 ? 'win-hi' : '';
+    const rowCls = i === 0 ? 'row1' : '';
+    h += '<tr class="' + rowCls + '">' +
+      '<td class="rank">' + (i+1) + '</td>' +
+      '<td class="sym">' + r.sym + '</td>' +
+      '<td class="' + winCls + '">' + r.cycleWinRate.toFixed(0) + '%</td>' +
+      '<td class="' + (r.mult>=1?'pos':'neg') + '">' + (r.mult>=100? (r.mult).toFixed(0)+'배' : (r.mult>=10? r.mult.toFixed(1)+'배' : '+'+((r.mult-1)*100).toFixed(0)+'%')) + '</td>' +
+      '<td class="' + (r.cagr>=0?'pos':'neg') + '">' + r.cagr.toFixed(0) + '%</td>' +
+      '<td class="neg">' + r.mdd.toFixed(0) + '%</td>' +
+      '<td>' + r.calmar.toFixed(2) + '</td>' +
+      '<td style="color:#888">' + r.cycleTotal + '</td>' +
+      '</tr>';
+  });
+  h += '</tbody></table>';
+
+  if (bad.length) {
+    h += '<div class="note">';
+    bad.forEach(b => { h += '<div class="err">⚠️ ' + b.sym + ': ' + b.error + '</div>'; });
+    h += '</div>';
+  }
+
+  h += '<div class="note">💡 <b>승률</b>=사이클(0u→매수→청산) 이긴 비율. HUNTER는 작은 익절이 잦아 승률이 원래 높게(70%+) 나옵니다. ' +
+    '문제는 <b>지는 소수가 크게 깨진다</b>는 것 — 그래서 <b>MDD·칼마</b>를 같이 보세요. ' +
+    '칼마(CAGR÷MDD)가 높을수록 \'덜 떨면서 버는\' 종목입니다. 노란 승률은 70%+.</div>';
+
+  document.getElementById('result').innerHTML = h;
+}
+</script>
+</body>
+</html>
