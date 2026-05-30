@@ -142,7 +142,7 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
     label input[name="bt-mode"]:checked + .bt-mode-btn { border-color:#00d8ff; background:#00b4d8; color:#fff; box-shadow:0 0 14px rgba(0,180,216,0.5); transform:scale(1.03); }
   </style>
 
-<button class="btn btn-primary" onclick="runNewSystem()" style="background:linear-gradient(135deg,#00b4d8,#0077b6,#03045e) !important;color:#fff !important;font-weight:800;font-size:16px;padding:16px">🚀 HUNTER 백테 실행!<br><small style="font-size:11px;font-weight:500">공격 상승3u/하락5u · 방어 하락3u · wRSI 모드전환 · 천중바매도 · T1익절시 3u재진입</small></button>
+<button class="btn btn-primary" onclick="runNewSystem()" style="background:linear-gradient(135deg,#00b4d8,#0077b6,#03045e) !important;color:#fff !important;font-weight:800;font-size:16px;padding:16px">🚀 HUNTER 백테 실행!<br><small style="font-size:11px;font-weight:500">공격 상승3u/하락5u · 방어 점증2·4·6·8u · wRSI 모드전환 · 천중바매도 · T1익절시 3u재진입</small></button>
 
   <div class="progress" id="bt-progress"></div>
 </div>
@@ -3884,6 +3884,7 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
   let atkDays = 0, defDays = 0;  // 모드별 일수 카운트
   const modeTimeline = [];  // 모드 구간 [{mode, startDate, endDate, days}]
   let curSeg = null;
+  const equityCurve = [];  // 일별 [{date, value, mode}] 누적 자산곡선
 
   function high20(i) { return Math.max(...closes.slice(Math.max(0, i - 19), i + 1)); }
   function snapTV(i) { let v = cash; for (const x of pos) v += x.sh * closes[i]; return v; }
@@ -3998,6 +3999,7 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
       if (tv > pk) pk = tv;
       const ddv = (tv - pk) / pk * 100;
       if (ddv < mdd) mdd = ddv;
+      equityCurve.push({ date: dates[i], value: tv, mode: mode });
       if (periodSnapshots[yr]) { periodSnapshots[yr].endCap = tv; if (tv > periodSnapshots[yr].peak) periodSnapshots[yr].peak = tv;
         const dd = (tv - periodSnapshots[yr].peak) / periodSnapshots[yr].peak * 100; if (dd < periodSnapshots[yr].mdd) periodSnapshots[yr].mdd = dd; }
       if (periodSnapshots[mo]) { periodSnapshots[mo].endCap = tv; if (tv > periodSnapshots[mo].peak) periodSnapshots[mo].peak = tv;
@@ -4032,13 +4034,18 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
           if (p > lowestDef * 0.92) canBuy = false;
         }
         if (canBuy) {
-          const a = SEED / TU * 3;
+          // 방어모드 점증: 티어 순서대로 2,4,6,8u (그 이후는 8u), 남은 유닛 한도
+          const DEF_TIERS = [2, 4, 6, 8];
+          const tierIdx = defPos.length;
+          let defU = (tierIdx < DEF_TIERS.length) ? DEF_TIERS[tierIdx] : DEF_TIERS[DEF_TIERS.length - 1];
+          defU = Math.min(defU, TU - usedU);
+          const a = SEED / TU * defU;
           const thr = Math.round(pv * 0.999 * 100) / 100;
-          if (p <= thr) {
+          if (p <= thr && defU > 0) {
             const sh = Math.floor(Math.min(a, cash) / p);
             if (sh > 0) {
               cash -= sh * p;
-              pos.push({ bp: p, sh, bi: i, mode: 'defense', zone, uu: 3 });
+              pos.push({ bp: p, sh, bi: i, mode: 'defense', zone, uu: defU });
               nBuys++;
               if (!inCycle) { inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 0; }
               const cu = pos.reduce((s,x)=>s+x.uu,0); if (cu>cycleMaxU) cycleMaxU=Math.round(cu);
@@ -4096,7 +4103,7 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
     atkDays, defDays, totalDays: atkDays + defDays,
     atkPct: (atkDays+defDays)>0 ? atkDays/(atkDays+defDays)*100 : 0,
     defPct: (atkDays+defDays)>0 ? defDays/(atkDays+defDays)*100 : 0,
-    modeTimeline, atkReturn, defReturn
+    modeTimeline, atkReturn, defReturn, equityCurve
   };
 }
 
@@ -4186,6 +4193,51 @@ async function runNewSystem() {
     html += '<div class="metric-row"><span class="metric-label">🟢 공격 동안 수익률</span><span class="metric-value" style="color:' + (result.atkReturn>=0?'#22c55e':'#f44') + '">' + (result.atkReturn>=0?'+':'') + result.atkReturn.toFixed(1) + '%</span></div>';
     html += '<div class="metric-row"><span class="metric-label">🔵 방어모드 비중</span><span class="metric-value" style="color:#3b82f6">' + result.defPct.toFixed(1) + '% (' + result.defDays + '일)</span></div>';
     html += '<div class="metric-row"><span class="metric-label">🔵 방어 동안 수익률</span><span class="metric-value" style="color:' + (result.defReturn>=0?'#3b82f6':'#f44') + '">' + (result.defReturn>=0?'+':'') + result.defReturn.toFixed(1) + '%</span></div>';
+
+    // 시간축 누적 수익률 곡선 (공격=초록, 방어=파랑)
+    if (result.equityCurve && result.equityCurve.length > 1) {
+      const ec = result.equityCurve;
+      const seed0 = 100000;
+      const W = 340, H = 160, padL = 8, padR = 8, padT = 10, padB = 18;
+      const rets = ec.map(p => (p.value / seed0 - 1) * 100);
+      let minR = Math.min(...rets, 0), maxR = Math.max(...rets, 0);
+      if (maxR === minR) maxR = minR + 1;
+      const xOf = idx => padL + idx / (ec.length - 1) * (W - padL - padR);
+      const yOf = r => padT + (maxR - r) / (maxR - minR) * (H - padT - padB);
+      // 0% 기준선
+      const yZero = yOf(0);
+      // 구간별 색칠 선 (모드 바뀌면 path 끊어서 색 변경)
+      let paths = '', curMode = null, d = '';
+      for (let k = 0; k < ec.length; k++) {
+        const x = xOf(k), y = yOf(rets[k]);
+        if (ec[k].mode !== curMode) {
+          if (d) { const col = curMode==='attack'?'#22c55e':'#3b82f6'; paths += '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2"/>'; }
+          curMode = ec[k].mode;
+          d = 'M' + x.toFixed(1) + ',' + y.toFixed(1);
+          if (k>0){ const px=xOf(k-1),py=yOf(rets[k-1]); d='M'+px.toFixed(1)+','+py.toFixed(1)+' L'+x.toFixed(1)+','+y.toFixed(1); }
+        } else {
+          d += ' L' + x.toFixed(1) + ',' + y.toFixed(1);
+        }
+      }
+      if (d) { const col = curMode==='attack'?'#22c55e':'#3b82f6'; paths += '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2"/>'; }
+      // 연도 눈금
+      let yearTicks = '';
+      let lastY = '';
+      ec.forEach((p, k) => {
+        const y4 = p.date.slice(0,4);
+        if (y4 !== lastY) { const x = xOf(k); yearTicks += '<line x1="'+x.toFixed(1)+'" y1="'+padT+'" x2="'+x.toFixed(1)+'" y2="'+(H-padB)+'" stroke="#333" stroke-width="0.5"/><text x="'+x.toFixed(1)+'" y="'+(H-5)+'" fill="#666" font-size="9" text-anchor="middle">'+y4+'</text>'; lastY = y4; }
+      });
+      const finalRet = rets[rets.length-1];
+      const svg = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;background:#0a0a14;border-radius:8px">' +
+        yearTicks +
+        '<line x1="'+padL+'" y1="'+yZero.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+yZero.toFixed(1)+'" stroke="#555" stroke-width="0.8" stroke-dasharray="3,3"/>' +
+        '<text x="'+(padL+2)+'" y="'+(yZero-3).toFixed(1)+'" fill="#888" font-size="9">0%</text>' +
+        paths +
+        '<text x="'+(W-padR)+'" y="'+(padT+8)+'" fill="#fbbf24" font-size="11" font-weight="700" text-anchor="end">+'+finalRet.toFixed(0)+'%</text>' +
+        '</svg>';
+      html += '<div class="card" style="margin-top:14px"><div class="ct">📈 누적 수익률 곡선 (🟢공격 / 🔵방어 구간)</div>' + svg +
+        '<div style="font-size:11px;color:#888;margin-top:6px;text-align:center">초록=공격모드 구간 · 파랑=방어모드 구간 · 점선=0%(본전)</div></div>';
+    }
 
     // 모드 타임라인 (언제부터 언제까지 공격/방어 + 구간 수익률)
     if (result.modeTimeline && result.modeTimeline.length > 0) {
@@ -4278,7 +4330,7 @@ async function runNewSystem() {
       html += '</div>';
     }
 
-    html += '<div class="def-info"><b>📐 NEW HUNTER 로직:</b> 공격모드(wRSI↑) 상승3u(×1.15)/하락5u(×0.999) · 방어모드(wRSI↓) 하락3u만(직전 방어가 -8% 더 빠져야 다음 티어) · 천중바 매도(존경계 -12%/-20%, 천장+2.5%/7일·중간+0.5%/7일·바닥+3%/10일) · 전년 SOXL -50%↓면 올해 공격 고정(V자) · T1 매도 시 SEED 갱신 후 공격 즉시 재매수(복리)</div>';
+    html += '<div class="def-info"><b>📐 NEW HUNTER 로직:</b> 공격모드(wRSI↑) 상승3u(×1.15)/하락5u(×0.999) · 방어모드(wRSI↓) 하락일 점증 2→4→6→8u(직전 방어가 -8% 더 빠져야 다음 티어) · 천중바 매도(존경계 -12%/-20%, 천장+2.5%/7일·중간+0.5%/7일·바닥+3%/10일) · 전년 SOXL -50%↓면 올해 공격 고정(V자) · T1 매도 시 SEED 갱신 후 공격 즉시 재매수(복리)</div>';
     html += '</div>';
     html += '</div>';
 
