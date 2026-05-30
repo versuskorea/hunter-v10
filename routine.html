@@ -29,7 +29,8 @@
   .streak-unit { font-size:18px; color:#8b8ba0; margin-top:4px; }
   .streak-msg { font-size:13px; color:#c4b5fd; margin-top:12px; line-height:1.5; min-height:18px; }
   .checks { margin-bottom:18px; }
-  .check-title { font-size:13px; color:#8b8ba0; margin-bottom:10px; padding-left:4px; }
+  .check-title { font-size:13px; color:#8b8ba0; margin-bottom:10px; padding-left:4px; display:flex; justify-content:space-between; align-items:center; }
+  .sel-tag { font-size:12px; color:#a78bfa; font-weight:700; }
   .check-item {
     display:flex; align-items:center; gap:14px; background:#16162a;
     border-radius:14px; padding:16px 18px; margin-bottom:10px; cursor:pointer;
@@ -64,17 +65,24 @@
   .cal-dow { text-align:center; font-size:11px; color:#666; padding:4px 0; }
   .cal-day {
     aspect-ratio:1; border-radius:10px; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; font-size:13px; color:#888;
+    align-items:center; justify-content:center; font-size:13px; color:#aaa;
     background:#1e1e34; cursor:pointer; position:relative; overflow:hidden;
   }
   .cal-day.empty { background:transparent; cursor:default; }
   .cal-day.future { opacity:0.3; cursor:default; }
-  .cal-day.today { border:2px solid #fff; }
+  .cal-day.today .daynum { color:#fff; font-weight:800; }
+  .cal-day.selected { border:2px solid #fff; }
+  /* 채움: 밑에서부터 차오르는 fill 레이어 */
+  .cal-fill { position:absolute; left:0; right:0; bottom:0; z-index:1; transition:height 0.2s; }
   .cal-day .daynum { position:relative; z-index:2; }
-  .cal-day.perfect { box-shadow:0 0 12px rgba(255,255,255,0.4); font-weight:700; }
-  .cal-bars { position:absolute; bottom:0; left:0; right:0; height:6px; display:flex; z-index:1; }
-  .cal-bars i { flex:1; }
-  .cal-check { font-size:10px; line-height:1; margin-top:1px; position:relative; z-index:2; }
+  .cal-check { font-size:10px; line-height:1; margin-top:1px; position:relative; z-index:2; color:#fff; }
+  .cal-day.perfect { box-shadow:0 0 14px rgba(255,255,255,0.5); }
+  .cal-day.perfect .daynum { color:#fff; font-weight:800; text-shadow:0 1px 3px rgba(0,0,0,0.6); }
+  @keyframes rainbow { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+  .rainbow {
+    background:linear-gradient(45deg,#ff0040,#ff8000,#ffe000,#40ff00,#00e0ff,#4000ff,#ff00e0);
+    background-size:300% 300%; animation:rainbow 3s ease infinite;
+  }
   .legend { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:14px; font-size:10px; color:#999; }
   .legend span { display:flex; align-items:center; gap:4px; }
   .dot { width:10px; height:10px; border-radius:3px; }
@@ -97,32 +105,32 @@
   </div>
 
   <div class="checks">
-    <div class="check-title">오늘 한 거 탭하기</div>
+    <div class="check-title"><span>탭해서 체크</span><span class="sel-tag" id="selTag"></span></div>
 
-    <div class="check-item c-rule" data-k="rule" onclick="toggleToday('rule')">
+    <div class="check-item c-rule" data-k="rule" onclick="toggle('rule')">
       <div class="check-box">&#10003;</div>
       <div><div class="check-label">매매 원칙 지켰다</div>
       <div class="check-sub">장중 안 보고 룰대로 &mdash; 제일 중요</div></div>
     </div>
 
-    <div class="check-item c-ex" data-k="ex" onclick="toggleToday('ex')">
+    <div class="check-item c-ex" data-k="ex" onclick="toggle('ex')">
       <div class="check-box">&#10003;</div>
       <div><div class="check-label">운동했다</div>
       <div class="check-sub">아침 10분이라도 &mdash; 도파민 옮기기</div></div>
     </div>
 
-    <div class="check-item c-sleep" data-k="sleep" onclick="toggleToday('sleep')">
+    <div class="check-item c-sleep" data-k="sleep" onclick="toggle('sleep')">
       <div class="check-box">&#10003;</div>
       <div><div class="check-label">일찍 잤다</div>
       <div class="check-sub">수면&middot;컨디션 &mdash; 우울한 아침 끊기</div></div>
     </div>
 
-    <div class="check-item c-thx" data-k="thx" onclick="toggleToday('thx')">
+    <div class="check-item c-thx" data-k="thx" onclick="toggle('thx')">
       <div class="check-box">&#10003;</div>
       <div style="flex:1"><div class="check-label">감사 한 줄 &mdash; 하루 마무리</div>
       <div class="check-sub">오늘 좋았던 거 하나</div></div>
     </div>
-    <textarea class="thx-input" id="thxInput" rows="2" placeholder="오늘 감사한 거 한 줄&hellip; (적으면 자동 체크)" oninput="onThxInput()"></textarea>
+    <textarea class="thx-input" id="thxInput" rows="2" placeholder="감사한 거 한 줄&hellip; (적으면 자동 체크)" oninput="onThxInput()"></textarea>
   </div>
 
   <div class="cal-card">
@@ -137,6 +145,7 @@
       <span><i class="dot" style="background:#22c55e"></i>운동</span>
       <span><i class="dot" style="background:#a855f7"></i>수면</span>
       <span><i class="dot" style="background:#fbbf24"></i>감사</span>
+      <span><i class="dot rainbow"></i>4개 완성</span>
     </div>
   </div>
 
@@ -154,35 +163,42 @@
   var COLORS={rule:'#3b82f6', ex:'#22c55e', sleep:'#a855f7', thx:'#fbbf24'};
   var data = load();
   var viewYM = (function(){ var d=new Date(); return {y:d.getFullYear(), m:d.getMonth()}; })();
+  var selKey = todayKey(); // 선택된 날짜 (기본 오늘)
 
   function load(){ try{ return JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ return {}; } }
   function save(){ try{ localStorage.setItem(KEY, JSON.stringify(data)); }catch(e){} }
   function todayKey(){ var d=new Date(); return ymd(d.getFullYear(),d.getMonth(),d.getDate()); }
   function ymd(y,m,d){ return y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
   function blank(){ return {rule:false,ex:false,sleep:false,thx:false,note:''}; }
+  function isFutureKey(key){
+    var p=key.split('-'); var dt=new Date(+p[0],+p[1]-1,+p[2]);
+    var n=new Date(); return dt > new Date(n.getFullYear(),n.getMonth(),n.getDate());
+  }
 
-  function toggleToday(k){
-    var t=todayKey();
-    if(!data[t]) data[t]=blank();
-    data[t][k]=!data[t][k];
-    if(k==='thx' && !data[t][k]) data[t].note='';
+  // 위 체크칸은 "선택된 날짜(selKey)"를 토글
+  function toggle(k){
+    if(isFutureKey(selKey)) return;
+    if(!data[selKey]) data[selKey]=blank();
+    data[selKey][k]=!data[selKey][k];
+    if(k==='thx' && !data[selKey][k]) data[selKey].note='';
     save(); render();
   }
 
   function onThxInput(){
-    var t=todayKey();
-    if(!data[t]) data[t]=blank();
+    if(isFutureKey(selKey)) return;
+    if(!data[selKey]) data[selKey]=blank();
     var v=document.getElementById('thxInput').value;
-    data[t].note=v;
-    data[t].thx = v.trim().length>0;
+    data[selKey].note=v;
+    data[selKey].thx = v.trim().length>0;
     save(); render();
   }
 
-  function toggleDay(key){
-    var c=dayCount(key);
-    if(c===0) data[key]={rule:true,ex:true,sleep:true,thx:true,note:(data[key]&&data[key].note)||''};
-    else data[key]=blank();
-    save(); render();
+  // 달력 날짜 누르면 그 날을 "선택"만 (전부 채우지 않음)
+  function selectDay(key){
+    if(isFutureKey(key)) return;
+    selKey=key;
+    render();
+    window.scrollTo({top:0, behavior:'smooth'});
   }
 
   function dayCount(key){
@@ -210,6 +226,22 @@
     return s+'일. 5년 되찾고 있는 중이에요.';
   }
 
+  function fillStyle(dd, cnt){
+    // 밑에서부터 1/4씩. 채워진 항목 색을 아래→위 순서로 쌓음
+    if(cnt===0) return '';
+    if(cnt===4) return ''; // 무지개는 클래스로
+    var on=[];
+    for(var i=0;i<ITEMS.length;i++){ if(dd[ITEMS[i]]) on.push(COLORS[ITEMS[i]]); }
+    var h=cnt*25;
+    if(on.length===1) return 'height:'+h+'%;background:'+on[0]+';';
+    // 여러 색이면 아래부터 균등 그라데이션
+    var stops=[]; var seg=100/on.length;
+    for(var j=0;j<on.length;j++){
+      stops.push(on[j]+' '+(j*seg)+'%'); stops.push(on[j]+' '+((j+1)*seg)+'%');
+    }
+    return 'height:'+h+'%;background:linear-gradient(to top,'+stops.join(',')+');';
+  }
+
   function render(){
     var now=new Date();
     var dows=['일','월','화','수','목','금','토'];
@@ -220,15 +252,19 @@
     document.getElementById('streakNum').textContent=s;
     document.getElementById('streakMsg').textContent=msgFor(s);
 
-    var t=todayKey();
-    var td=data[t]||blank();
+    // 선택된 날짜 표시 + 위 체크칸을 selKey 기준으로
+    var sd=data[selKey]||blank();
+    var selTag=document.getElementById('selTag');
+    if(selKey===todayKey()) selTag.textContent='오늘';
+    else { var sp=selKey.split('-'); selTag.textContent=(+sp[1])+'월 '+(+sp[2])+'일 수정중'; }
+
     var items=document.querySelectorAll('.check-item');
     for(var ii=0;ii<items.length;ii++){
       var k=items[ii].dataset.k;
-      if(td[k]) items[ii].classList.add('on'); else items[ii].classList.remove('on');
+      if(sd[k]) items[ii].classList.add('on'); else items[ii].classList.remove('on');
     }
     var thxBox=document.getElementById('thxInput');
-    if(document.activeElement!==thxBox) thxBox.value = td.note||'';
+    if(document.activeElement!==thxBox) thxBox.value = sd.note||'';
 
     document.getElementById('calMonth').textContent = viewYM.y+'년 '+(viewYM.m+1)+'월';
     var grid=document.getElementById('calGrid');
@@ -241,21 +277,23 @@
     for(var d=1;d<=days;d++){
       var key=ymd(viewYM.y,viewYM.m,d);
       var e=document.createElement('div'); e.className='cal-day';
-      var cellDate=new Date(viewYM.y,viewYM.m,d);
-      var isFuture = cellDate > new Date(now.getFullYear(),now.getMonth(),now.getDate());
+      var fut=isFutureKey(key);
       var cnt=dayCount(key);
       var dd=data[key]||blank();
-      if(cnt===4) e.classList.add('perfect');
       if(key===todayStr) e.classList.add('today');
-      var inner='<div class="daynum">'+d+'</div>';
-      if(cnt===4) inner+='<div class="cal-check">&#10003;</div>';
-      var bars='<div class="cal-bars">';
-      for(var bi=0;bi<ITEMS.length;bi++){ var bk=ITEMS[bi]; if(dd[bk]) bars+='<i style="background:'+COLORS[bk]+'"></i>'; }
-      bars+='</div>';
-      inner+=bars;
+      if(key===selKey) e.classList.add('selected');
+      var inner='';
+      // fill 레이어
+      if(cnt===4){
+        inner+='<div class="cal-fill rainbow" style="height:100%"></div>';
+      } else if(cnt>0){
+        inner+='<div class="cal-fill" style="'+fillStyle(dd,cnt)+'"></div>';
+      }
+      inner+='<div class="daynum">'+d+'</div>';
+      if(cnt===4){ e.classList.add('perfect'); inner+='<div class="cal-check">&#10003;</div>'; }
       e.innerHTML=inner;
-      if(isFuture){ e.classList.add('future'); }
-      else { (function(kk){ e.onclick=function(){ toggleDay(kk); }; })(key); }
+      if(fut){ e.classList.add('future'); }
+      else { (function(kk){ e.onclick=function(){ selectDay(kk); }; })(key); }
       grid.appendChild(e);
     }
 
