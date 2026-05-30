@@ -4182,6 +4182,40 @@ async function runNewSystem() {
     html += '<div class="metric-row"><span class="metric-label">최대 낙폭 (MDD)</span><span class="metric-value" style="color:#f88">' + result.mdd.toFixed(1) + '%</span></div>';
     html += '<div class="metric-row"><span class="metric-label">매수 / 매도</span><span class="metric-value">' + result.nBuys + '회 / ' + result.nSells + '회</span></div>';
     html += '<div class="metric-row"><span class="metric-label">티어 승률 (참고)</span><span class="metric-value" style="color:#aaa">' + result.tierWinRate.toFixed(0) + '%</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">🟢 공격모드 비중</span><span class="metric-value" style="color:#22c55e">' + result.atkPct.toFixed(1) + '% (' + result.atkDays + '일)</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">🟢 공격 동안 수익률</span><span class="metric-value" style="color:' + (result.atkReturn>=0?'#22c55e':'#f44') + '">' + (result.atkReturn>=0?'+':'') + result.atkReturn.toFixed(1) + '%</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">🔵 방어모드 비중</span><span class="metric-value" style="color:#3b82f6">' + result.defPct.toFixed(1) + '% (' + result.defDays + '일)</span></div>';
+    html += '<div class="metric-row"><span class="metric-label">🔵 방어 동안 수익률</span><span class="metric-value" style="color:' + (result.defReturn>=0?'#3b82f6':'#f44') + '">' + (result.defReturn>=0?'+':'') + result.defReturn.toFixed(1) + '%</span></div>';
+
+    // 모드 타임라인 (언제부터 언제까지 공격/방어 + 구간 수익률)
+    if (result.modeTimeline && result.modeTimeline.length > 0) {
+      const tl = result.modeTimeline;
+      const totalD = result.totalDays || 1;
+      let barHtml = '<div style="display:flex;height:24px;border-radius:6px;overflow:hidden;margin:10px 0">';
+      tl.forEach(s => {
+        const w = s.days / totalD * 100;
+        const c = s.mode === 'attack' ? '#22c55e' : '#3b82f6';
+        barHtml += '<div style="width:' + w + '%;background:' + c + '"></div>';
+      });
+      barHtml += '</div>';
+      let listHtml = '';
+      tl.forEach(s => {
+        const isAtk = s.mode === 'attack';
+        const emoji = isAtk ? '🟢' : '🔵';
+        const nm = isAtk ? '공격' : '방어';
+        const col = isAtk ? '#22c55e' : '#3b82f6';
+        const segRet = (s.startCap > 0) ? (s.endCap / s.startCap - 1) * 100 : 0;
+        const retCol = segRet >= 0 ? '#22c55e' : '#f44';
+        listHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-bottom:1px solid #222;font-size:12px">' +
+          '<span style="color:' + col + ';font-weight:700;width:48px">' + emoji + ' ' + nm + '</span>' +
+          '<span style="color:#bbb;font-family:monospace;flex:1;text-align:center">' + s.startDate + ' ~ ' + s.endDate + '</span>' +
+          '<span style="color:#888;width:46px;text-align:right">' + s.days + '일</span>' +
+          '<span style="color:' + retCol + ';width:62px;text-align:right;font-weight:700">' + (segRet>=0?'+':'') + segRet.toFixed(1) + '%</span>' +
+          '</div>';
+      });
+      html += '<div class="card" style="margin-top:14px"><div class="ct">📅 모드 타임라인 (공격/방어 구간) · 총 ' + tl.length + '개 구간</div>' +
+        barHtml + '<div style="max-height:280px;overflow-y:auto;margin-top:8px">' + listHtml + '</div></div>';
+    }
 
     // 연도별
     const snapshots = result.periodSnapshots || {};
