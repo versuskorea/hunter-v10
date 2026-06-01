@@ -126,15 +126,26 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 <div id="modal-container"></div>
 <script>
 const TU=20,UP=2,DN=4,TOP_TH=-12,BOT_TH=-20;
-// NEW SYSTEM 유닛: 공격모드 상승3u/하락5u, 방어모드 점증 2·4·6·8u(상승 매수X)
-const NS={atkUp:3,atkDn:5,defDn:3};
-const DEF_TIERS=[2,4,6,8];  // 방어모드 점증: 떨어질수록 크게
-// 현재 보유 방어 티어 수 → 다음 방어 매수 유닛 (남은 한도 고려)
+// NEW SYSTEM 유닛: 공격모드 상승3u/하락5u, 방어모드 점증 사다리 1·2·4·6·7u(상승 매수X)
+const NS={atkUp:3,atkDn:5};
+const DEF_TIERS=[1,2,4,6,7];  // 방어모드 점증 사다리: 한 단계씩 진행(매도로 빠져도 단계 유지)
+// 현재 방어 포지션의 최고 진행단계 다음 단계 → 다음 방어 매수 유닛 (남은 한도 고려)
 function defNextUnit(pos){
-  const defCnt=(pos||[]).filter(pp=>pp.nsMode==='defense').length;
+  const defs=(pos||[]).filter(pp=>pp.nsMode==='defense');
   const usedU=(pos||[]).reduce((s,pp)=>s+(pp.uu||0),0);
-  let u=defCnt<DEF_TIERS.length?DEF_TIERS[defCnt]:DEF_TIERS[DEF_TIERS.length-1];
+  // 방어 포지션이 비어있으면 사다리 처음(1u)부터, 아니면 보유 중 최고단계+1
+  let step;
+  if(defs.length===0){ step=0; }
+  else { const maxTier=Math.max(...defs.map(pp=>(pp.tier!=null?pp.tier:0))); step=Math.min(maxTier+1,DEF_TIERS.length-1); }
+  let u=DEF_TIERS[step];
   return Math.max(0,Math.min(u,20-usedU));
+}
+// 다음 방어 매수의 단계 인덱스 (포지션 기록용 tier)
+function defNextTier(pos){
+  const defs=(pos||[]).filter(pp=>pp.nsMode==='defense');
+  if(defs.length===0) return 0;
+  const maxTier=Math.max(...defs.map(pp=>(pp.tier!=null?pp.tier:0)));
+  return Math.min(maxTier+1,DEF_TIERS.length-1);
 }
 const ZONES={top:{tp:0.025,fd:7,label:'천장'},mid:{tp:0.005,fd:7,label:'중간'},bot:{tp:0.030,fd:10,label:'바닥'}};
 let tab='d';
@@ -463,7 +474,7 @@ function render(){
       const vr=(p.nsMode&&p.nsMode.vrule)?'<br><span style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:6px">⚡ V자 룰 발동 · 전년 SOXL '+p.nsMode.prevYrRet.toFixed(0)+'% → 공격 고정</span>':'';
       h+='<div style="background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:12px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">🟢 공격모드'+(nsReady?' · 주간RSI '+p.nsMode.wrsi.toFixed(1):' (RSI 대기)')+'<br><span style="font-size:11px;font-weight:600;opacity:0.9">상승일 3u(전날×1.15) · 하락일 5u(전날×0.999)</span>'+vr+'</div>';
     }else{
-      h+='<div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;padding:12px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">🔵 방어모드'+(nsReady?' · 주간RSI '+p.nsMode.wrsi.toFixed(1):' (RSI 대기)')+'<br><span style="font-size:11px;font-weight:600;opacity:0.9">하락일 점증 2·4·6·8u(전날×0.999)만 · 상승일 매수 X</span></div>';
+      h+='<div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;padding:12px 14px;border-radius:10px;font-weight:800;margin-bottom:12px;text-align:center;font-size:13px;line-height:1.5">🔵 방어모드'+(nsReady?' · 주간RSI '+p.nsMode.wrsi.toFixed(1):' (RSI 대기)')+'<br><span style="font-size:11px;font-weight:600;opacity:0.9">하락일 점증 사다리 1·2·4·6·7u(전날×0.999)만 · 상승일 매수 X</span></div>';
     }
     // 모드 수동 선택 (자동 / 공격 고정 / 방어 고정)
     const mm=manualMode;
@@ -569,7 +580,7 @@ function render(){
       const loc2Price=loc2PriceNum.toFixed(2);
       let loc1U,loc2U; // 유닛
       if(nsMode==='attack'){ loc1U=NS.atkUp; loc2U=NS.atkDn-NS.atkUp; }  // 3u / +2u
-      else { loc1U=0; loc2U=defNextUnit(p.pos); }                          // 0 / 점증(2·4·6·8)
+      else { loc1U=0; loc2U=defNextUnit(p.pos); }                          // 0 / 점증 사다리(1·2·4·6·7)
       // 주수는 각 LOC 가격 기준 → 체결가(종가)는 LOC가격 이하라 유닛 초과 없음
       const loc1Shares=loc1U>0?Math.floor(loc1U*uw/parseFloat(loc1Price)):0;
       const loc2Shares=loc2U>0?Math.floor(loc2U*uw/loc2PriceNum):0;
@@ -615,7 +626,7 @@ function render(){
       if(nsMode==='attack'){
         h+='</tbody></table><div class="note" style="margin-top:8px">💡 <b style="color:#22c55e">공격모드</b><br>💡 매수①: 전날×1.15 (상승 대응 '+NS.atkUp+'u)<br>💡 매수②: 전날×0.999 (하락 추가 '+(NS.atkDn-NS.atkUp)+'u → 합 '+NS.atkDn+'u, 하락일만 체결)<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X</div></div>';
       }else{
-        h+='</tbody></table><div class="note" style="margin-top:8px">💡 <b style="color:#3b82f6">방어모드</b><br>💡 매수: 전날×0.999'+defGapNote+' (다음 '+defNextUnit(p.pos)+'u, 하락일만 체결)<br>💡 점증 2→4→6→8u (보유 방어 티어 수에 따라)<br>💡 직전 방어 매수가보다 8% 더 빠져야 다음 티어 매수<br>💡 상승일은 매수 없음<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X</div></div>';
+        h+='</tbody></table><div class="note" style="margin-top:8px">💡 <b style="color:#3b82f6">방어모드</b><br>💡 매수: 전날×0.999'+defGapNote+' (다음 '+defNextUnit(p.pos)+'u, 하락일만 체결)<br>💡 점증 사다리 1→2→4→6→7u (한 단계씩 진행, 매도로 빠져도 단계 유지, 방어 전량청산시 1u부터)<br>💡 직전 방어 매수가보다 8% 더 빠져야 다음 단계 매수<br>💡 상승일은 매수 없음<br>⚠️ 메리츠에 "LOC" (장마감 지정가)로 입력! 지정가 X</div></div>';
       }
     }
   }
@@ -697,8 +708,9 @@ function confirmQuickFill(diaryDate,diaryClose,zone,mode){
   const units=parseInt($('qf-units').value);
   if(!actualShares||actualShares<=0)return alert('주수 입력');
   if(!units)return alert('유닛 입력');
-  p.pos.push({e:actualPrice,u:units,s:actualShares,d:actualDate,z:zone,diaryClose:diaryClose,diaryDate:diaryDate,nsMode:mode});
-  p.hist.push({a:'B',d:actualDate,e:actualPrice,u:units,s:actualShares,z:zone,diaryClose:diaryClose,diaryDate:diaryDate,nsMode:mode});
+  const defTier=(mode==='defense')?defNextTier(p.pos):null;  // 방어 사다리 단계 기록
+  p.pos.push({e:actualPrice,u:units,s:actualShares,d:actualDate,z:zone,diaryClose:diaryClose,diaryDate:diaryDate,nsMode:mode,tier:defTier});
+  p.hist.push({a:'B',d:actualDate,e:actualPrice,u:units,s:actualShares,z:zone,diaryClose:diaryClose,diaryDate:diaryDate,nsMode:mode,tier:defTier});
   save();closeModal();
   const sellPoint=(diaryClose*(1+ZONES[zone].tp)).toFixed(2);
   alert('✅ T'+p.pos.length+' 체결 기록!\n\n매수: '+actualShares+'주 @ $'+actualPrice+'\n매도 LOC: $'+sellPoint+' (일지 기준 고정)');
