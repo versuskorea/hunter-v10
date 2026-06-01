@@ -142,7 +142,7 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
     label input[name="bt-mode"]:checked + .bt-mode-btn { border-color:#00d8ff; background:#00b4d8; color:#fff; box-shadow:0 0 14px rgba(0,180,216,0.5); transform:scale(1.03); }
   </style>
 
-<button class="btn btn-primary" onclick="runNewSystem()" style="background:linear-gradient(135deg,#00b4d8,#0077b6,#03045e) !important;color:#fff !important;font-weight:800;font-size:16px;padding:16px">🚀 HUNTER 백테 실행!<br><small style="font-size:11px;font-weight:500">공격 상승3u/하락5u · 방어 점증2·4·6·8u · wRSI 모드전환 · 천중바매도 · T1익절시 3u재진입</small></button>
+<button class="btn btn-primary" onclick="runNewSystem()" style="background:linear-gradient(135deg,#00b4d8,#0077b6,#03045e) !important;color:#fff !important;font-weight:800;font-size:16px;padding:16px">🚀 HUNTER 백테 실행!<br><small style="font-size:11px;font-weight:500">공격 상승3u/하락5u · 방어 점증1·2·4·6·7u · wRSI 모드전환 · 천중바매도 · T1익절시 3u재진입</small></button>
 
   <div class="progress" id="bt-progress"></div>
 </div>
@@ -3894,6 +3894,7 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
   let lastYear = '', lastMonth = '';
   const cycles = [];
   let inCycle = false, cycleStartCap = SEED, cycleStartIdx = warmup, cycleMaxU = 0;
+  let defLadder = 0;  // 방어 점증 단계 (1,2,4,6,7 사다리). 방어 포지션 전량 청산시 0으로 리셋
 
   // 시작 시드 진입 (공격 2u)
   {
@@ -3965,7 +3966,9 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
     });
     pos = newPos;
 
-    // ── T1 매도 = 사이클 종료 (질질 안 끌고 1티어 팔리면 끝) ──
+    // 방어 포지션이 전부 청산되면 점증 사다리 리셋 (다음 방어 사이클은 1u부터)
+    if (!pos.some(x => x.mode === 'defense')) defLadder = 0;
+
     if (t1Sold) {
       const tv = snapTV(i);
       if (inCycle) {
@@ -4037,15 +4040,11 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
           if (p > lowestDef * 0.92) canBuy = false;
         }
         if (canBuy) {
-          // 방어 점증: 티어 자리 고정(T1=2u,T2=4u,T3=6u,T4=8u). 비어있는 가장 낮은 티어부터 채움
-          const DEF_TIERS = [2, 4, 6, 8];
-          const filled = defPos.map(x => x.tier);  // 현재 차있는 티어 번호들
-          let tier = -1;
-          for (let t = 0; t < DEF_TIERS.length; t++) {
-            if (!filled.includes(t)) { tier = t; break; }  // 빈 자리 중 제일 낮은 거
-          }
-          if (tier < 0) tier = DEF_TIERS.length - 1;  // 다 차면 마지막(8u) 추가
-          let defU = DEF_TIERS[tier];
+          // 방어 점증 사다리: 1,2,4,6,7u 순서로 한 단계씩 진행 (초반 가볍게→깊어지면 크게)
+          // 매도로 일부 빠져도 단계는 안 내려감. 방어 전량청산시 defLadder=0 리셋
+          const DEF_TIERS = [1, 2, 4, 6, 7];
+          const step = (defLadder < DEF_TIERS.length) ? defLadder : DEF_TIERS.length - 1;
+          let defU = DEF_TIERS[step];
           defU = Math.min(defU, TU - usedU);
           const a = SEED / TU * defU;
           const thr = Math.round(pv * 0.999 * 100) / 100;
@@ -4053,7 +4052,8 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
             const sh = Math.floor(Math.min(a, cash) / p);
             if (sh > 0) {
               cash -= sh * p;
-              pos.push({ bp: p, sh, bi: i, mode: 'defense', zone, uu: defU, tier: tier });
+              pos.push({ bp: p, sh, bi: i, mode: 'defense', zone, uu: defU, tier: step });
+              if (defLadder < DEF_TIERS.length - 1) defLadder++;  // 다음 단계로
               nBuys++;
               if (!inCycle) { inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 0; }
               const cu = pos.reduce((s,x)=>s+x.uu,0); if (cu>cycleMaxU) cycleMaxU=Math.round(cu);
@@ -4347,7 +4347,7 @@ async function runNewSystem() {
       html += '</div>';
     }
 
-    html += '<div class="def-info"><b>📐 NEW HUNTER 로직:</b> 공격모드(wRSI↑) 상승3u(×1.15)/하락5u(×0.999) · 방어모드(wRSI↓) 하락일 점증 2→4→6→8u(직전 방어가 -8% 더 빠져야 다음 티어) · 천중바 매도(존경계 -12%/-20%, 천장+2.5%/7일·중간+0.5%/7일·바닥+3%/10일) · 전년 SOXL -50%↓면 올해 공격 고정(V자) · T1 매도 시 SEED 갱신 후 공격 즉시 재매수(복리)</div>';
+    html += '<div class="def-info"><b>📐 NEW HUNTER 로직:</b> 공격모드(wRSI↑) 상승3u(×1.15)/하락5u(×0.999) · 방어모드(wRSI↓) 하락일 점증 사다리 1→2→4→6→7u(한 단계씩 진행, 매도로 빠져도 단계 유지, 방어 전량청산시 1u부터 리셋) · 천중바 매도(존경계 -12%/-20%, 천장+2.5%/7일·중간+0.5%/7일·바닥+3%/10일) · 전년 SOXL -50%↓면 올해 공격 고정(V자) · T1 매도 시 SEED 갱신 후 공격 즉시 재매수(복리)</div>';
     html += '</div>';
     html += '</div>';
 
