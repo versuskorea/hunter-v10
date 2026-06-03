@@ -341,6 +341,16 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
 
   const modeArr = buildModeMap(bars, n);
 
+  // V자 트리거용: 전년 SOXL 연수익률 계산 (-50% 이하면 다음해 V자 발동)
+  const yrFirst = {}, yrLast = {};
+  for (let i = 0; i < n; i++) {
+    const y = dates[i].slice(0, 4);
+    if (yrFirst[y] === undefined) yrFirst[y] = closes[i];
+    yrLast[y] = closes[i];
+  }
+  const yrRet = {};
+  for (const y in yrFirst) yrRet[y] = (yrLast[y] / yrFirst[y] - 1) * 100;
+
   let SEED = 100000;
   let cash = SEED;
   let pos  = [];
@@ -497,28 +507,72 @@ function simulateNewSystem(bars, userStartIdx, manualMode) {
         }
       }
     } else {
-      if (usedU < TU && cash > 0) {
-        // 스나이퍼 방어: LOC = min(조건1,조건2), 종가가 매수가 이하면 체결(상승/하락일 무관)
-        let canBuy = true;
-        if (canBuy) {
-          // 방어 점증 비중: 1,2,4,6,7u 사다리 (매도로 빠져도 단계 유지, 전량청산시 리셋)
+      // V자 트리거: 자동 모드 + 전년 -50%↓ → 방어 모드일 때 공격 50% + 방어 50% 동시 매수
+      const prevYr = (parseInt(dates[i].slice(0, 4)) - 1).toString();
+      const isVTrigger = (manualMode === 'auto') && (yrRet[prevYr] !== undefined) && (yrRet[prevYr] <= -50);
+
+      if (isVTrigger) {
+        // ★ V자 발동 + 방어 모드: 공격 룰 50% + 방어 룰 50% 동시 매수
+        // 공격 매수 (시드 절반 비중)
+        if (usedU < TU && cash > 0) {
+          const buyU_atk = fi ? 3 : 5;
+          const a_atk = (SEED / TU * buyU_atk) * 0.5;
+          const thr_atk = fi ? Math.round(pv * 1.15 * 100) / 100 : Math.round(pv * 0.999 * 100) / 100;
+          if (p <= thr_atk) {
+            const sh = Math.floor(Math.min(a_atk, cash) / p);
+            if (sh > 0) {
+              cash -= sh * p;
+              pos.push({ bp: p, sh, bi: i, mode: 'attack', zone, uu: buyU_atk * 0.5 });
+              nBuys++;
+              if (!inCycle) { inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 0; }
+              const cu = pos.reduce((s,x)=>s+x.uu,0); if (cu>cycleMaxU) cycleMaxU=Math.round(cu);
+            }
+          }
+        }
+        // 방어 매수 (시드 절반 비중)
+        if (usedU < TU && cash > 0) {
           const DEF_TIERS = [1, 2, 4, 6, 7];
           const step = (defLadder < DEF_TIERS.length) ? defLadder : DEF_TIERS.length - 1;
-          let defU = DEF_TIERS[step];
+          let defU = DEF_TIERS[step] * 0.5;  // 절반 비중
           defU = Math.min(defU, TU - usedU);
           const a = SEED / TU * defU;
-          // 스나이퍼 매수가 = min(조건1 MA3×0.994, 조건2 전일×1.055)
           const pp = (i >= 2) ? closes[i - 2] : pv;
           const f = 0.994;
-          const cond1 = f * (pv + pp) / (3 - f);   // 종가가 3일MA의 -0.6% 되는 가격
-          const cond2 = pv * 1.055;                 // 전일 +5.5% 캡(급락 직후용)
+          const cond1 = f * (pv + pp) / (3 - f);
+          const cond2 = pv * 1.055;
           const thr = Math.round(Math.min(cond1, cond2) * 100) / 100;
           if (p <= thr && defU > 0) {
             const sh = Math.floor(Math.min(a, cash) / p);
             if (sh > 0) {
               cash -= sh * p;
               pos.push({ bp: p, sh, bi: i, mode: 'defense', zone, uu: defU, tier: step });
-              if (defLadder < DEF_TIERS.length - 1) defLadder++;  // 다음 단계로
+              if (defLadder < DEF_TIERS.length - 1) defLadder++;
+              nBuys++;
+              if (!inCycle) { inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 0; }
+              const cu = pos.reduce((s,x)=>s+x.uu,0); if (cu>cycleMaxU) cycleMaxU=Math.round(cu);
+            }
+          }
+        }
+      } else if (usedU < TU && cash > 0) {
+        // 일반 방어 매수 (V자 미발동)
+        let canBuy = true;
+        if (canBuy) {
+          const DEF_TIERS = [1, 2, 4, 6, 7];
+          const step = (defLadder < DEF_TIERS.length) ? defLadder : DEF_TIERS.length - 1;
+          let defU = DEF_TIERS[step];
+          defU = Math.min(defU, TU - usedU);
+          const a = SEED / TU * defU;
+          const pp = (i >= 2) ? closes[i - 2] : pv;
+          const f = 0.994;
+          const cond1 = f * (pv + pp) / (3 - f);
+          const cond2 = pv * 1.055;
+          const thr = Math.round(Math.min(cond1, cond2) * 100) / 100;
+          if (p <= thr && defU > 0) {
+            const sh = Math.floor(Math.min(a, cash) / p);
+            if (sh > 0) {
+              cash -= sh * p;
+              pos.push({ bp: p, sh, bi: i, mode: 'defense', zone, uu: defU, tier: step });
+              if (defLadder < DEF_TIERS.length - 1) defLadder++;
               nBuys++;
               if (!inCycle) { inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 0; }
               const cu = pos.reduce((s,x)=>s+x.uu,0); if (cu>cycleMaxU) cycleMaxU=Math.round(cu);
