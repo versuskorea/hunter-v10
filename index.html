@@ -99,6 +99,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 .note{background:#0a0a14;border-radius:8px;padding:12px;font-size:13px;color:var(--dim);line-height:1.7;margin-top:8px}
 .btn-edit{background:rgba(34,197,94,0.15);color:var(--green);border:1px solid var(--green);border-radius:6px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer}
 .btn-edit:hover{background:rgba(34,197,94,0.25)}
+.idx-mode-btn{padding:9px 8px;border:2px solid var(--border);border-radius:10px;text-align:center;font-size:13px;font-weight:700;color:var(--dim);background:var(--card);transition:all .15s;letter-spacing:0.3px}
+label input[name="idx-buyunit"]:checked + .idx-mode-btn{border-color:#00d8ff;background:#00b4d8;color:#fff;box-shadow:0 0 14px rgba(0,180,216,0.5)}
 </style>
 </head>
 <body>
@@ -107,6 +109,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
   <div class="tickers-bar" id="tickers-bar"></div>
   <div class="stats" id="us-status">매일 자동 기록 · 다음날 LOC 자동 계산</div>
   <a href="routine.html" style="display:inline-block;margin-top:10px;padding:8px 18px;background:linear-gradient(135deg,#a78bfa,#ec4899);color:#fff;text-decoration:none;border-radius:20px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif">🔥 오늘의 루틴 →</a>
+  <div style="display:flex;gap:6px;margin-top:12px;max-width:340px;margin-left:auto;margin-right:auto">
+    <label style="flex:1;cursor:pointer"><input type="radio" name="idx-buyunit" value="35" style="display:none" onchange="setBuyUnit('35')"><div class="idx-mode-btn" id="idx-btn-35">⚡ 3/5 (공격)</div></label>
+    <label style="flex:1;cursor:pointer"><input type="radio" name="idx-buyunit" value="34" style="display:none" onchange="setBuyUnit('34')"><div class="idx-mode-btn" id="idx-btn-34">🛡️ 3/4 (보수)</div></label>
+  </div>
 </div>
 <div class="zone-bar">
   <div class="zone-box" id="zbox-top">천장<div class="pct">+2.5% / 7일</div><div class="rule">-12% 이내</div></div>
@@ -126,8 +132,24 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min
 <div id="modal-container"></div>
 <script>
 const TU=20,UP=2,DN=4,TOP_TH=-12,BOT_TH=-20;
-// NEW SYSTEM 유닛: 공격모드 상승3u/하락5u, 방어모드 점증 사다리 1·2·4·6·7u(상승 매수X)
-const NS={atkUp:3,atkDn:5};
+// NEW SYSTEM 유닛: 공격모드 상승3u/하락4u(기본) or 하락5u(공격적), 방어모드 점증 사다리 1·2·4·6·7u(상승 매수X)
+let NS={atkUp:3,atkDn:4};
+// 매수 단위 토글 (3/4 디폴트 = 보수)
+function setBuyUnit(mode){
+  NS.atkDn = (mode === '34') ? 4 : 5;
+  localStorage.setItem('huntermode_buyunit', mode);
+  try { r(); } catch(e) { console.warn('r() not yet ready:', e); }
+}
+// 페이지 로드 시 저장된 모드 복원
+(function(){
+  const saved = localStorage.getItem('huntermode_buyunit') || '34';
+  NS.atkDn = (saved === '34') ? 4 : 5;
+  // 토글 라디오 체크
+  setTimeout(()=>{
+    const radio = document.querySelector('input[name="idx-buyunit"][value="'+saved+'"]');
+    if (radio) radio.checked = true;
+  }, 50);
+})();
 const DEF_TIERS=[1,2,4,6,7];  // 방어모드 점증 사다리: 한 단계씩 진행(매도로 빠져도 단계 유지)
 // 현재 방어 포지션의 최고 진행단계 다음 단계 → 다음 방어 매수 유닛 (남은 한도 고려)
 function defNextUnit(pos){
@@ -577,7 +599,7 @@ function render(){
       const lastClose=last.close;
       const uw=p.seed/TU;
       // NEW SYSTEM 모드별 주문
-      // 공격: LOC①=전날×1.15(3u) + LOC②=전날×0.999(추가2u, 합5u)
+      // 공격: LOC①=전날×1.15(3u) + LOC②=전날×0.999(추가1u, 합4u)
       // 방어: LOC②=전날×0.999(3u)만 · 직전 방어가 -8% 더 빠져야 매수
       const loc1Price=(lastClose*1.15).toFixed(2);
       let loc2PriceNum=lastClose*0.999;
@@ -593,7 +615,7 @@ function render(){
       }
       const loc2Price=loc2PriceNum.toFixed(2);
       let loc1U,loc2U; // 유닛
-      if(nsMode==='attack'){ loc1U=NS.atkUp; loc2U=NS.atkDn-NS.atkUp; }  // 3u / +2u
+      if(nsMode==='attack'){ loc1U=NS.atkUp; loc2U=NS.atkDn-NS.atkUp; }  // 3u / +1u
       else { loc1U=0; loc2U=defNextUnit(p.pos); }                          // 0 / 점증 사다리(1·2·4·6·7)
       // 주수는 각 LOC 가격 기준 → 체결가(종가)는 LOC가격 이하라 유닛 초과 없음
       const loc1Shares=loc1U>0?Math.floor(loc1U*uw/parseFloat(loc1Price)):0;
@@ -636,7 +658,7 @@ function render(){
       }
       if(totalU<TU){
         if(nsMode==='attack'){
-          // 공격: LOC① 상승대응 3u + LOC② 하락추가 2u
+          // 공격: LOC① 상승대응 3u + LOC② 하락추가 1u
           h+='<tr class="buy-row"><td><b>T'+(p.pos.length+1)+'</b><br><span style="font-size:10px;color:var(--dim)">신규</span></td><td class="act-buy">매수①</td><td>LOC</td><td class="price-cell">$'+loc1Price+'</td><td>'+loc1Shares+'</td></tr>';
           if(loc2Shares>0){h+='<tr class="buy-row"><td><b>T'+(p.pos.length+1)+'</b><br><span style="font-size:10px;color:var(--dim)">신규</span></td><td class="act-buy">매수②</td><td>LOC</td><td class="price-cell">$'+loc2Price+'</td><td>'+loc2Shares+'</td></tr>';}
         }else{
