@@ -105,14 +105,10 @@ label input[name="idx-buyunit"]:checked + .idx-mode-btn{border-color:#00d8ff;bac
 </head>
 <body>
 <div class="hdr">
-  <h1><span id="ticker-name">SOXL</span> <span>HUNTER</span> 매매일지</h1>
+  <h1>🏹 <span>HUNTER</span></h1>
   <div class="tickers-bar" id="tickers-bar"></div>
   <div class="stats" id="us-status">매일 자동 기록 · 다음날 LOC 자동 계산</div>
   <a href="routine.html" style="display:inline-block;margin-top:10px;padding:8px 18px;background:linear-gradient(135deg,#a78bfa,#ec4899);color:#fff;text-decoration:none;border-radius:20px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif">🔥 오늘의 루틴 →</a>
-  <div style="display:flex;gap:6px;margin-top:12px;max-width:340px;margin-left:auto;margin-right:auto">
-    <label style="flex:1;cursor:pointer"><input type="radio" name="idx-buyunit" value="35" style="display:none" onchange="setBuyUnit('35')"><div class="idx-mode-btn" id="idx-btn-35">⚡ 3/5 (공격)</div></label>
-    <label style="flex:1;cursor:pointer"><input type="radio" name="idx-buyunit" value="34" style="display:none" onchange="setBuyUnit('34')"><div class="idx-mode-btn" id="idx-btn-34">🛡️ 3/4 (보수)</div></label>
-  </div>
 </div>
 <div class="zone-bar">
   <div class="zone-box" id="zbox-top">천장<div class="pct">+2.5% / 7일</div><div class="rule">-12% 이내</div></div>
@@ -134,21 +130,26 @@ label input[name="idx-buyunit"]:checked + .idx-mode-btn{border-color:#00d8ff;bac
 const TU=20,UP=2,DN=4,TOP_TH=-12,BOT_TH=-20;
 // NEW SYSTEM 유닛: 공격모드 상승3u/하락4u(기본) or 하락5u(공격적), 방어모드 점증 사다리 1·2·4·6·7u(상승 매수X)
 let NS={atkUp:3,atkDn:4};
+// V자 룰 ON/OFF (체크박스 토글)
+let V_RULE_ENABLED = false;
 // 매수 단위 토글 (3/4 디폴트 = 보수)
 function setBuyUnit(mode){
   NS.atkDn = (mode === '34') ? 4 : 5;
   localStorage.setItem('huntermode_buyunit', mode);
   try { r(); } catch(e) { console.warn('r() not yet ready:', e); }
 }
-// 페이지 로드 시 저장된 모드 복원
+// V자 룰 토글
+function setVRule(on){
+  V_RULE_ENABLED = !!on;
+  localStorage.setItem('huntermode_vrule', on ? '1' : '0');
+  try { r(); } catch(e) {}
+}
+// 페이지 로드 시 저장된 설정 복원 (NS / V자) - 토글은 매매일지 카드 안에서 렌더됨
 (function(){
-  const saved = localStorage.getItem('huntermode_buyunit') || '34';
-  NS.atkDn = (saved === '34') ? 4 : 5;
-  // 토글 라디오 체크
-  setTimeout(()=>{
-    const radio = document.querySelector('input[name="idx-buyunit"][value="'+saved+'"]');
-    if (radio) radio.checked = true;
-  }, 50);
+  const savedUnit = localStorage.getItem('huntermode_buyunit') || '34';
+  NS.atkDn = (savedUnit === '34') ? 4 : 5;
+  const savedVR = localStorage.getItem('huntermode_vrule') || '0';
+  V_RULE_ENABLED = (savedVR === '1');
 })();
 const DEF_TIERS=[1,2,4,6,7];  // 방어모드 점증 사다리: 한 단계씩 진행(매도로 빠져도 단계 유지)
 // 현재 방어 포지션의 최고 진행단계 다음 단계 → 다음 방어 매수 유닛 (남은 한도 고려)
@@ -274,9 +275,9 @@ function calcNewSystemMode(bars){
   let mode=cur;
   const c2=wrsi[lastRi], p2=wrsi[lastRi-1], rising=c2>p2;
 
-  // V자 룰: 전년 SOXL -50%↓면 올해는 wRSI 방어 무시하고 공격 고정
+  // V자 룰: 전년 SOXL -50%↓면 올해는 wRSI 방어 무시하고 공격 고정 (토글 ON일 때만)
   let vrule=false, prevYrRet=null;
-  {
+  if (V_RULE_ENABLED) {
     const yrFirst={}, yrLast={};
     for(const b of bars){ const y=b.date.slice(0,4); if(yrFirst[y]===undefined)yrFirst[y]=b.close; yrLast[y]=b.close; }
     const curYr=bars[bars.length-1].date.slice(0,4);
@@ -524,11 +525,31 @@ function render(){
       const autoLbl=(val==='auto'&&on)?' ('+(autoMode==='attack'?'공격':'방어')+')':'';
       return '<button onclick="setManualMode(\''+val+'\')" style="flex:1;padding:10px 4px;border-radius:8px;border:2px solid '+bd+';background:'+bg+';color:'+tc+';font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;overflow:hidden;transition:all 0.15s'+extra+'">'+chk+emoji+' '+label+autoLbl+'</button>';
     };
-    h+='<div style="display:flex;gap:6px;margin-bottom:12px">'+
+    h+='<div style="display:flex;gap:6px;margin-bottom:6px">'+
       mbtn('auto','🤖','자동','#a78bfa')+
       mbtn('attack','🟢','공격','#16a34a')+
       mbtn('defense','🔵','방어','#1d4ed8')+
       '</div>';
+    // 매수 단위 토글 (3/5 vs 3/4)
+    const curUnit = (NS.atkDn === 4) ? '34' : '35';
+    const ubtn = (val, emoji, label) => {
+      const on = (curUnit === val);
+      const bg = on ? '#00b4d8' : 'var(--card)';
+      const bd = on ? '#00d8ff' : 'var(--border)';
+      const tc = on ? '#fff' : 'var(--dim)';
+      const sh = on ? ';box-shadow:0 0 14px rgba(0,180,216,0.5);transform:scale(1.03);font-weight:800' : '';
+      return '<button onclick="setBuyUnit(\''+val+'\')" style="flex:1;padding:9px 4px;border-radius:8px;border:2px solid '+bd+';background:'+bg+';color:'+tc+';font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s'+sh+'">'+emoji+' '+label+'</button>';
+    };
+    h+='<div style="display:flex;gap:6px;margin-bottom:6px">'+
+      ubtn('35','⚡','3/5 (공격적)')+
+      ubtn('34','🛡️','3/4 (보수·약세장)')+
+      '</div>';
+    // V자 룰 체크박스
+    h+='<div style="padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:12px">'+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:700;color:var(--dim)">'+
+      '<input type="checkbox" '+(V_RULE_ENABLED?'checked':'')+' onchange="setVRule(this.checked)" style="accent-color:#ef4444;width:16px;height:16px">'+
+      '<span>⚡ V자 룰 (전년 -50%↓ → 다음해 공격 강제)</span>'+
+      '</label></div>';
     if(mm!=='auto'){
       h+='<div style="background:rgba(251,191,36,0.12);border:1px solid var(--gold);color:var(--gold);padding:8px 12px;border-radius:8px;font-size:11px;font-weight:600;margin-bottom:12px;text-align:center">⚠️ 수동 '+(mm==='attack'?'공격':'방어')+' 고정 중 · 자동 판정('+(autoMode==='attack'?'공격':'방어')+') 무시</div>';
     }
