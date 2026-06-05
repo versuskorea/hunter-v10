@@ -136,13 +136,13 @@ let V_RULE_ENABLED = false;
 function setBuyUnit(mode){
   NS.atkDn = (mode === '34') ? 4 : 5;
   localStorage.setItem('huntermode_buyunit', mode);
-  try { r(); } catch(e) { console.warn('r() not yet ready:', e); }
+  try { render(); } catch(e) { console.warn(e); }
 }
 // V자 룰 토글
 function setVRule(on){
   V_RULE_ENABLED = !!on;
   localStorage.setItem('huntermode_vrule', on ? '1' : '0');
-  try { r(); } catch(e) {}
+  try { render(); } catch(e) {}
 }
 // 페이지 로드 시 저장된 설정 복원 (NS / V자) - 토글은 매매일지 카드 안에서 렌더됨
 (function(){
@@ -151,6 +151,20 @@ function setVRule(on){
   const savedVR = localStorage.getItem('huntermode_vrule') || '0';
   V_RULE_ENABLED = (savedVR === '1');
 })();
+
+// 이벤트 위임 - 동적 HTML 토글에도 무조건 작동 (모바일 호환)
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('.idx-ubtn');
+  if (btn && btn.dataset.val) {
+    e.preventDefault();
+    setBuyUnit(btn.dataset.val);
+  }
+}, false);
+document.addEventListener('change', function(e){
+  if (e.target.classList && e.target.classList.contains('idx-vrule-chk')) {
+    setVRule(e.target.checked);
+  }
+}, false);
 const DEF_TIERS=[1,2,4,6,7];  // 방어모드 점증 사다리: 한 단계씩 진행(매도로 빠져도 단계 유지)
 // 현재 방어 포지션의 최고 진행단계 다음 단계 → 다음 방어 매수 유닛 (남은 한도 고려)
 function defNextUnit(pos){
@@ -538,7 +552,7 @@ function render(){
       const bd = on ? '#00d8ff' : 'var(--border)';
       const tc = on ? '#fff' : 'var(--dim)';
       const sh = on ? ';box-shadow:0 0 14px rgba(0,180,216,0.5);transform:scale(1.03);font-weight:800' : '';
-      return '<button onclick="setBuyUnit(\''+val+'\')" style="flex:1;padding:9px 4px;border-radius:8px;border:2px solid '+bd+';background:'+bg+';color:'+tc+';font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s'+sh+'">'+emoji+' '+label+'</button>';
+      return '<button type="button" class="idx-ubtn" data-val="'+val+'" style="flex:1;padding:9px 4px;border-radius:8px;border:2px solid '+bd+';background:'+bg+';color:'+tc+';font-size:12px;font-weight:700;cursor:pointer;transition:all 0.15s'+sh+'">'+emoji+' '+label+'</button>';
     };
     h+='<div style="display:flex;gap:6px;margin-bottom:6px">'+
       ubtn('35','⚡','3/5 (공격적)')+
@@ -547,7 +561,7 @@ function render(){
     // V자 룰 체크박스
     h+='<div style="padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:12px">'+
       '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:700;color:var(--dim)">'+
-      '<input type="checkbox" '+(V_RULE_ENABLED?'checked':'')+' onchange="setVRule(this.checked)" style="accent-color:#ef4444;width:16px;height:16px">'+
+      '<input type="checkbox" class="idx-vrule-chk" '+(V_RULE_ENABLED?'checked':'')+' style="accent-color:#ef4444;width:16px;height:16px">'+
       '<span>⚡ V자 룰 (전년 -50%↓ → 다음해 공격 강제)</span>'+
       '</label></div>';
     if(mm!=='auto'){
