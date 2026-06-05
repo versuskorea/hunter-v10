@@ -137,9 +137,27 @@ h1 .grad { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-backgr
     <label style="flex:1;cursor:pointer"><input type="radio" name="bt-mode" value="attack" style="display:none"><div class="bt-mode-btn">🟢 공격</div></label>
     <label style="flex:1;cursor:pointer"><input type="radio" name="bt-mode" value="defense" style="display:none"><div class="bt-mode-btn">🔵 방어</div></label>
   </div>
-  <div style="display:flex;gap:8px;margin-top:10px;margin-bottom:14px">
+  <div style="display:flex;gap:8px;margin-top:10px;margin-bottom:8px">
     <label style="flex:1;cursor:pointer"><input type="radio" name="bt-buyunit" value="35" checked style="display:none"><div class="bt-mode-btn">⚡ 3/5 (공격적)</div></label>
     <label style="flex:1;cursor:pointer"><input type="radio" name="bt-buyunit" value="34" style="display:none"><div class="bt-mode-btn">🛡️ 3/4 (보수·약세장)</div></label>
+  </div>
+  <div style="margin-bottom:8px;padding:10px 12px;background:#1a1a2a;border:2px solid #444;border-radius:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;font-weight:700;color:#888">
+      <span>🚀 부스트 강도 (공격만)</span>
+      <span id="bt-boost-val" style="color:#00d8ff">+0%</span>
+    </div>
+    <input type="range" id="bt-boost" min="0" max="100" step="5" value="0" style="width:100%;accent-color:#00d8ff" oninput="document.getElementById('bt-boost-val').textContent='+'+this.value+'%';document.getElementById('bt-boost-val').style.color=this.value=='0'?'#888':'#00d8ff'">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;margin-top:10px;font-size:12px;font-weight:700;color:#888">
+      <span>🎯 부스트 적용 N번</span>
+      <span id="bt-boostn-val" style="color:#fbbf24">5</span>
+    </div>
+    <input type="range" id="bt-boostn" min="1" max="10" step="1" value="5" style="width:100%;accent-color:#fbbf24" oninput="document.getElementById('bt-boostn-val').textContent=this.value">
+    <div style="margin-top:10px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:700;color:#888">
+        <input type="checkbox" id="bt-vrule" style="accent-color:#ef4444;width:16px;height:16px">
+        <span>⚡ V자 룰 (전년 -50%↓ → 공격 강제)</span>
+      </label>
+    </div>
   </div>
   <style>
     .bt-mode-btn { padding:11px 4px; border-radius:8px; border:2px solid #444; background:#1a1a2a; color:#888; text-align:center; font-size:13px; font-weight:700; transition:all 0.15s; white-space:nowrap; overflow:hidden; }
@@ -335,10 +353,14 @@ function buildModeMap(bars, n) {
   return modeArr;
 }
 
-function simulateNewSystem(bars, userStartIdx, manualMode, atkUpU, atkDnU) {
+function simulateNewSystem(bars, userStartIdx, manualMode, atkUpU, atkDnU, boostPct, boostN, vRuleOn) {
   manualMode = manualMode || 'auto';
   atkUpU = atkUpU || 3;
   atkDnU = atkDnU || 5;
+  boostPct = boostPct || 0;
+  const BOOST_MULT = 1 + boostPct/100;
+  const BOOST_N = boostN || 5;
+  const V_RULE = !!vRuleOn;
   const TU = 20;
   const closes = bars.map(b => b.close);
   const dates  = bars.map(b => b.date);
@@ -346,6 +368,20 @@ function simulateNewSystem(bars, userStartIdx, manualMode, atkUpU, atkDnU) {
   const warmup = Math.max(userStartIdx, 1);
 
   const modeArr = buildModeMap(bars, n);
+
+  // V자 룰: 전년 SOXL 연수익률 계산 (-50% 이하면 다음해 공격 고정)
+  const yrFirst = {}, yrLast = {};
+  if (V_RULE) {
+    for (let i = 0; i < n; i++) {
+      const y = dates[i].slice(0, 4);
+      if (yrFirst[y] === undefined) yrFirst[y] = closes[i];
+      yrLast[y] = closes[i];
+    }
+  }
+  const yrRet = {};
+  if (V_RULE) {
+    for (const y in yrFirst) yrRet[y] = (yrLast[y] / yrFirst[y] - 1) * 100;
+  }
 
   let SEED = 100000;
   let cash = SEED;
@@ -364,6 +400,7 @@ function simulateNewSystem(bars, userStartIdx, manualMode, atkUpU, atkDnU) {
   let lastYear = '', lastMonth = '';
   const cycles = [];
   let inCycle = false, cycleStartCap = SEED, cycleStartIdx = warmup, cycleMaxU = 0;
+  let boostRemaining = 0;
   let defLadder = 0;  // 방어 점증 단계 (1,2,4,6,7 사다리). 방어 포지션 전량 청산시 0으로 리셋
 
   // 시작 시드 진입 (공격 2u)
@@ -387,6 +424,11 @@ function simulateNewSystem(bars, userStartIdx, manualMode, atkUpU, atkDnU) {
     // 수동 모드 고정 (auto면 자동, attack/defense면 강제)
     if (manualMode === 'attack') mode = 'attack';
     else if (manualMode === 'defense') mode = 'defense';
+    else if (V_RULE) {
+      // V자 룰: 자동 모드에서 전년 -50%↓면 공격 강제
+      const prevYr = (parseInt(dates[i].slice(0, 4)) - 1).toString();
+      if (yrRet[prevYr] !== undefined && yrRet[prevYr] <= -50) mode = 'attack';
+    }
     // 모드별 일수 카운트
     if (mode === 'attack') atkDays++; else defDays++;
     // 모드 타임라인: 전환되면 구간 닫고 새로 시작
@@ -444,20 +486,28 @@ function simulateNewSystem(bars, userStartIdx, manualMode, atkUpU, atkDnU) {
     if (t1Sold) {
       const tv = snapTV(i);
       if (inCycle) {
+        const cycPnl = (tv - cycleStartCap) / cycleStartCap * 100;
         cycles.push({ startIdx: cycleStartIdx, endIdx: i, startDate: dates[cycleStartIdx], endDate: dates[i],
-          duration: i - cycleStartIdx + 1, pnl: (tv - cycleStartCap) / cycleStartCap * 100, incomplete: false, maxUnits: cycleMaxU });
+          duration: i - cycleStartIdx + 1, pnl: cycPnl, incomplete: false, maxUnits: cycleMaxU });
+        // 부스트 업데이트: 손실이면 N번 활성화, 수익이면 카운트 소진
+        if (BOOST_MULT > 1) {
+          if (cycPnl < 0) boostRemaining = BOOST_N;
+          else if (boostRemaining > 0) boostRemaining--;
+        }
         inCycle = false;
       }
       SEED = tv;
       // 공격모드 & 익절(올라서 팔림)일 때만 3u 재매수 → 새 사이클. 손절(기간만료)이면 쉼
       if (mode === 'attack' && t1Profit) {
-        const a = SEED / TU * 3;
+        const useMult = (boostRemaining > 0) ? BOOST_MULT : 1.0;
+        const buyU_t1 = 3 * useMult;
+        const a = SEED / TU * buyU_t1;
         const sh = Math.floor(Math.min(a, cash) / p);
         if (sh > 0) {
           cash -= sh * p;
-          pos.push({ bp: p, sh, bi: i, mode: 'attack', zone, uu: 3 });
+          pos.push({ bp: p, sh, bi: i, mode: 'attack', zone, uu: buyU_t1 });
           nBuys++;
-          inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = 3;
+          inCycle = true; cycleStartCap = snapTV(i); cycleStartIdx = i; cycleMaxU = buyU_t1;
         }
       }
     }
@@ -465,8 +515,14 @@ function simulateNewSystem(bars, userStartIdx, manualMode, atkUpU, atkDnU) {
     // ── 잔여 포지션도 모두 청산되면 사이클 종료 (방어모드 등 T1 없이 끝나는 경우) ──
     if (inCycle && pos.length === 0) {
       const tv = snapTV(i);
+      const cycPnl = (tv - cycleStartCap) / cycleStartCap * 100;
       cycles.push({ startIdx: cycleStartIdx, endIdx: i, startDate: dates[cycleStartIdx], endDate: dates[i],
-        duration: i - cycleStartIdx + 1, pnl: (tv - cycleStartCap) / cycleStartCap * 100, incomplete: false, maxUnits: cycleMaxU });
+        duration: i - cycleStartIdx + 1, pnl: cycPnl, incomplete: false, maxUnits: cycleMaxU });
+      // 부스트 업데이트
+      if (BOOST_MULT > 1) {
+        if (cycPnl < 0) boostRemaining = BOOST_N;
+        else if (boostRemaining > 0) boostRemaining--;
+      }
       inCycle = false;
       SEED = tv;
     }
@@ -488,10 +544,11 @@ function simulateNewSystem(bars, userStartIdx, manualMode, atkUpU, atkDnU) {
     const usedU = pos.reduce((s, x) => s + x.uu, 0);
     if (mode === 'attack') {
       if (usedU < TU && cash > 0) {
-        const buyU = fi ? atkUpU : atkDnU;
+        const useMult = (boostRemaining > 0) ? BOOST_MULT : 1.0;
+        const buyU = (fi ? atkUpU : atkDnU) * useMult;
         const a = SEED / TU * buyU;
         const thr = fi ? Math.round(pv * 1.15 * 100) / 100 : Math.round(pv * 0.999 * 100) / 100;
-        if (p <= thr) {
+        if (p <= thr && usedU + buyU <= TU) {
           const sh = Math.floor(Math.min(a, cash) / p);
           if (sh > 0) {
             cash -= sh * p;
@@ -607,10 +664,15 @@ async function runNewSystem() {
     const buyUnit = (document.querySelector('input[name="bt-buyunit"]:checked')||{}).value || '35';
     const atkUpU = 3;
     const atkDnU = (buyUnit === '34') ? 4 : 5;
+    const boostPct = parseInt((document.getElementById('bt-boost')||{}).value || 0);
+    const boostN = parseInt((document.getElementById('bt-boostn')||{}).value || 5);
+    const vRuleOn = !!(document.getElementById('bt-vrule')||{}).checked;
     const buyUnitLabel = (buyUnit === '34') ? '🛡️ 3/4' : '⚡ 3/5';
+    const boostLabel = (boostPct > 0) ? ' · 🚀 +' + boostPct + '%(N='+boostN+')' : '';
+    const vLabel = vRuleOn ? ' · ⚡ V자' : '';
     const modeLabel = manualMode==='attack'?'🟢 공격 고정':(manualMode==='defense'?'🔵 방어 고정':'🤖 자동 모드전환');
-    progressEl.innerHTML = '🚀 HUNTER 백테 중... ('+modeLabel+' · '+buyUnitLabel+')';
-    const result = simulateNewSystem(data.bars, userStartIdx, manualMode, atkUpU, atkDnU);
+    progressEl.innerHTML = '🚀 HUNTER 백테 중... ('+modeLabel+' · '+buyUnitLabel+boostLabel+vLabel+')';
+    const result = simulateNewSystem(data.bars, userStartIdx, manualMode, atkUpU, atkDnU, boostPct, boostN, vRuleOn);
     const userStartPrice = data.bars[userStartIdx].close;
     const userEndPrice   = data.bars[data.bars.length - 1].close;
     const buyHoldMult = userEndPrice / userStartPrice;
