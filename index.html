@@ -933,6 +933,7 @@ function confirmFullReset(){
 }
 function doFullReset(){
   if(!confirm('마지막 확인'))return;
+  const p=curPort();
   portfolios[activeSymbol]={seed:100000,startDate:'',priceClose:0,priceLive:0,high20:0,priceDate:'',diary:[],pos:[],hist:[],symbol:p.symbol,label:p.label};
   save();closeModal();alert('완료!');sw('d');
 }
