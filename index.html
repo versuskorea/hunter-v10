@@ -355,7 +355,7 @@ async function autoUpdateRsi(){
   const btn=event.target;btn.disabled=true;btn.textContent='⏳ 가져오는 중...';
   try{
     const start=new Date();start.setDate(start.getDate()-300);
-    const res=await fetch('/api/history?symbol='+getSym()+'&start='+start.toISOString().slice(0,10)+'&end='+td());
+    const res=await fetch('/api/history?symbol='+getSym()+'&start='+start.toISOString().slice(0,10)+'&end='+td()+'&_='+Date.now(),{cache:'no-store'});
     const data=await res.json();
     if(data.error||!data.bars||data.bars.length<200){alert('200일+ 데이터 필요');return;}
     const closes=data.bars.map(b=>b.close);
@@ -433,7 +433,7 @@ async function buildDiary(){
   try{
     const start=new Date(p.startDate);start.setDate(start.getDate()-300);
     const fmt=d=>d.toISOString().slice(0,10);
-    const res=await fetch('/api/history?symbol='+getSym()+'&start='+fmt(start)+'&end='+td());
+    const res=await fetch('/api/history?symbol='+getSym()+'&start='+fmt(start)+'&end='+td()+'&_='+Date.now(),{cache:'no-store'});
     if(!res.ok){alert('API 오류 '+res.status);return;}
     const text=await res.text();
     let data;try{data=JSON.parse(text);}catch(e){alert('API 응답 오류');return;}
@@ -951,7 +951,7 @@ async function autoRefreshOnStart(){
   try{
     const start=new Date(p.startDate);start.setDate(start.getDate()-300);
     const fmt=d=>d.toISOString().slice(0,10);
-    const res=await fetch('/api/history?symbol='+getSym()+'&start='+fmt(start)+'&end='+today);
+    const res=await fetch('/api/history?symbol='+getSym()+'&start='+fmt(start)+'&end='+today+'&_='+Date.now(),{cache:'no-store'});
     if(!res.ok)return;
     const data=await res.json();
     if(data.error||!data.bars||data.bars.length<21)return;
