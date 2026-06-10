@@ -4,6 +4,9 @@
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.setHeader('CDN-Cache-Control', 'no-store');
+  res.setHeader('Vercel-CDN-Cache-Control', 'no-store');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -18,9 +21,9 @@ export default async function handler(req, res) {
     
     let url;
     if (start && end) {
-      // 타임스탬프로 변환
+      // 타임스탬프로 변환 (end는 +1일 = 마지막 거래일 봉 확실히 포함)
       const startTs = Math.floor(new Date(start).getTime() / 1000);
-      const endTs = Math.floor(new Date(end).getTime() / 1000);
+      const endTs = Math.floor(new Date(end).getTime() / 1000) + 86400;
       url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${startTs}&period2=${endTs}&interval=1d`;
     } else {
       // 기존 years 방식 (호환)
