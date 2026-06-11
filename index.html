@@ -159,6 +159,8 @@ document.addEventListener('click', function(e){
     e.preventDefault();
     setBuyUnit(btn.dataset.val);
   }
+  const ddCard = e.target.closest('.dd-stats-card');
+  if (ddCard) toggleDDStats();
 }, false);
 document.addEventListener('change', function(e){
   if (e.target.classList && e.target.classList.contains('idx-vrule-chk')) {
@@ -432,13 +434,15 @@ function renderTickers(){
 }
 // ── 진입 구간 통계 (10년 백테 · 자동 · 3/4 · 사이클 시작시 52주 고점 대비 하락률별) ──
 const DD_STATS={
-  '0~-10%':{n:260,wr:76,avg:0.73,worst:-17.51,avgMdd:-2.22,worstMdd:-18.72,avgDur:3.9},
-  '-10~-20%':{n:149,wr:72,avg:0.88,worst:-12.08,avgMdd:-1.86,worstMdd:-12.08,avgDur:3.5},
-  '-20~-30%':{n:94,wr:76,avg:1.43,worst:-11.22,avgMdd:-2.18,worstMdd:-15.06,avgDur:3.6},
-  '-30~-40%':{n:65,wr:77,avg:1.33,worst:-7.54,avgMdd:-1.49,worstMdd:-9.74,avgDur:3.6},
-  '-40~-55%':{n:54,wr:80,avg:1.1,worst:-7.72,avgMdd:-1.63,worstMdd:-10.23,avgDur:3.7},
-  '-55%+':{n:114,wr:89,avg:2.21,worst:-14.75,avgMdd:-2.07,worstMdd:-16.15,avgDur:4.0}
+  '0~-10%':{n:260,wr:76,avg:0.73,worst:-17.51,avgMdd:-2.22,worstMdd:-18.72,avgDur:3.9,score:4.7},
+  '-10~-20%':{n:149,wr:72,avg:0.88,worst:-12.08,avgMdd:-1.86,worstMdd:-12.08,avgDur:3.5,score:29.1},
+  '-20~-30%':{n:94,wr:76,avg:1.43,worst:-11.22,avgMdd:-2.18,worstMdd:-15.06,avgDur:3.6,score:44.7},
+  '-30~-40%':{n:65,wr:77,avg:1.33,worst:-7.54,avgMdd:-1.49,worstMdd:-9.74,avgDur:3.6,score:71.1},
+  '-40~-55%':{n:54,wr:80,avg:1.1,worst:-7.72,avgMdd:-1.63,worstMdd:-10.23,avgDur:3.7,score:57.7},
+  '-55%+':{n:114,wr:89,avg:2.21,worst:-14.75,avgMdd:-2.07,worstMdd:-16.15,avgDur:4.0,score:85.7}
 };
+let DD_EXPANDED=false;
+function toggleDDStats(){DD_EXPANDED=!DD_EXPANDED;render();}
 function ddBucket(dd){
   if(dd>-10)return '0~-10%';
   if(dd>-20)return '-10~-20%';
@@ -708,8 +712,8 @@ function render(){
         const st=DD_STATS[bk];
         if(st&&st.n>0){
           const wrColor=st.wr>=80?'#10b981':(st.wr>=70?'#fbbf24':'#ef4444');
-          h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px">'
-            +'<div style="font-size:11px;font-weight:700;color:var(--dim);margin-bottom:6px">📊 전고점 대비 <b style="color:var(--gold)">'+ddNow.toFixed(1)+'%</b> · 과거 이 구간('+bk+') 사이클 '+st.n+'개</div>'
+          h+='<div class="dd-stats-card" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;cursor:pointer">'
+            +'<div style="font-size:11px;font-weight:700;color:var(--dim);margin-bottom:6px">📊 전고점 대비 <b style="color:var(--gold)">'+ddNow.toFixed(1)+'%</b> · 과거 이 구간('+bk+') 사이클 '+st.n+'개 <span style="float:right;color:var(--accent)">'+(DD_EXPANDED?'▲ 접기':'▼ 전체 구간')+'</span></div>'
             +'<div style="display:flex;gap:10px;font-size:12px;font-weight:700;margin-bottom:4px">'
             +'<span>승률 <b style="color:'+wrColor+'">'+st.wr+'%</b></span>'
             +'<span>평균 <b style="color:'+(st.avg>=0?'#10b981':'#ef4444')+'">'+(st.avg>=0?'+':'')+st.avg+'%</b></span>'
@@ -719,7 +723,25 @@ function render(){
             +'<div style="display:flex;gap:10px;font-size:12px;font-weight:700">'
             +'<span>사이클 MDD 평균 <b style="color:#fbbf24">'+st.avgMdd+'%</b></span>'
             +'<span>최악 <b style="color:#ef4444">'+st.worstMdd+'%</b></span>'
-            +'</div></div>';
+            +'</div>';
+          if(DD_EXPANDED){
+            h+='<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">'
+              +'<div style="font-size:10px;color:var(--dim);font-weight:700;margin-bottom:6px">🏆 구간별 효율 점수 (일당수익·리스크조정·MDD방어·승률 종합)</div>';
+            const ranked=Object.entries(DD_STATS).sort((a,b)=>b[1].score-a[1].score);
+            ranked.forEach(([lb,s],ri)=>{
+              const isCur=(lb===bk);
+              const barW=Math.max(3,s.score);
+              const barColor=ri===0?'#10b981':(isCur?'#fbbf24':'#3b82f6');
+              h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px;font-weight:700;'+(isCur?'color:var(--gold)':'color:var(--dim)')+'">'
+                +'<span style="width:62px">'+(isCur?'▶ ':'')+lb+'</span>'
+                +'<div style="flex:1;height:10px;background:#1a1a2a;border-radius:5px;overflow:hidden"><div style="width:'+barW+'%;height:100%;background:'+barColor+'"></div></div>'
+                +'<span style="width:36px;text-align:right">'+s.score.toFixed(0)+'점</span>'
+                +'<span style="width:32px;text-align:right;color:var(--dim)">'+s.wr+'%</span>'
+                +'</div>';
+            });
+            h+='<div style="font-size:10px;color:var(--dim);margin-top:4px">깊을수록 효율↑ = 평균회귀의 본질. 점수 우측은 승률</div></div>';
+          }
+          h+='</div>';
         }
       }
       h+='<div style="display:flex;gap:8px;margin-bottom:10px;padding:10px;background:#0a0a14;border-radius:8px;align-items:center"><div style="flex:1.4"><div style="font-size:10px;color:var(--dim);margin-bottom:3px">시드 (수정가능)</div><input type="number" id="seed-quick" value="'+p.seed+'" onchange="updSeedQuick()" style="width:100%;background:transparent;border:1px solid var(--green);border-radius:6px;padding:7px 8px;color:var(--green);font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800;text-align:center;outline:none"></div><div style="flex:1;text-align:center;border-left:1px solid var(--border);padding-left:8px"><div style="font-size:10px;color:var(--dim)">유닛 단가</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800">$'+uw.toFixed(0)+'</div></div><div style="flex:1;text-align:center;border-left:1px solid var(--border);padding-left:8px"><div style="font-size:10px;color:var(--dim)">투입</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800">'+totalU+'/'+TU+'u</div></div></div><table class="order-table"><thead><tr><th>티어</th><th>구분</th><th>방법</th><th>가격</th><th>수량</th></tr></thead><tbody>';
