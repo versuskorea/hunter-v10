@@ -430,21 +430,33 @@ function renderTickers(){
   bar.innerHTML=html;
   const tn=$('ticker-name');if(tn)tn.textContent=getDisplay(activeSymbol);
 }
-// 미국 장 마감(16:00 ET) 전이면 마지막 봉이 '장중 미확정'이므로 제거 → 주문표 안정화
+// ── 진입 구간 통계 (10년 백테 · 자동 · 3/4 · 사이클 시작시 52주 고점 대비 하락률별) ──
+const DD_STATS={
+  '0~-10%':{n:260,wr:76,avg:0.73,worst:-17.51,avgMdd:-2.22,worstMdd:-18.72,avgDur:3.9},
+  '-10~-20%':{n:149,wr:72,avg:0.88,worst:-12.08,avgMdd:-1.86,worstMdd:-12.08,avgDur:3.5},
+  '-20~-30%':{n:94,wr:76,avg:1.43,worst:-11.22,avgMdd:-2.18,worstMdd:-15.06,avgDur:3.6},
+  '-30~-40%':{n:65,wr:77,avg:1.33,worst:-7.54,avgMdd:-1.49,worstMdd:-9.74,avgDur:3.6},
+  '-40~-55%':{n:54,wr:80,avg:1.1,worst:-7.72,avgMdd:-1.63,worstMdd:-10.23,avgDur:3.7},
+  '-55%+':{n:114,wr:89,avg:2.21,worst:-14.75,avgMdd:-2.07,worstMdd:-16.15,avgDur:4.0}
+};
+function ddBucket(dd){
+  if(dd>-10)return '0~-10%';
+  if(dd>-20)return '-10~-20%';
+  if(dd>-30)return '-20~-30%';
+  if(dd>-40)return '-30~-40%';
+  if(dd>-55)return '-40~-55%';
+  return '-55%+';
+}
+// 미국 장 마감 후 'Blue Ocean 야간장' 봉을 마지막에 얹어줌(거래량 0~소량, 가격 출렁) → 제거
+// 판별: 마지막 봉 거래량이 직전 정규장 봉들 중앙값의 20% 미만이면 야간/장중 미확정으로 보고 버림
 function dropIntradayBar(bars){
-  if(!bars||bars.length===0)return bars;
-  // 미국 동부 현재 시각
-  const now=new Date();
-  const etStr=new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(now);
-  // etStr 예: "2026-06-10, 22:30"
-  const m=etStr.match(/(\d{4}-\d{2}-\d{2})[,\s]+(\d{2}):(\d{2})/);
-  if(!m)return bars;
-  const etDate=m[1];
-  const etMin=parseInt(m[2])*60+parseInt(m[3]);
-  const marketClose=16*60; // 16:00 ET
-  const lastBar=bars[bars.length-1];
-  // 마지막 봉 날짜 == 미국 오늘 && 아직 장 마감 전 → 그 봉은 장중 미확정이므로 버림
-  if(lastBar.date===etDate && etMin<marketClose){
+  if(!bars||bars.length<6)return bars;
+  const last=bars[bars.length-1];
+  const lastVol=last.volume||0;
+  // 직전 5봉 거래량 중앙값
+  const prevVols=bars.slice(-6,-1).map(b=>b.volume||0).sort((a,b)=>a-b);
+  const medVol=prevVols[Math.floor(prevVols.length/2)]||0;
+  if(medVol>0 && lastVol < medVol*0.2){
     return bars.slice(0,-1);
   }
   return bars;
@@ -501,7 +513,7 @@ async function buildDiary(){
     }
     
     p.diary=diary;
-    if(diary.length>0){const last=diary[diary.length-1];p.priceClose=last.close;p.high20=last.high20;p.priceDate=last.date;}
+    if(diary.length>0){const last=diary[diary.length-1];p.priceClose=last.close;p.high20=last.high20;p.priceDate=last.date;p.high252=Math.max(...data.bars.slice(-252).map(b=>b.close));}
     
     // NEW SYSTEM 모드 계산 (주간 RSI 공격/방어)
     p.nsMode=calcNewSystemMode(data.bars);
@@ -689,6 +701,27 @@ function render(){
       
       h+='<div class="card" style="border:1px solid var(--accent)"><div class="ct" style="color:var(--accent)">🛒 '+nextDateDisplay+' 주문표 · '+modeLabel+'</div>';
       h+='<div class="ref-banner">전날 종가: <b>$'+lastClose+'</b><small>('+last.date.slice(5)+(last.isRef?' · 참조':'')+' 기준)</small></div>';
+      // 진입 구간 통계 (52주 고점 대비 하락률 → 과거 10년 사이클 통계)
+      if(p.high252&&p.high252>0){
+        const ddNow=(parseFloat(lastClose)-p.high252)/p.high252*100;
+        const bk=ddBucket(ddNow);
+        const st=DD_STATS[bk];
+        if(st&&st.n>0){
+          const wrColor=st.wr>=80?'#10b981':(st.wr>=70?'#fbbf24':'#ef4444');
+          h+='<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px">'
+            +'<div style="font-size:11px;font-weight:700;color:var(--dim);margin-bottom:6px">📊 전고점 대비 <b style="color:var(--gold)">'+ddNow.toFixed(1)+'%</b> · 과거 이 구간('+bk+') 사이클 '+st.n+'개</div>'
+            +'<div style="display:flex;gap:10px;font-size:12px;font-weight:700;margin-bottom:4px">'
+            +'<span>승률 <b style="color:'+wrColor+'">'+st.wr+'%</b></span>'
+            +'<span>평균 <b style="color:'+(st.avg>=0?'#10b981':'#ef4444')+'">'+(st.avg>=0?'+':'')+st.avg+'%</b></span>'
+            +'<span>최악 <b style="color:#ef4444">'+st.worst+'%</b></span>'
+            +'<span style="color:var(--dim)">~'+st.avgDur+'일</span>'
+            +'</div>'
+            +'<div style="display:flex;gap:10px;font-size:12px;font-weight:700">'
+            +'<span>사이클 MDD 평균 <b style="color:#fbbf24">'+st.avgMdd+'%</b></span>'
+            +'<span>최악 <b style="color:#ef4444">'+st.worstMdd+'%</b></span>'
+            +'</div></div>';
+        }
+      }
       h+='<div style="display:flex;gap:8px;margin-bottom:10px;padding:10px;background:#0a0a14;border-radius:8px;align-items:center"><div style="flex:1.4"><div style="font-size:10px;color:var(--dim);margin-bottom:3px">시드 (수정가능)</div><input type="number" id="seed-quick" value="'+p.seed+'" onchange="updSeedQuick()" style="width:100%;background:transparent;border:1px solid var(--green);border-radius:6px;padding:7px 8px;color:var(--green);font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800;text-align:center;outline:none"></div><div style="flex:1;text-align:center;border-left:1px solid var(--border);padding-left:8px"><div style="font-size:10px;color:var(--dim)">유닛 단가</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800">$'+uw.toFixed(0)+'</div></div><div style="flex:1;text-align:center;border-left:1px solid var(--border);padding-left:8px"><div style="font-size:10px;color:var(--dim)">투입</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:800">'+totalU+'/'+TU+'u</div></div></div><table class="order-table"><thead><tr><th>티어</th><th>구분</th><th>방법</th><th>가격</th><th>수량</th></tr></thead><tbody>';
       if(p.pos.length===0){
         h+='<tr><td colspan="5" style="color:var(--dim);font-style:italic;padding:12px">보유 티어 없음 (매도 LOC 없음)</td></tr>';
@@ -1032,7 +1065,7 @@ async function autoRefreshOnStart(){
     if(refIdx>=0)diary.push(buildEntry(refIdx,true));
     if(firstTradingIdx>=0){for(let i=firstTradingIdx;i<data.bars.length;i++)diary.push(buildEntry(i,false));}
     p.diary=diary;
-    if(diary.length>0){const last=diary[diary.length-1];p.priceClose=last.close;p.high20=last.high20;p.priceDate=last.date;}
+    if(diary.length>0){const last=diary[diary.length-1];p.priceClose=last.close;p.high20=last.high20;p.priceDate=last.date;p.high252=Math.max(...data.bars.slice(-252).map(b=>b.close));}
     
     // NEW SYSTEM 모드 계산 (주간 RSI)
     const prevMode=p.nsMode?p.nsMode.mode:null;
