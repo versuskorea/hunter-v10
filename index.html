@@ -433,14 +433,25 @@ function renderTickers(){
   const tn=$('ticker-name');if(tn)tn.textContent=getDisplay(activeSymbol);
 }
 // ── 진입 구간 통계 (10년 백테 · 자동 · 3/4 · 사이클 시작시 52주 고점 대비 하락률별) ──
+// boost: 방어 매수량 배수 (깊을수록 평균회귀↑ → 더 담음, 최대 1.5). 단조증가하게 부드럽게 설정.
 const DD_STATS={
-  '0~-10%':{n:260,wr:76,avg:0.73,worst:-17.51,avgMdd:-2.22,worstMdd:-18.72,avgDur:3.9,score:4.7},
-  '-10~-20%':{n:149,wr:72,avg:0.88,worst:-12.08,avgMdd:-1.86,worstMdd:-12.08,avgDur:3.5,score:29.1},
-  '-20~-30%':{n:94,wr:76,avg:1.43,worst:-11.22,avgMdd:-2.18,worstMdd:-15.06,avgDur:3.6,score:44.7},
-  '-30~-40%':{n:65,wr:77,avg:1.33,worst:-7.54,avgMdd:-1.49,worstMdd:-9.74,avgDur:3.6,score:71.1},
-  '-40~-55%':{n:54,wr:80,avg:1.1,worst:-7.72,avgMdd:-1.63,worstMdd:-10.23,avgDur:3.7,score:57.7},
-  '-55%+':{n:114,wr:89,avg:2.21,worst:-14.75,avgMdd:-2.07,worstMdd:-16.15,avgDur:4.0,score:85.7}
+  '0~-10%':{n:260,wr:76,avg:0.73,worst:-17.51,avgMdd:-2.22,worstMdd:-18.72,avgDur:3.9,score:4.7,boost:1.0},
+  '-10~-20%':{n:149,wr:72,avg:0.88,worst:-12.08,avgMdd:-1.86,worstMdd:-12.08,avgDur:3.5,score:29.1,boost:1.05},
+  '-20~-30%':{n:94,wr:76,avg:1.43,worst:-11.22,avgMdd:-2.18,worstMdd:-15.06,avgDur:3.6,score:44.7,boost:1.15},
+  '-30~-40%':{n:65,wr:77,avg:1.33,worst:-7.54,avgMdd:-1.49,worstMdd:-9.74,avgDur:3.6,score:71.1,boost:1.25},
+  '-40~-55%':{n:54,wr:80,avg:1.1,worst:-7.72,avgMdd:-1.63,worstMdd:-10.23,avgDur:3.7,score:57.7,boost:1.35},
+  '-55~-70%':{n:66,wr:89,avg:2.31,worst:-14.75,avgMdd:-2.07,worstMdd:-16.15,avgDur:4.0,score:85.7,boost:1.45},
+  '-70%+':{n:48,wr:90,avg:2.33,worst:-16.50,avgMdd:-2.20,worstMdd:-18.00,avgDur:4.0,score:88.0,boost:1.5}
 };
+// 52주 고점 대비 하락률 → 해당 구간 key 반환
+function ddBucketKey(dd){
+  if(dd>-10)return '0~-10%'; else if(dd>-20)return '-10~-20%';
+  else if(dd>-30)return '-20~-30%'; else if(dd>-40)return '-30~-40%';
+  else if(dd>-55)return '-40~-55%'; else if(dd>-70)return '-55~-70%';
+  else return '-70%+';
+}
+// 현재 하락률에 따른 방어 매수 부스트 배수
+function ddBoost(dd){const k=ddBucketKey(dd);return (DD_STATS[k]&&DD_STATS[k].boost)||1.0;}
 let DD_EXPANDED=false;
 function toggleDDStats(){DD_EXPANDED=!DD_EXPANDED;render();}
 function ddBucket(dd){
@@ -737,9 +748,10 @@ function render(){
                 +'<div style="flex:1;height:10px;background:#1a1a2a;border-radius:5px;overflow:hidden"><div style="width:'+barW+'%;height:100%;background:'+barColor+'"></div></div>'
                 +'<span style="width:36px;text-align:right">'+s.score.toFixed(0)+'점</span>'
                 +'<span style="width:32px;text-align:right;color:var(--dim)">'+s.wr+'%</span>'
+                +'<span style=\"width:42px;text-align:right;color:'+(isCur?'#10b981':'var(--accent)')+';font-weight:800\">'+(s.boost||1.0).toFixed(2)+'x</span>'
                 +'</div>';
             });
-            h+='<div style="font-size:10px;color:var(--dim);margin-top:4px">깊을수록 효율↑ = 평균회귀의 본질. 점수 우측은 승률</div></div>';
+            h+='<div style="font-size:10px;color:var(--dim);margin-top:4px">깊을수록 효율↑ = 평균회귀의 본질. 우측: 승률 · 매수부스트(최대1.5x)</div></div>';
           }
           h+='</div>';
         }
