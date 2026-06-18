@@ -159,8 +159,7 @@ document.addEventListener('click', function(e){
     e.preventDefault();
     setBuyUnit(btn.dataset.val);
   }
-  const ddCard = e.target.closest('.dd-stats-card');
-  if (ddCard) toggleDDStats();
+  // 구간 카드 항상 펼침 - 클릭 토글 비활성화
 }, false);
 document.addEventListener('change', function(e){
   if (e.target.classList && e.target.classList.contains('idx-vrule-chk')) {
@@ -724,7 +723,7 @@ function render(){
         if(st&&st.n>0){
           const wrColor=st.wr>=80?'#10b981':(st.wr>=70?'#fbbf24':'#ef4444');
           h+='<div class="dd-stats-card" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;cursor:pointer">'
-            +'<div style="font-size:11px;font-weight:700;color:var(--dim);margin-bottom:6px">📊 전고점 대비 <b style="color:var(--gold)">'+ddNow.toFixed(1)+'%</b> · 과거 이 구간('+bk+') 사이클 '+st.n+'개 <span style="float:right;color:var(--accent)">'+(DD_EXPANDED?'▲ 접기':'▼ 전체 구간')+'</span></div>'
+            +'<div style="font-size:11px;font-weight:700;color:var(--dim);margin-bottom:6px">📊 전고점 대비 <b style="color:var(--gold)">'+ddNow.toFixed(1)+'%</b> · 과거 이 구간('+bk+') 사이클 '+st.n+'개 <span style="float:right;color:var(--accent)">'+'</span></div>'
             +'<div style="display:flex;gap:10px;font-size:12px;font-weight:700;margin-bottom:4px">'
             +'<span>승률 <b style="color:'+wrColor+'">'+st.wr+'%</b></span>'
             +'<span>평균 <b style="color:'+(st.avg>=0?'#10b981':'#ef4444')+'">'+(st.avg>=0?'+':'')+st.avg+'%</b></span>'
@@ -735,7 +734,7 @@ function render(){
             +'<span>사이클 MDD 평균 <b style="color:#fbbf24">'+st.avgMdd+'%</b></span>'
             +'<span>최악 <b style="color:#ef4444">'+st.worstMdd+'%</b></span>'
             +'</div>';
-          if(DD_EXPANDED){
+          if(true){  // 항상 전체구간 표시
             h+='<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px">'
               +'<div style="font-size:10px;color:var(--dim);font-weight:700;margin-bottom:6px">🏆 구간별 효율 점수 (일당수익·리스크조정·MDD방어·승률 종합)</div>';
             const ranked=Object.entries(DD_STATS).sort((a,b)=>b[1].score-a[1].score);
