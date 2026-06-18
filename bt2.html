@@ -550,9 +550,9 @@ function simulateNewSystem(bars, userStartIdx, manualMode, atkUpU, atkDnU, vRule
       const ATK_TIERS = 6;  // 균등 6분할 (최대 6티어)
       const atkHeld = pos.filter(z => z.mode === 'attack').length;
       if (atkHeld < ATK_TIERS && cash > 0) {
-        // 할당금 = 시작현금 × (다음티어비중 / 남은티어비중합). 균등이므로 1/남은티어수
-        const remainTiers = ATK_TIERS - atkHeld;
-        const a = SEED * (1 / remainTiers) * BOOST_ATK;
+        // 할당금 = 그 시점 총자산 × 1/6 (실거래 로그 검증: 매 티어 ~16%)
+        const curTV = snapTV(i);
+        const a = curTV * (1 / ATK_TIERS) * BOOST_ATK;
         const thr = fi ? Math.round(pv * ATK_CAP * 100) / 100 : Math.round(pv * 0.999 * 100) / 100;
         if (p <= thr) {
           const sh = Math.floor(Math.min(a, cash) / p);
@@ -566,13 +566,11 @@ function simulateNewSystem(bars, userStartIdx, manualMode, atkUpU, atkDnU, vRule
       }
     } else if (cash > 0) {
       // 방어 매수 (스나이퍼: 비중 6·13·20·27·34%, 할당 = 시작현금×(다음비중/남은비중합))
-      const DEF_W = [6, 13, 20, 27, 34];  // 티어별 매수비중 %
+      const DEF_W = [6, 13, 20, 27, 34];  // 티어별 매수비중 % (실거래 로그 검증)
       const step = (defLadder < DEF_W.length) ? defLadder : DEF_W.length - 1;
-      // 남은 티어 비중합 (현재 step부터 끝까지)
-      let remainW = 0; for (let k = step; k < DEF_W.length; k++) remainW += DEF_W[k];
-      const nextW = DEF_W[step];
-      // 할당금 = 시작현금 × (다음티어비중 / 남은비중합) × 부스트
-      const a = SEED * (nextW / remainW) * BOOST_DEF;
+      // 할당금 = 그 시점 총자산 × 절대비중(%) × 부스트 (로그: 자산의 6·13·20·27·34%)
+      const curTV = snapTV(i);
+      const a = curTV * (DEF_W[step] / 100) * BOOST_DEF;
       const pp = (i >= 2) ? closes[i - 2] : pv;
       const f = 0.994;                       // 매수조건1: MA -0.6%
       const cond1 = f * (pv + pp) / (3 - f); // MA기준 3 (2일 종가합)
