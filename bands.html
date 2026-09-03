@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏹 밴드 · 이번 사이클 범위</title>
+<style>
+  :root{
+    --bg:#0e1016; --panel:#171a23; --panel2:#1f2431;
+    --text:#e6e8ee; --dim:#8a91a2; --faint:#565d6e;
+    --line:#2a3040; --accent:#d4a95a;
+    --calm:#4db6a4; --calm-bg:#153230;
+    --edge:#c98a45; --edge-bg:#2e2411;
+    --up:#4db6a4; --down:#d8756a; --now:#f2f4f8;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{background:var(--bg); color:var(--text);
+    font-family:'Pretendard','Malgun Gothic',-apple-system,system-ui,sans-serif;
+    line-height:1.5; padding:14px 14px 44px; max-width:540px; margin:0 auto;
+    font-variant-numeric:tabular-nums}
+  .top{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+  .back{font-size:0.82rem; color:var(--accent); text-decoration:none; font-weight:700;
+    padding:6px 10px; border:1px solid var(--line); border-radius:9px; white-space:nowrap;
+    -webkit-tap-highlight-color:transparent}
+  .back:active{background:var(--panel2)}
+  h1{font-size:1.2rem; font-weight:800; letter-spacing:-0.02em}
+  .status{margin-left:auto; font-size:0.7rem; color:var(--dim); font-weight:700;
+    padding:4px 9px; border-radius:20px; background:var(--panel)}
+  .status.live{color:var(--calm); background:var(--calm-bg)}
+  .status.err{color:var(--down); background:#2e1717}
+  .sub{color:var(--faint); font-size:0.76rem; margin:2px 0 15px}
+  .now-row{display:flex; align-items:flex-end; gap:14px; padding:14px 16px;
+    background:var(--panel); border-radius:14px; margin-bottom:12px}
+  .now-lab{font-size:0.7rem; color:var(--dim); margin-bottom:4px; font-weight:600}
+  .now-px{font-size:1.95rem; font-weight:800; letter-spacing:-0.02em; line-height:1}
+  .now-vol{margin-left:auto; text-align:right}
+  .now-vol .v{font-size:1.1rem; font-weight:800}
+  .vol-tag{font-size:0.66rem; padding:2px 8px; border-radius:20px; font-weight:700; margin-top:4px; display:inline-block}
+  .tabs{display:flex; gap:7px; margin:4px 0 14px}
+  .tab{flex:1; padding:10px; text-align:center; border-radius:11px; background:var(--panel);
+    font-weight:700; font-size:0.88rem; cursor:pointer; color:var(--dim);
+    border:1.5px solid transparent; -webkit-tap-highlight-color:transparent}
+  .tab.on{background:var(--panel2); color:var(--text); border-color:var(--accent)}
+  .gauge{background:var(--panel); border-radius:14px; padding:6px 0; margin-bottom:12px}
+  .lvl{display:flex; align-items:center; gap:12px; padding:13px 16px; position:relative}
+  .lvl .zone{position:absolute; left:0; top:0; bottom:0; width:4px}
+  .lvl.calm .zone{background:var(--calm)} .lvl.edge .zone{background:var(--edge)}
+  .lvl.now{background:var(--panel2)}
+  .lvl .z{font-size:0.76rem; font-weight:800; width:36px; flex-shrink:0}
+  .lvl.calm .z{color:var(--calm)} .lvl.edge .z{color:var(--edge)} .lvl.now .z{color:var(--now)}
+  .lvl .px{font-size:1.12rem; font-weight:800}
+  .lvl .pct{margin-left:auto; font-size:0.9rem; font-weight:800}
+  .lvl .tg{font-size:0.66rem; color:var(--faint); width:100%; padding-left:48px; margin-top:1px}
+  .up{color:var(--up)} .down{color:var(--down)}
+  .div{height:1px; background:var(--line); margin:0 16px}
+  .legend{font-size:0.72rem; color:var(--dim); padding:0 4px; margin:-2px 0 16px; line-height:1.7}
+  .dot{display:inline-block; width:9px; height:9px; border-radius:2px; vertical-align:middle; margin-right:3px}
+  .legend b{color:var(--text); font-weight:700}
+  .sec-lab{font-size:0.76rem; color:var(--dim); font-weight:700; margin:0 4px 8px}
+  table{width:100%; border-collapse:collapse; background:var(--panel); border-radius:14px; overflow:hidden}
+  th,td{padding:11px 7px; text-align:right; font-size:0.84rem; border-bottom:1px solid var(--line)}
+  th{color:var(--faint); font-weight:600; font-size:0.68rem; padding-top:13px}
+  td:first-child,th:first-child{text-align:left; padding-left:14px; font-weight:800}
+  tr:last-child td{border-bottom:none}
+  .scn-c{color:var(--calm)} .scn-e{color:var(--edge)} .scn-n{color:var(--dim)}
+  .mantra{text-align:center; font-size:0.88rem; color:var(--text); font-weight:700;
+    padding:15px; background:var(--calm-bg); border-radius:13px; margin-top:16px; line-height:1.55}
+  .mantra b{color:var(--calm)}
+  details{margin-top:14px; background:var(--panel); border-radius:12px; padding:2px 14px}
+  summary{font-size:0.78rem; font-weight:700; color:var(--dim); cursor:pointer; padding:12px 0; list-style:none}
+  summary::-webkit-details-marker{display:none}
+  .field{margin:8px 0 14px}
+  label{display:block; font-size:0.7rem; color:var(--dim); margin-bottom:5px; font-weight:600}
+  input{width:100%; padding:10px 12px; font-size:0.92rem; border:1.5px solid var(--line);
+    border-radius:9px; background:var(--bg); color:var(--text); font-variant-numeric:tabular-nums}
+  input:focus{outline:none; border-color:var(--accent)}
+  .grid5{display:grid; grid-template-columns:repeat(5,1fr); gap:6px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .grid5 label{font-size:0.64rem; text-align:center}
+  .grid5 input{padding:8px 3px; text-align:center; font-size:0.82rem}
+  .btn{width:100%; padding:11px; background:var(--panel2); color:var(--accent);
+    border:1.5px solid var(--accent); border-radius:9px; font-size:0.86rem; font-weight:700;
+    cursor:pointer; margin:4px 0 12px}
+  .btn:active{background:var(--line)}
+  .note{font-size:0.68rem; color:var(--faint); line-height:1.6; margin-bottom:10px}
+</style>
+</head>
+<body>
+  <div class="top">
+    <a href="index.html" class="back">← 헌터</a>
+    <h1>밴드</h1>
+    <span class="status" id="status">연결 중</span>
+  </div>
+  <div class="sub" id="asof">데이터 불러오는 중…</div>
+
+  <div class="now-row">
+    <div>
+      <div class="now-lab" id="pxLab">SOXL 종가</div>
+      <div class="now-px" id="nowPx">—</div>
+    </div>
+    <div class="now-vol">
+      <div class="now-lab" id="volLab">SOXX 변동성 · 20일</div>
+      <div class="v" id="nowVol">—</div>
+      <span class="vol-tag" id="volTag"></span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on" data-d="5">이번 주 · 5일</div>
+    <div class="tab" data-d="21">이번 달 · 21일</div>
+  </div>
+
+  <div class="gauge" id="gauge"></div>
+
+  <div class="legend">
+    <span class="dot" style="background:var(--calm)"></span><b>±1σ 평소</b> — 열 중 일곱은 이 안 &nbsp;·&nbsp;
+    <span class="dot" style="background:var(--edge)"></span><b>±2σ 드묾</b> — 스무 날에 하루<br>
+    2σ 밖은 밴드가 못 잡는다 — 그건 여유자금으로 버티는 자리.
+  </div>
+
+  <div class="sec-lab">하락 시 방어 티어가 이렇게 채워진다</div>
+  <table>
+    <thead><tr><th>시나리오</th><th>SOXL</th><th>채움</th><th>투입</th><th>평가</th><th>남은현금</th></tr></thead>
+    <tbody id="tiers"></tbody>
+  </table>
+
+  <div class="mantra" id="mantra">—</div>
+
+  <details>
+    <summary>⚙️ 설정 (심볼 · 시드 · 티어)</summary>
+    <div class="field grid2">
+      <div><label>변동성 심볼</label><input id="symVol" value="SOXX"></div>
+      <div><label>가격 심볼</label><input id="symPx" value="SOXL"></div>
+    </div>
+    <button class="btn" id="reload">🔄 다시 불러오기</button>
+    <div class="note">HUNTER와 같은 /api/history 를 쓴다. 심볼만 맞으면 자동. 못 불러오면 아래 수동값 사용.</div>
+    <div class="field grid2">
+      <div><label>수동 SOXL 종가 $</label><input id="mPx" type="number" step="0.01" value="227"></div>
+      <div><label>수동 변동성 %</label><input id="mVol" type="number" step="0.1" value="47.7"></div>
+    </div>
+    <div class="field"><label>시드 (억원)</label><input id="seed" type="number" step="0.1" value="10"></div>
+    <div class="field"><label>방어 티어 비중 %</label>
+      <div class="grid5">
+        <div><label>T1</label><input class="tw" type="number" value="6"></div>
+        <div><label>T2</label><input class="tw" type="number" value="13"></div>
+        <div><label>T3</label><input class="tw" type="number" value="20"></div>
+        <div><label>T4</label><input class="tw" type="number" value="27"></div>
+        <div><label>T5</label><input class="tw" type="number" value="34"></div>
+      </div>
+    </div>
+    <div class="field"><label>티어 트리거 % (오늘 대비 하락)</label>
+      <div class="grid5">
+        <div><label>T1</label><input class="tt" type="number" value="0"></div>
+        <div><label>T2</label><input class="tt" type="number" value="-5"></div>
+        <div><label>T3</label><input class="tt" type="number" value="-10"></div>
+        <div><label>T4</label><input class="tt" type="number" value="-15"></div>
+        <div><label>T5</label><input class="tt" type="number" value="-20"></div>
+      </div>
+    </div>
+  </details>
+
+<script>
+/* ═══════ 핵심 계산 (HUNTER에 그대로 이식 가능) ═══════ */
+const SQ = Math.sqrt(252), K = 3;
+function realizedVol(closes, look = 20){
+  const n = closes.length;
+  if(n < look + 1) return null;
+  const r = [];
+  for(let i = n - look; i < n; i++) r.push(Math.log(closes[i] / closes[i-1]));
+  const m = r.reduce((a,b)=>a+b,0) / r.length;
+  const v = r.reduce((a,b)=>a+(b-m)**2,0) / (r.length - 1);
+  return Math.sqrt(v) * SQ;
+}
+// z*sigmaX 직접 (ln 아님) — 비대칭 유지, 검증값과 일치
+function soxlRet(z, iv, days){
+  const sigmaX = iv / SQ * Math.sqrt(days);
+  const decay  = K * iv * iv * (days / 252);
+  return Math.exp(K * z * sigmaX - decay) - 1;
+}
+/* ═══════ HUNTER와 동일한 데이터 소스 (/api/history) ═══════ */
+const etDate = off => new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',
+  year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+(off||0)*86400000));
+function dropIntradayBar(bars){
+  if(!bars || bars.length < 2) return bars;
+  const etHour = parseInt(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',
+    hour:'2-digit',hour12:false}).format(new Date()),10);
+  const marketClosed = etHour >= 16;
+  const last = bars[bars.length-1];
+  if(last.date === etDate(0) && !marketClosed) return bars.slice(0,-1);
+  return bars;
+}
+async function fetchCloses(symbol){
+  const url = `/api/history?symbol=${encodeURIComponent(symbol)}&start=${etDate(-120)}&end=${etDate(1)}&_=${Date.now()}`;
+  const res = await fetch(url, {cache:'no-store'});
+  const data = await res.json();
+  if(data.error || !data.bars || data.bars.length < 21) throw new Error(data.error || '데이터 부족');
+  return dropIntradayBar(data.bars).map(b => b.close);
+}
+let state = { px:227, iv:0.477, live:false };
+async function loadAll(){
+  const st = document.getElementById('status'), asof = document.getElementById('asof');
+  st.textContent = '불러오는 중'; st.className='status';
+  try{
+    const symVol = document.getElementById('symVol').value.trim() || 'SOXX';
+    const symPx  = document.getElementById('symPx').value.trim() || 'SOXL';
+    const [volCloses, pxCloses] = await Promise.all([fetchCloses(symVol), fetchCloses(symPx)]);
+    const iv = realizedVol(volCloses);
+    const px = pxCloses[pxCloses.length - 1];
+    if(iv == null) throw new Error('변동성 계산 불가');
+    state = { px, iv, live:true };
+    st.textContent = '실시간'; st.className='status live';
+    asof.textContent = `${symPx} $${px.toFixed(2)} · ${symVol} 변동성 자동 · ${etDate(0)}`;
+    document.getElementById('pxLab').textContent = symPx + ' 종가';
+    document.getElementById('volLab').textContent = symVol + ' 변동성 · 20일';
+  }catch(e){
+    state = { px:+document.getElementById('mPx').value||227,
+      iv:(+document.getElementById('mVol').value||47.7)/100, live:false };
+    st.textContent = '수동값'; st.className='status err';
+    asof.textContent = '자동 실패 — 수동값 사용 (' + e.message + ')';
+  }
+  render();
+}
+/* ═══════ 렌더 ═══════ */
+let DAYS = 5;
+function render(){
+  const { px, iv } = state;
+  document.getElementById('nowPx').textContent = '$' + px.toFixed(2);
+  document.getElementById('nowVol').textContent = (iv*100).toFixed(1) + '%';
+  const tag = document.getElementById('volTag');
+  let label,bg,fg;
+  if(iv>0.60){label='급변장';bg='#3a1e1e';fg='#d8756a';}
+  else if(iv>0.45){label='높음';bg='#2e2411';fg='#c98a45';}
+  else if(iv>0.30){label='보통';bg='#153230';fg='#4db6a4';}
+  else{label='평온';bg='#1a2438';fg='#6b93c9';}
+  tag.textContent=label; tag.style.background=bg; tag.style.color=fg;
+  const rows=[
+    {z:2,cls:'edge',lab:'+2σ',tg:'드문 급등'},
+    {z:1,cls:'calm',lab:'+1σ',tg:'평소 상단'},
+    {z:0,cls:'now',lab:'지금',tg:'오늘 종가'},
+    {z:-1,cls:'calm',lab:'−1σ',tg:'평소 하단'},
+    {z:-2,cls:'edge',lab:'−2σ',tg:'드문 급락'},
+  ];
+  let g='';
+  rows.forEach((row,i)=>{
+    const r=row.z===0?0:soxlRet(row.z,iv,DAYS), p=px*(1+r);
+    const dir=r>0?'up':r<0?'down':'';
+    g+=`<div class="lvl ${row.cls}"><span class="zone"></span>
+      <span class="z">${row.lab}</span><span class="px">$${p.toFixed(0)}</span>
+      <span class="pct ${dir}">${r>0?'+':''}${(r*100).toFixed(0)}%</span>
+      <span class="tg">${row.tg}</span></div>`;
+    if(i<rows.length-1) g+=`<div class="div"></div>`;
+  });
+  document.getElementById('gauge').innerHTML=g;
+  const seedKrw=(+document.getElementById('seed').value||0)*1e8;
+  const tw=[...document.querySelectorAll('.tw')].map(e=>+e.value||0);
+  const tt=[...document.querySelectorAll('.tt')].map(e=>+e.value||0);
+  const wSum=tw.reduce((a,b)=>a+b,0)||1;
+  let tb='';
+  for(const z of [2,1,0,-1,-2]){
+    const r=z===0?0:soxlRet(z,iv,DAYS), Pz=px*(1+r);
+    let cost=0,units=0,filled=0;
+    for(let i=0;i<tw.length;i++){
+      const hit=tt[i]>=0||r*100<=tt[i];
+      if(!hit)continue;
+      const amt=seedKrw*tw[i]/wSum, tierPx=px*(1+tt[i]/100);
+      cost+=amt; units+=amt/tierPx; filled++;
+    }
+    const avgPx=units?cost/units:px;
+    const pnl=cost?(Pz/avgPx-1)*100:0;
+    const zl=z>0?`+${z}σ`:z<0?`${z}σ`:'지금';
+    const pc=pnl>0?'up':pnl<0?'down':'';
+    tb+=`<tr><td class="${Math.abs(z)===1?'scn-c':z===0?'scn-n':'scn-e'}">${zl}</td>
+      <td>$${Pz.toFixed(0)}</td><td>${filled}</td><td>${(cost/1e8).toFixed(1)}억</td>
+      <td class="${pc}">${pnl>0?'+':''}${pnl.toFixed(0)}%</td>
+      <td>${((seedKrw-cost)/1e8).toFixed(1)}억</td></tr>`;
+  }
+  document.getElementById('tiers').innerHTML=tb;
+  const r1=soxlRet(-1,iv,DAYS);
+  const per=DAYS===5?'이번 주':'이번 달';
+  document.getElementById('mantra').innerHTML=
+    `${per} −1σ는 <b>${(r1*100).toFixed(0)}%</b>. 이 정도까진 평소다.<br>놀라지 말고 시스템대로 가자.`;
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on'); DAYS=+t.dataset.d; render();
+}));
+document.getElementById('reload').addEventListener('click',loadAll);
+document.querySelectorAll('.tw,.tt,#seed,#mPx,#mVol').forEach(e=>e.addEventListener('input',()=>{
+  if(!state.live){state.px=+document.getElementById('mPx').value||state.px;
+    state.iv=(+document.getElementById('mVol').value||47.7)/100;}
+  render();
+}));
+loadAll();
+</script>
+</body>
+</html>
