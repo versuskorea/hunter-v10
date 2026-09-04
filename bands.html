@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🏹 시그마 밴드</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#08080a;--card:#111118;--card2:#1a1a1f;--border:#222233;--accent:#3b82f6;--green:#22c55e;--red:#ef4444;--text:#f0f0f0;--dim:#666;--radius:16px;--top:#a78bfa;--mid:#3b82f6;--bot:#22c55e;--gold:#fbbf24}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;padding:12px;max-width:600px;margin:0 auto}
+.top{display:flex;align-items:center;gap:10px;padding:6px 0 2px}
+.back{font-family:'DM Sans',sans-serif;font-size:13px;color:var(--accent);text-decoration:none;font-weight:700;padding:7px 12px;border:1px solid var(--border);border-radius:10px;white-space:nowrap}
+.back:active{background:var(--card2)}
+.top h1{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:#fff}
+.top h1 span{color:var(--accent)}
+.status{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:5px 10px;border-radius:20px;background:var(--card);color:var(--dim);letter-spacing:0.5px}
+.status.live{color:var(--green);border:1px solid var(--green)}
+.status.err{color:var(--gold);border:1px solid var(--gold)}
+.asof{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);margin:4px 2px 14px;letter-spacing:0.3px}
+
+.now-card{display:flex;align-items:flex-end;gap:14px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.now-lab{font-size:11px;color:var(--dim);font-weight:600;margin-bottom:4px;letter-spacing:0.5px}
+.now-px{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:800;line-height:1;color:#fff}
+.now-vol{margin-left:auto;text-align:right}
+.now-vol .v{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800}
+.vtag{font-family:'JetBrains Mono',monospace;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;margin-top:4px;display:inline-block;letter-spacing:0.5px}
+
+.tabs{display:flex;gap:3px;margin-bottom:12px;background:var(--card);border-radius:10px;padding:4px;border:1px solid var(--border)}
+.tab{flex:1;padding:11px;border:none;border-radius:8px;background:none;color:var(--dim);font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif}
+.tab.on{background:var(--accent);color:#fff}
+
+.gauge{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px}
+.lvl{display:flex;align-items:center;gap:12px;padding:14px 16px;position:relative;border-bottom:1px solid var(--border)}
+.lvl:last-child{border-bottom:none}
+.lvl .zone{position:absolute;left:0;top:0;bottom:0;width:4px}
+.lvl.calm .zone{background:var(--bot)}.lvl.edge .zone{background:var(--top)}.lvl.now{background:var(--card2)}.lvl.now .zone{background:var(--accent)}
+.lvl .z{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:800;width:38px;flex-shrink:0}
+.lvl.calm .z{color:var(--bot)}.lvl.edge .z{color:var(--top)}.lvl.now .z{color:#fff}
+.lvl .px{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800}
+.lvl .pct{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:800}
+.lvl .tg{font-size:10px;color:var(--dim);width:100%;padding-left:50px;margin-top:1px;letter-spacing:0.3px}
+.up{color:var(--green)}.down{color:var(--red)}
+
+.legend{font-size:11px;color:var(--dim);padding:0 4px;margin:-2px 0 16px;line-height:1.7}
+.dot{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:middle;margin-right:3px}
+.legend b{color:var(--text);font-weight:700}
+
+.ct{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;margin:0 4px 8px;font-weight:700}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;font-family:'JetBrains Mono',monospace}
+th,td{padding:11px 6px;text-align:right;font-size:13px;border-bottom:1px solid var(--border)}
+th{background:var(--card2);color:var(--dim);font-weight:700;font-size:11px;letter-spacing:0.5px}
+td:first-child,th:first-child{text-align:left;padding-left:14px;font-weight:800}
+tr:last-child td{border-bottom:none}
+.scn-c{color:var(--bot)}.scn-e{color:var(--top)}.scn-n{color:var(--accent)}
+
+.formula{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.formula .row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.formula .row:last-child{border-bottom:none}
+.formula .k{color:var(--dim);font-weight:600}
+.formula .v{font-family:'JetBrains Mono',monospace;font-weight:800}
+.formula .buy{color:var(--green)}.formula .sell{color:var(--top)}
+.formula .sub{font-size:10px;color:var(--dim);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.wt-strip{display:flex;gap:4px;margin-top:10px}
+.wt-box{flex:1;text-align:center;background:var(--card2);border-radius:8px;padding:8px 3px}
+.wt-box .t{font-size:10px;color:var(--dim);font-weight:700}
+.wt-box .w{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:var(--accent);margin-top:2px}
+
+.mantra{text-align:center;font-size:14px;color:var(--text);font-weight:700;padding:15px;background:linear-gradient(135deg,#0a1a14,#0d1f18);border:1px solid var(--bot);border-radius:13px;margin-top:14px;line-height:1.55}
+.mantra b{color:var(--bot);font-family:'JetBrains Mono',monospace}
+
+details{margin-top:14px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:2px 14px}
+summary{font-size:13px;font-weight:700;color:var(--dim);cursor:pointer;padding:12px 0;list-style:none}
+summary::-webkit-details-marker{display:none}
+.field{margin:8px 0 14px}
+.field label{display:block;font-size:11px;color:var(--dim);margin-bottom:5px;font-weight:600}
+.field input{width:100%;background:#0a0a0f;border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;text-align:right;outline:none}
+.field input:focus{border-color:var(--accent)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.g5 label{font-size:10px;text-align:center}
+.g5 input{padding:8px 3px;text-align:center;font-size:13px}
+.btn{width:100%;padding:12px;background:#1a1a2a;color:var(--accent);border:1px solid var(--accent);border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin:4px 0 12px;font-family:'DM Sans',sans-serif}
+.btn:active{transform:scale(0.97)}
+.note{background:#0a0a14;border-radius:8px;padding:10px 12px;font-size:11px;color:var(--dim);line-height:1.6;margin-bottom:10px}
+</style>
+</head>
+<body>
+  <div class="top">
+    <a href="/index.html" class="back">← 헌터</a>
+    <h1>🏹 <span>밴드</span></h1>
+    <span class="status" id="status">연결중</span>
+  </div>
+  <div class="asof" id="asof">데이터 불러오는 중…</div>
+
+  <div class="now-card">
+    <div>
+      <div class="now-lab" id="pxLab">SOXL 종가</div>
+      <div class="now-px" id="nowPx">—</div>
+    </div>
+    <div class="now-vol">
+      <div class="now-lab" id="volLab">SOXX 변동성 · 20일</div>
+      <div class="v" id="nowVol">—</div>
+      <span class="vtag" id="vtag"></span>
+    </div>
+  </div>
+
+  <div class="tabs" style="margin-bottom:8px">
+    <button class="tab on" id="vm-realized" onclick="setVolMode('realized')">📊 실현변동성</button>
+    <button class="tab" id="vm-iv" onclick="setVolMode('iv')">🎯 IV (옵션)</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-d="5">이번 주 · 5일</button>
+    <button class="tab" data-d="21">이번 달 · 21일</button>
+  </div>
+
+  <div class="gauge" id="gauge"></div>
+  <div class="legend">
+    <span class="dot" style="background:var(--bot)"></span><b>±1σ 평소</b> — 열 중 일곱은 이 안 &nbsp;·&nbsp;
+    <span class="dot" style="background:var(--top)"></span><b>±2σ 드묾</b> — 스무 날에 하루<br>
+    2σ 밖은 밴드가 못 잡는다 — 그건 여유자금으로 버티는 자리.
+  </div>
+
+  <div class="ct">🔵 방어 티어 시나리오 (스나이퍼 비중)</div>
+  <table>
+    <thead><tr><th>시나리오</th><th>SOXL</th><th>채움</th><th>투입</th><th>평가</th><th>현금</th></tr></thead>
+    <tbody id="tiers"></tbody>
+  </table>
+  <div class="wt-strip" style="margin-top:12px">
+    <div class="wt-box"><div class="t">T1</div><div class="w">6%</div></div>
+    <div class="wt-box"><div class="t">T2</div><div class="w">13%</div></div>
+    <div class="wt-box"><div class="t">T3</div><div class="w">20%</div></div>
+    <div class="wt-box"><div class="t">T4</div><div class="w">27%</div></div>
+    <div class="wt-box"><div class="t">T5</div><div class="w">34%</div></div>
+  </div>
+
+  <div class="mantra" id="mantra">—</div>
+
+  <details>
+    <summary>⚙️ 설정 (심볼 · 시드 · 티어)</summary>
+    <div class="field g2">
+      <div><label>변동성 심볼</label><input id="symVol" value="SOXX"></div>
+      <div><label>가격 심볼</label><input id="symPx" value="SOXL"></div>
+    </div>
+    <button class="btn" id="reload">🔄 다시 불러오기</button>
+    <div class="note">헌터와 같은 /api/history 사용. 못 불러오면 아래 수동값.</div>
+    <div class="field g2">
+      <div><label>수동 SOXL $</label><input id="mPx" type="number" step="0.01" value="227"></div>
+      <div><label>수동 변동성 %</label><input id="mVol" type="number" step="0.1" value="47.7"></div>
+    </div>
+    <div class="field"><label>시드 (억원)</label><input id="seed" type="number" step="0.1" value="10"></div>
+    <div class="field"><label>방어 비중 % (스나이퍼)</label>
+      <div class="g5">
+        <div><label>T1</label><input class="tw" type="number" value="6"></div>
+        <div><label>T2</label><input class="tw" type="number" value="13"></div>
+        <div><label>T3</label><input class="tw" type="number" value="20"></div>
+        <div><label>T4</label><input class="tw" type="number" value="27"></div>
+        <div><label>T5</label><input class="tw" type="number" value="34"></div>
+      </div>
+    </div>
+  </details>
+
+<script>
+/* ═══════ 계산 (헌터 이식 가능) ═══════ */
+const SQ = Math.sqrt(252), K = 3;
+function realizedVol(closes, look = 20){
+  const n = closes.length; if(n < look + 1) return null;
+  const r = [];
+  for(let i = n - look; i < n; i++) r.push(Math.log(closes[i]/closes[i-1]));
+  const m = r.reduce((a,b)=>a+b,0)/r.length;
+  const v = r.reduce((a,b)=>a+(b-m)**2,0)/(r.length-1);
+  return Math.sqrt(v)*SQ;
+}
+function soxlRet(z, iv, days){ // z*sigmaX 직접 (비대칭 유지)
+  const sigmaX = iv/SQ*Math.sqrt(days);
+  const decay  = K*iv*iv*(days/252);
+  return Math.exp(K*z*sigmaX - decay) - 1;
+}
+/* ═══════ 스나이퍼 방어 매수/매도 (헌터와 동일) ═══════ */
+// 매수 LOC = min(3일MA−0.6%, 전일×5.5%)  종가 역산: min(0.994(pc1+pc2)/2.006, pc1×1.055)
+function defBuyPrice(pc1, pc2){
+  const f = 0.994;
+  return Math.min(f*(pc1+pc2)/(3-f), pc1*1.055);
+}
+// 매도 LOC = 3일MA×0.7%  종가 역산: 1.007(pc1+pc2)/1.993
+function defSellPrice(pc1, pc2){
+  return 1.007*(pc1+pc2)/(3-1.007);
+}
+/* ═══════ 데이터 (헌터와 동일 /api/history) ═══════ */
+const etDate = off => new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',
+  year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+(off||0)*86400000));
+function dropIntradayBar(bars){
+  if(!bars || bars.length < 2) return bars;
+  const etHour = parseInt(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'2-digit',hour12:false}).format(new Date()),10);
+  const last = bars[bars.length-1];
+  if(last.date === etDate(0) && etHour < 16) return bars.slice(0,-1);
+  return bars;
+}
+async function fetchCloses(symbol){
+  const url = `/api/history?symbol=${encodeURIComponent(symbol)}&start=${etDate(-120)}&end=${etDate(1)}&_=${Date.now()}`;
+  const res = await fetch(url, {cache:'no-store'});
+  const data = await res.json();
+  if(data.error || !data.bars || data.bars.length < 21) throw new Error(data.error || '데이터 부족');
+  return dropIntradayBar(data.bars).map(b => b.close);
+}
+let state = { px:227, prev:230, iv:0.477, live:false };
+let volMode = 'realized';  // 'realized'(실현변동성) or 'iv'(옵션 IV)
+function setVolMode(m){
+  volMode = m;
+  document.getElementById('vm-realized').classList.toggle('on', m==='realized');
+  document.getElementById('vm-iv').classList.toggle('on', m==='iv');
+  loadAll();
+}
+// 야후 옵션 IV (/api/options)
+async function fetchIV(symbol){
+  const r = await fetch(`/api/options?symbol=${encodeURIComponent(symbol)}&days=30&_=${Date.now()}`, {cache:'no-store'});
+  const d = await r.json();
+  if(d.error || d.iv == null) throw new Error(d.error || 'IV 없음');
+  return d;  // { iv, spot, expiry, expiryDays, ivPct }
+}
+async function loadAll(){
+  const st = document.getElementById('status'), asof = document.getElementById('asof');
+  st.textContent='불러오는중'; st.className='status';
+  try{
+    const symVol = document.getElementById('symVol').value.trim() || 'SOXX';
+    const symPx  = document.getElementById('symPx').value.trim() || 'SOXL';
+    const pxCloses = await fetchCloses(symPx);
+    const px = pxCloses[pxCloses.length-1];
+    const prev = pxCloses[pxCloses.length-2];
+    let iv, srcLabel;
+    if(volMode === 'iv'){
+      // IV 모드: 옵션 내재변동성 (실패 시 실현으로 폴백)
+      try{
+        const ivData = await fetchIV(symVol);
+        iv = ivData.iv;
+        srcLabel = `${symVol} IV · ${ivData.expiryDays}일물`;
+      }catch(e){
+        const volCloses = await fetchCloses(symVol);
+        iv = realizedVol(volCloses);
+        srcLabel = `${symVol} 실현(IV실패)`;
+      }
+    }else{
+      const volCloses = await fetchCloses(symVol);
+      iv = realizedVol(volCloses);
+      srcLabel = `${symVol} 실현 · 20일`;
+    }
+    if(iv == null) throw new Error('변동성 계산 불가');
+    state = { px, prev, iv, live:true };
+    st.textContent='실시간'; st.className='status live';
+    asof.textContent = `${symPx} $${px.toFixed(2)} · ${srcLabel} · ${etDate(0)}`;
+    document.getElementById('pxLab').textContent = symPx+' 종가';
+    document.getElementById('volLab').textContent = srcLabel;
+  }catch(e){
+    const mpx = +document.getElementById('mPx').value||227;
+    state = { px:mpx, prev:mpx*1.013, iv:(+document.getElementById('mVol').value||47.7)/100, live:false };
+    st.textContent='수동값'; st.className='status err';
+    asof.textContent = '자동 실패 — 수동값 사용 ('+e.message+')';
+  }
+  render();
+}
+/* ═══════ 렌더 ═══════ */
+let DAYS = 5;
+const TRIG_SIGMA = [0, -0.5, -1.0, -1.5, -2.0]; // T1~T5 진입 시그마 (사다리)
+function render(){
+  const { px, prev, iv } = state;
+  document.getElementById('nowPx').textContent = '$'+px.toFixed(2);
+  document.getElementById('nowVol').textContent = (iv*100).toFixed(1)+'%';
+  const tag = document.getElementById('vtag');
+  let label,bg,fg;
+  if(iv>0.60){label='급변장';bg='#2a1010';fg='#ef4444';}
+  else if(iv>0.45){label='높음';bg='#2a2410';fg='#fbbf24';}
+  else if(iv>0.30){label='보통';bg='#0a1a14';fg='#22c55e';}
+  else{label='평온';bg='#0a1420';fg='#3b82f6';}
+  tag.textContent=label; tag.style.background=bg; tag.style.color=fg;
+
+  // 밴드 게이지
+  const rows=[
+    {z:2,cls:'edge',lab:'+2σ',tg:'드문 급등'},
+    {z:1,cls:'calm',lab:'+1σ',tg:'평소 상단'},
+    {z:0,cls:'now',lab:'지금',tg:'오늘 종가'},
+    {z:-1,cls:'calm',lab:'−1σ',tg:'평소 하단'},
+    {z:-2,cls:'edge',lab:'−2σ',tg:'드문 급락'},
+  ];
+  let g='';
+  rows.forEach(row=>{
+    const r=row.z===0?0:soxlRet(row.z,iv,DAYS), p=px*(1+r);
+    const dir=r>0?'up':r<0?'down':'';
+    g+=`<div class="lvl ${row.cls}"><span class="zone"></span>
+      <span class="z">${row.lab}</span><span class="px">$${p.toFixed(0)}</span>
+      <span class="pct ${dir}">${r>0?'+':''}${(r*100).toFixed(0)}%</span>
+      <span class="tg">${row.tg}</span></div>`;
+  });
+  document.getElementById('gauge').innerHTML=g;
+
+  // 방어 티어 시나리오 (스나이퍼 비중, σ 사다리)
+  const seedKrw=(+document.getElementById('seed').value||0)*1e8;
+  const tw=[...document.querySelectorAll('.tw')].map(e=>+e.value||0);
+  const wSum=tw.reduce((a,b)=>a+b,0)||1;
+  let tb='';
+  for(const z of [2,1,0,-1,-2]){
+    const Pz=px*(1+ (z===0?0:soxlRet(z,iv,DAYS)) );
+    let cost=0,units=0,filled=0;
+    for(let i=0;i<tw.length;i++){
+      // 시나리오 z가 티어 진입 시그마보다 더(또는 같이) 깊이 빠지면 체결
+      if(TRIG_SIGMA[i] < z) continue;
+      const buyPx = px*(1+soxlRet(TRIG_SIGMA[i], iv, DAYS));
+      const amt = seedKrw*tw[i]/wSum;
+      cost+=amt; units+=amt/buyPx; filled++;
+    }
+    const avg=units?cost/units:px;
+    const pnl=cost?(Pz/avg-1)*100:0;
+    const zl=z>0?`+${z}σ`:z<0?`${z}σ`:'지금';
+    const pc=pnl>0?'up':pnl<0?'down':'';
+    tb+=`<tr><td class="${Math.abs(z)===1?'scn-c':z===0?'scn-n':'scn-e'}">${zl}</td>
+      <td>$${Pz.toFixed(0)}</td><td>${filled}</td><td>${(cost/1e8).toFixed(1)}억</td>
+      <td class="${pc}">${pnl>0?'+':''}${pnl.toFixed(0)}%</td>
+      <td>${((seedKrw-cost)/1e8).toFixed(1)}억</td></tr>`;
+  }
+  document.getElementById('tiers').innerHTML=tb;
+
+  // 만트라
+  const r1=soxlRet(-1,iv,DAYS);
+  const per=DAYS===5?'이번 주':'이번 달';
+  document.getElementById('mantra').innerHTML=
+    `${per} −1σ는 <b>${(r1*100).toFixed(0)}%</b>. 이 정도까진 평소다.<br>놀라지 말고 시스템대로 가자.`;
+}
+document.querySelectorAll('.tab[data-d]').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab[data-d]').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on'); DAYS=+t.dataset.d; render();
+}));
+document.getElementById('reload').addEventListener('click',loadAll);
+document.querySelectorAll('.tw,#seed,#mPx,#mVol').forEach(e=>e.addEventListener('input',()=>{
+  if(!state.live){const mpx=+document.getElementById('mPx').value||state.px;
+    state.px=mpx; state.prev=mpx*1.013;
+    state.iv=(+document.getElementById('mVol').value||47.7)/100;}
+  render();
+}));
+loadAll();
+</script>
+</body>
+</html>
