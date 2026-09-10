@@ -73,7 +73,7 @@ def save_state(s):
         json.dump(s, f, ensure_ascii=False, indent=2)
 
 # ─────────── 시세 ───────────
-HUNTER_API = os.getenv("HUNTER_API", "https://hunter-v10.vercel.app")
+HUNTER_API = (os.getenv("HUNTER_API") or "https://hunter-v10.vercel.app").rstrip("/")
 
 def _get_json(url, timeout=15):
     req = urllib.request.Request(url, headers={
@@ -110,6 +110,20 @@ def fetch_yahoo(symbol="NQ=F", days=40):
         out.append((dt.strftime("%Y-%m-%d"), float(c)))
     return out
 
+def fetch_stooq(symbol="qqq.us", days=40):
+    """Stooq CSV (야후 차단 시 폴백). NQ 선물은 없어 QQQ/^NDX만"""
+    url = f"https://stooq.com/q/d/l/?s={symbol}&i=d"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        txt = r.read().decode()
+    out = []
+    for line in txt.strip().split("\n")[1:]:
+        c = line.split(",")
+        if len(c) >= 5:
+            try: out.append((c[0], float(c[4])))
+            except ValueError: pass
+    return out[-days:]
+
 def drop_intraday(bars):
     """미국 정규장 마감(16:00 ET) 전이면 당일 봉 제외"""
     if len(bars) < 2: return bars
@@ -120,23 +134,49 @@ def drop_intraday(bars):
 
 def get_prices():
     """(당일종가, 전일종가, 그제종가, 날짜, 소스)"""
-    for fetch in (fetch_hunter, fetch_yahoo):
-        for sym in ("NQ=F", "^NDX"):
-            try:
-                b = drop_intraday(fetch(sym))
-                if len(b) >= 3 and b[-1][1] > 5000:
-                    return b[-1][1], b[-2][1], b[-3][1], b[-1][0], f"{sym}/{fetch.__name__[6:]}"
-            except Exception as e:
-                log(f"{sym} {fetch.__name__}: {e}")
-    # 최종 폴백: QQQ × 배율
-    for fetch in (fetch_hunter, fetch_yahoo):
+    errs = []
+    # 1) 헌터 앱 (선물 직접)
+    for sym in ("NQ=F", "^NDX"):
         try:
-            b = drop_intraday(fetch("QQQ"))
-            sc = float(os.getenv("QQQ_SCALE", "41.4"))
-            return b[-1][1]*sc, b[-2][1]*sc, b[-3][1]*sc, b[-1][0], f"QQQ×{sc}"
+            b = drop_intraday(fetch_hunter(sym))
+            if len(b) >= 3 and b[-1][1] > 5000:
+                return b[-1][1], b[-2][1], b[-3][1], b[-1][0], f"{sym}/hunter"
         except Exception as e:
-            log(f"QQQ {fetch.__name__}: {e}")
-    raise RuntimeError("모든 시세 소스 실패")
+            errs.append(f"hunter {sym}: {e}")
+
+    # 2) 야후 (429 대비 재시도)
+    for sym in ("NQ=F", "^NDX"):
+        for attempt in range(3):
+            try:
+                b = drop_intraday(fetch_yahoo(sym))
+                if len(b) >= 3 and b[-1][1] > 5000:
+                    return b[-1][1], b[-2][1], b[-3][1], b[-1][0], f"{sym}/yahoo"
+            except Exception as e:
+                errs.append(f"yahoo {sym} #{attempt+1}: {e}")
+                time.sleep(3 * (attempt + 1))
+
+    # 3) Stooq (^NDX 지수)
+    sc_ndx = float(os.getenv("NDX_SCALE", "1.0"))
+    try:
+        b = drop_intraday(fetch_stooq("^ndx"))
+        if len(b) >= 3 and b[-1][1] > 5000:
+            return (b[-1][1]*sc_ndx, b[-2][1]*sc_ndx, b[-3][1]*sc_ndx,
+                    b[-1][0], "^NDX/stooq")
+    except Exception as e:
+        errs.append(f"stooq ^ndx: {e}")
+
+    # 4) QQQ × 배율
+    sc = float(os.getenv("QQQ_SCALE", "41.4"))
+    for fn, tag in ((fetch_hunter, "hunter"), (fetch_stooq, "stooq"), (fetch_yahoo, "yahoo")):
+        try:
+            b = drop_intraday(fn("qqq.us" if tag == "stooq" else "QQQ"))
+            if len(b) >= 3:
+                return b[-1][1]*sc, b[-2][1]*sc, b[-3][1]*sc, b[-1][0], f"QQQ×{sc}/{tag}"
+        except Exception as e:
+            errs.append(f"{tag} QQQ: {e}")
+
+    for e in errs: log("  ", e)
+    raise RuntimeError(f"모든 시세 소스 실패 ({len(errs)}건)")
 
 # ─────────── 한투 API (LIVE) ───────────
 _token = {"v": None, "exp": 0}
