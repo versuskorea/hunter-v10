@@ -1,0 +1,48 @@
+name: MNQ Bot
+
+on:
+  schedule:
+    # 05:05 KST = 20:05 UTC (전날) — 미국 정규장 마감 직후
+    - cron: '5 20 * * 1-5'
+  workflow_dispatch:        # 수동 실행 버튼
+
+permissions:
+  contents: write           # 상태 파일 커밋용
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run bot
+        env:
+          MODE:        ${{ vars.MODE || 'PAPER' }}
+          QTY:         ${{ vars.QTY || '1' }}
+          TIERS:       ${{ vars.TIERS || '3' }}
+          HOLD_DAYS:   ${{ vars.HOLD_DAYS || '3' }}
+          BUY_PCT:     ${{ vars.BUY_PCT || '0.5' }}
+          SELL_PCT:    ${{ vars.SELL_PCT || '0.5' }}
+          MARGIN_USD:  ${{ vars.MARGIN_USD || '4374' }}
+          HUNTER_API:  ${{ vars.HUNTER_API }}
+          STATE_FILE:  mnq_state.json
+          TG_TOKEN:    ${{ secrets.TG_TOKEN }}
+          TG_CHAT:     ${{ secrets.TG_CHAT }}
+          # LIVE 모드일 때만 필요
+          KIS_APP_KEY:      ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET:   ${{ secrets.KIS_APP_SECRET }}
+          KIS_ACCOUNT_NO:   ${{ secrets.KIS_ACCOUNT_NO }}
+          KIS_ACCOUNT_CODE: ${{ secrets.KIS_ACCOUNT_CODE }}
+        run: python mnq_bot.py
+
+      - name: Commit state
+        run: |
+          git config user.name  "mnq-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add mnq_state.json || true
+          git diff --staged --quiet || git commit -m "state $(date -u +%Y-%m-%d)"
+          git push || true
