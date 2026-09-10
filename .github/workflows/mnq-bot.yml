@@ -40,8 +40,11 @@ jobs:
         run: python mnq_bot.py
 
       - name: Commit state
+        continue-on-error: true
         run: |
-          git config user.name  "mnq-bot"
+          git config user.name "mnq-bot"
           git config user.email "bot@users.noreply.github.com"
-          git add mnq_state.json || true
-          git diff --staged --quiet || git commit -m "state $(date -u +%Y-
+          git add -A mnq_state.json
+          git diff --staged --quiet && echo "변경 없음" && exit 0
+          git commit -m "state update"
+          git push
