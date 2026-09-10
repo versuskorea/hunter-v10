@@ -290,14 +290,14 @@ function backtest(P){
       const held=i-x.i;
       const byTime=held>=P.hold;
       if(hasMOC && P.mocFirst){                 // MOC 있는 날엔 MOC만 청산
-        if(byTime){ closeOne(x,'시간'); } else keep.push(x);
+        if(byTime){ closeOne(x,'MOC'); } else keep.push(x);
         continue;
       }
-      if(byTime){ closeOne(x,'시간'); continue; }
+      if(byTime){ closeOne(x,'MOC'); continue; }
       const sellThr = (P.smode==='entry')
         ? Math.ceil(x.e*(1+P.sell/100)/0.25)*0.25
         : Math.ceil(ma*(1+P.sell/100)/0.25)*0.25;
-      if(p>=sellThr) closeOne(x,'MA'); else keep.push(x);
+      if(p>=sellThr) closeOne(x, P.smode==='entry'?'익절':'MA'); else keep.push(x);
     }
     function closeOne(x,rz){
       const raw = (p-P.slip)-x.e;
