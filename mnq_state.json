@@ -1,11 +1,15 @@
 {
-  "positions": [
+  "positions": [],
+  "history": [
     {
       "entry": 29135.25,
       "date": "2026-09-10",
-      "qty": 1
+      "qty": 1,
+      "exit": 29391.75,
+      "exit_date": "2026-09-11",
+      "pnl": 513.0,
+      "reason": "SELL"
     }
   ],
-  "history": [],
-  "realized": 0.0
+  "realized": 513.0
 }
