@@ -105,7 +105,8 @@ summary::-webkit-details-marker{display:none}
     <div class="lb">오늘 할 일</div><div class="big">—</div>
   </div>
 
-  <div id="expWarn" style="font-size:12px;color:var(--gold);margin:0 4px 8px;font-weight:700"></div>\n  <div class="ct">📋 오늘 주문표</div>
+  <div id="expWarn" style="font-size:12px;color:var(--gold);margin:0 4px 8px;font-weight:700"></div>
+  <div class="ct">📋 오늘 주문표</div>
   <div class="qtybar">
     <span class="ql">계약/티어</span>
     <button class="qb" onclick="chgQty(-1)">−</button>
@@ -333,7 +334,7 @@ function render(){
     });
   }
   const ci2=contractInfo();
-  const nearExp = ci2.roll || ci2.d2e<=7;
+  const nearExp = ci2.d2e<=7;   // 활성 월물 기준 (롤오버 후엔 새 월물의 만기)
   if(pos.length<P.nt && !nearExp){
     orders.push({t:'매수',cls:'tag-b',px:buy,hit:px<=buy,qty:P.qty,
       memo:`T${pos.length+1} · 저가 ${low2.toLocaleString(undefined,{maximumFractionDigits:0})} −${P.buyp}% · ${px<=buy?'✅ 충족 (시장가 매수)':'대기'}`});
@@ -350,9 +351,15 @@ function render(){
 
   // ── 오늘 할 일 배너 ──
   const td=document.getElementById('todo');
-  if(nearExp){
-    const warn=document.getElementById('expWarn');
-    if(warn) warn.innerHTML=`⚠️ <b>만기 임박</b> — 신규 매수 중단${pos.length?` · 보유 ${pos.length}티어 정리 필요`:''}`;
+  const warnEl=document.getElementById('expWarn');
+  if(warnEl){
+    if(nearExp){
+      warnEl.innerHTML=`⚠️ <b>만기 임박</b> — 신규 매수 중단${pos.length?` · 보유 ${pos.length}티어 정리 필요`:''}`;
+    }else if(ci2.d2e<=14 && pos.length===0){
+      warnEl.innerHTML=`🔄 <b>${ci2.code}</b>로 주문 · 만기 D-${ci2.d2e} <span style="color:var(--dim);font-weight:400">(보유 0이라 지금 갈아타기 좋음)</span>`;
+    }else if(ci2.d2e<=14){
+      warnEl.innerHTML=`🔄 만기 D-${ci2.d2e} · 보유 ${pos.length}티어 정리 후 <b>${ci2.code}</b>로 전환`;
+    }else warnEl.innerHTML='';
   }
   const nB=orders.filter(o=>o.t==='매수').length;
   const nS=orders.filter(o=>o.t!=='매수').length;
