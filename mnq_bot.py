@@ -24,7 +24,7 @@ MODE       = os.getenv("MODE", "PAPER").upper()
 QTY        = int(os.getenv("QTY", "1"))        # 티어당 계약수
 TIERS      = int(os.getenv("TIERS", "3"))      # 최대 티어
 HOLD_DAYS  = int(os.getenv("HOLD_DAYS", "3"))  # 보유일(거래일)
-ROLL_STOP_DAYS = int(os.getenv("ROLL_STOP_DAYS", "7"))  # 만기 N일 전부터 신규 중단
+ROLL_STOP_DAYS = int(os.getenv("ROLL_STOP_DAYS", "14"))  # 만기 N일 전에 다음 월물로 전환
 BUY_PCT    = float(os.getenv("BUY_PCT", "0.5"))
 SELL_PCT   = float(os.getenv("SELL_PCT", "0.5"))
 TICK       = 0.25
@@ -264,28 +264,26 @@ def third_friday(y, m):
             if cnt == 3: return dt
     return None
 
-def days_to_expiry():
-    """현재 월물 만기까지 남은 달력일"""
-    now = datetime.now(timezone(timedelta(hours=-5))).replace(tzinfo=None)
-    for y in (now.year, now.year+1):
-        for q in (3, 6, 9, 12):
-            exp = third_friday(y, q)
-            if exp and exp >= now:
-                return (exp - now).days, exp
-    return 99, None
-
-def active_contract():
-    """활성 월물 코드 (만기 14일 전 롤오버). 예: MNQZ26"""
+def contract_info():
+    """(월물코드, 만기일, 남은일수) — 만기 ROLL_STOP_DAYS 이내면 다음 월물로"""
     M = {3: "H", 6: "M", 9: "U", 12: "Z"}
     now = datetime.now(timezone(timedelta(hours=-5))).replace(tzinfo=None)
-    y = now.year
-    for _ in range(8):
+    for y in (now.year, now.year + 1):
         for q in (3, 6, 9, 12):
             exp = third_friday(y, q)
-            if exp and (exp - now).days > 14:
-                return f"{SYMBOL}{M[q]}{str(y)[2:]}"
-        y += 1
-    return f"{SYMBOL}Z{str(now.year)[2:]}"
+            if not exp or exp < now:
+                continue
+            d2e = (exp - now).days
+            if d2e > ROLL_STOP_DAYS:
+                return f"{SYMBOL}{M[q]}{str(y)[2:]}", exp, d2e
+    return f"{SYMBOL}Z{str(now.year)[2:]}", None, 99
+
+def days_to_expiry():
+    _, exp, d = contract_info()
+    return d, exp
+
+def active_contract():
+    return contract_info()[0]
 
 # ─────────── 거래일 계산 ───────────
 def biz_days(d1, d2):
@@ -328,8 +326,8 @@ def main():
                                f"T{i+1} 진입 {x['entry']:,.2f} → 기준 {sp:,.2f} 충족"))
 
     # 매수 조건 (만기 임박 시 신규 중단)
-    d2e, exp_dt = days_to_expiry()
-    roll_block = d2e <= ROLL_STOP_DAYS
+    d2e, exp_dt = days_to_expiry()      # 활성 월물 기준 남은 일수
+    roll_block = d2e <= HOLD_DAYS + 2   # 활성 월물도 만기 임박하면 중단
     if len(pos) < TIERS and px <= buy_thr and not roll_block:
         orders.append(("BUY", QTY,
                        f"T{len(pos)+1} · 종가 {px:,.2f} ≤ 기준 {buy_thr:,.2f} (전일 {p1:,.0f}·그제 {p2:,.0f})"))
@@ -337,7 +335,7 @@ def main():
         lines.append(f"⚠️ <b>만기 D-{d2e} — 신규 매수 중단</b> (조건은 충족했음)")
 
     # 만기 임박 경고
-    if d2e <= ROLL_STOP_DAYS and pos:
+    if roll_block and pos:
         lines.append(f"🔴 <b>만기 D-{d2e} — 보유 {len(pos)}티어 정리 필요</b>")
 
     # 출력
