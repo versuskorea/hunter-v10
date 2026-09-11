@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>📊 MNQ 백테</title>
+<meta http-equiv="Cache-Control" content="no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#08080a;--card:#111118;--card2:#1a1a1f;--border:#222233;--accent:#3b82f6;--green:#22c55e;--red:#ef4444;--text:#f0f0f0;--dim:#666;--top:#a78bfa;--gold:#fbbf24}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;padding:12px;max-width:640px;margin:0 auto}
+.top{display:flex;align-items:center;gap:10px;padding:6px 0 2px}
+.back{font-size:13px;color:var(--accent);text-decoration:none;font-weight:700;padding:7px 12px;border:1px solid var(--border);border-radius:10px;white-space:nowrap}
+.top h1{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:#fff}
+.top h1 span{color:var(--accent)}
+.status{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:5px 10px;border-radius:20px;background:var(--card);color:var(--dim)}
+.status.live{color:var(--green);border:1px solid var(--green)}
+.status.err{color:var(--red);border:1px solid var(--red)}
+.asof{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);margin:4px 2px 12px}
+
+.panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+.pt{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px;font-weight:700}
+.grid{display:grid;gap:8px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+.g4{grid-template-columns:repeat(4,1fr)}
+label{display:block;font-size:10px;color:var(--dim);margin-bottom:4px;font-weight:600}
+input,select{width:100%;background:#0a0a0f;border:1px solid var(--border);border-radius:8px;padding:9px 10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;text-align:center;outline:none;-webkit-appearance:none}
+input:focus,select:focus{border-color:var(--accent)}
+.run{width:100%;padding:14px;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;border:none;border-radius:11px;font-size:15px;font-weight:800;cursor:pointer;margin-top:12px;font-family:'DM Sans',sans-serif}
+.run:active{transform:scale(.98)}
+.run:disabled{opacity:.5}
+
+.hero{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+.hbox{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 6px;text-align:center}
+.hbox .k{font-size:10px;color:var(--dim);font-weight:600}
+.hbox .v{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:800;margin-top:4px}
+.up{color:var(--green)}.down{color:var(--red)}.warn{color:var(--gold)}
+
+.ct{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);letter-spacing:1.2px;text-transform:uppercase;margin:14px 4px 8px;font-weight:700}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;font-family:'JetBrains Mono',monospace}
+th,td{padding:9px 5px;text-align:right;font-size:12px;border-bottom:1px solid var(--border)}
+th{background:var(--card2);color:var(--dim);font-weight:700;font-size:10px}
+td:first-child,th:first-child{text-align:left;padding-left:12px;font-weight:800}
+tr:last-child td{border-bottom:none}
+.scroll{max-height:340px;overflow-y:auto;border-radius:12px}
+.empty{color:var(--dim);text-align:center;padding:24px;font-style:italic}
+.bar{display:inline-block;height:7px;border-radius:3px;background:var(--accent);vertical-align:middle}
+.note{background:#0a0a14;border-radius:8px;padding:9px 11px;font-size:10px;color:var(--dim);line-height:1.6;margin-top:10px}
+.preset-wrap{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.pbtn{background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:9px 8px;cursor:pointer;text-align:left;color:var(--text);font-family:'DM Sans',sans-serif}
+.pbtn:active{background:#252535}
+.pbtn .n{font-size:12px;font-weight:800;display:block}
+.pbtn .r{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--dim);display:block;margin-top:2px}
+.pbtn .dd{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:var(--red);display:block;margin-top:1px}
+.pbtn.all{grid-column:1/-1;border-color:var(--accent)}
+.pbtn.all .n{color:var(--accent)}
+</style>
+</head>
+<body>
+  <div class="top">
+    <a href="/mnq.html" class="back">← MNQ</a>
+    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3</span>
+    <span class="status" id="status">대기</span>
+  </div>
+  <div class="asof" id="asof">시세 불러오는 중…</div>
+
+  <div class="panel">
+    <div class="pt">⚡ 스트레스 테스트 · 사건별</div>
+    <div id="presets" class="preset-wrap"></div>
+    <div class="note" style="margin-top:8px">
+      사건 직전에 시작했다면 살아남았을까? 클릭하면 그 기간으로 설정된다.<br><b style="color:var(--gold)">※ 2015년 이전은 데이터를 "QQQ 환산"으로 바꿔야 나온다</b>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="pt">기간 · 자본</div>
+    <div class="grid g2">
+      <div><label>시작일</label><input id="d1" type="date"></div>
+      <div><label>종료일 <button id="btnToday" style="float:right;font-size:9px;padding:1px 6px;background:#1a1a2a;color:var(--accent);border:1px solid var(--accent);border-radius:5px;cursor:pointer">오늘</button></label><input id="d2" type="date"></div>
+    </div>
+    <div class="grid g3" style="margin-top:8px">
+      <div><label>자본 <span id="capMode" style="color:var(--green);font-size:9px">자동</span></label><input id="cap" type="number" value="1600"></div>
+      <div><label style="color:var(--accent);font-weight:800">▶ 계약/티어</label><input id="qty" type="number" value="1" style="border-color:var(--accent)"></div>
+      <div><label id='perLbl'>복리 (수익 N만마다 +1계약)</label><input id="per" type="number" value="2000" placeholder="0=고정"></div>
+    </div>
+
+    <div class="pt" style="margin-top:16px">전략 파라미터</div>
+    <div class="grid g4">
+      <div><label>매수 −%</label><input id="buy" type="number" step="0.1" value="0.5"></div>
+      <div><label>매도 +%</label><input id="sell" type="number" step="0.1" value="0.5"></div>
+      <div><label>MA</label><input id="ma" type="number" value="3"></div>
+      <div><label>보유일</label><input id="hold" type="number" value="3"></div>
+    </div>
+    <div class="grid g3" style="margin-top:8px">
+      <div><label>티어</label><input id="tiers" type="number" value="3"></div>
+      <div><label>상한 캡 %</label><input id="cap2" type="number" step="0.1" value="5.5"></div>
+      <div><label>슬리피지 pt</label><input id="slip" type="number" step="0.25" value="0.5"></div>
+    </div>
+    <div class="grid g2" style="margin-top:8px">
+      <div><label>증거금 (만원/계약)</label><input id="margin" type="number" value="400"></div>
+      <div><label>티어당 계약</label><input id="qtyShow" type="text" value="계약/티어 값 사용" disabled style="opacity:.4;font-size:11px"></div>
+    </div>
+    <div class="grid g2" style="margin-top:8px">
+      <div><label>매수 기준</label><select id="bmode">
+        <option value="low">최근2일 저가</option>
+        <option value="prev">전일 종가</option>
+        <option value="ma">MA (아래 MA값)</option>
+      </select></div>
+      <div><label>매도 기준</label><select id="smode">
+        <option value="entry">진입가</option>
+        <option value="ma">MA</option>
+      </select></div>
+    </div>
+    <div class="grid g2" style="margin-top:8px">
+      <div><label>데이터</label><select id="src"><option value="auto">NQ=F 선물 (2015~)</option><option value="qqq">QQQ 환산 (1999~)</option></select></div>
+      <div><label>롤오버 보정</label><select id="adj"><option value="0">끄기</option><option value="1">적용</option></select></div>
+    </div>
+    <div class="grid g2" style="margin-top:8px">
+      <div><label>MOC 우선</label><select id="mocFirst"><option value="1">적용</option><option value="0">끄기</option></select></div>
+      <div style="display:none"><input id="minAdd" type="number" value="1620"></div>
+    </div>
+    <div class="grid g2" style="margin-top:8px">
+      <div><label>증설 방식</label><select id="growMode">
+        <option value="unit">1계약씩 (사다리)</option>
+        <option value="tier">티어당 +1 (균등)</option>
+      </select></div>
+      <div><label>여유 버퍼 %</label><input id="buffer" type="number" value="30"></div>
+      <div><label>마진콜 반영</label><select id="liqOn">
+        <option value="1">적용 (현실)</option>
+        <option value="0">끄기 (이론)</option>
+      </select></div>
+      <div><label>유지증거금 비율 %</label><input id="maintRatio" type="number" value="91"></div>
+      <div><label>지수 정규화</label><select id="norm"><option value="1">현재 지수 기준</option><option value="0">실제 금액</option></select></div>
+    </div>
+    <button class="run" id="run">▶ 백테 실행</button>
+    <div class="note">
+      <span id="formulaText">—</span><br>
+      <span id="marginText">증거금 400만/계약</span> · 순자산이 요구증거금 50% 밑돌면 강제청산
+    </div>
+  </div>
+
+  <div id="out"></div>
+
+<script>
+const MULT=2, FX=1390;
+const etDate=off=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(Date.now()+(off||0)*86400000));
+
+/* ── 주요 시장 사건 (사건 직전 시작 ~ 회복까지) ── */
+const EVENTS=[
+  {n:'닷컴 붕괴',          d1:'2000-03-01', d2:'2003-06-30', dd:'NQ −83%'},
+  {n:'서브프라임',         d1:'2007-10-01', d2:'2009-12-31', dd:'NQ −53%'},
+  {n:'2018 VIX 쇼크',      d1:'2018-01-15', d2:'2018-06-30', dd:'NQ −12%'},
+  {n:'2018 4Q 폭락',       d1:'2018-09-20', d2:'2019-06-30', dd:'NQ −23%'},
+  {n:'2020 코로나',        d1:'2020-02-10', d2:'2020-09-30', dd:'NQ −30%'},
+  {n:'2021 말 고점',       d1:'2021-11-15', d2:'2022-12-31', dd:'NQ −35%'},
+  {n:'2022 하락장 전체',   d1:'2022-01-01', d2:'2022-12-31', dd:'연 −33%'},
+  {n:'2022 6월 저점',      d1:'2022-05-01', d2:'2023-06-30', dd:'NQ −24%'},
+  {n:'2023 SVB 사태',      d1:'2023-02-20', d2:'2023-08-31', dd:'NQ −8%'},
+  {n:'2024 8월 엔캐리',    d1:'2024-07-10', d2:'2024-12-31', dd:'NQ −15%'},
+  {n:'2025 관세 폭락',     d1:'2025-01-28', d2:'2025-12-31', dd:'NQ −22%'},
+  {n:'2026 상반기',        d1:'2026-01-01', d2:'2026-12-31', dd:'조정 −12%'},
+];
+function renderPresets(){
+  const el=document.getElementById('presets');
+  el.innerHTML=EVENTS.map((e,i)=>
+    `<button class="pbtn" onclick="applyPreset(${i})">
+      <span class="n">${e.n}</span><span class="r">${e.d1.slice(2)} ~ ${e.d2.slice(2)}</span>
+      <span class="dd">${e.dd}</span></button>`).join('')
+    + `<button class="pbtn all" onclick="applyPreset(-1)"><span class="n">전체 기간</span>
+       <span class="r">데이터 처음부터 끝까지</span></button>`;
+}
+window.applyPreset=i=>{
+  if(i<0){
+    if(BARS.length){
+      document.getElementById('d1').value=BARS[0].date;
+      document.getElementById('d2').value=BARS[BARS.length-1].date;
+    }
+  }else{
+    const e=EVENTS[i];
+    document.getElementById('d1').value=e.d1;
+    document.getElementById('d2').value=e.d2;
+  }
+  document.getElementById('run').click();
+  setTimeout(()=>document.getElementById('out').scrollIntoView({behavior:'smooth',block:'start'}),120);
+};
+
+let BARS=[], ADJ_INFO='';
+
+/* 선물 롤오버 갭 보정 (back-adjust)
+   롤오버는 3·6·9·12월 셋째 금요일 전후에만 발생하므로 그 시점만 검사한다.
+   (임계값만으로 판정하면 실제 폭락을 갭으로 오인함) */
+function isRollWindow(dateStr){
+  const d=new Date(dateStr+'T00:00:00Z');
+  const m=d.getUTCMonth()+1;
+  if(![3,6,9,12].includes(m)) return false;
+  // 그 달 셋째 금요일 구하기
+  const y=d.getUTCFullYear();
+  let fri=0,cnt=0;
+  for(let day=1;day<=31;day++){
+    const t=new Date(Date.UTC(y,m-1,day));
+    if(t.getUTCMonth()+1!==m) break;
+    if(t.getUTCDay()===5){cnt++;if(cnt===3){fri=day;break;}}
+  }
+  const dd=d.getUTCDate();
+  return Math.abs(dd-fri)<=4;      // 만기 ±4일
+}
+function backAdjust(bars){
+  if(bars.length<10) return {bars,n:0};
+  const out=bars.map(b=>({date:b.date,close:b.close}));
+  const gaps=[];
+  for(let i=1;i<out.length-1;i++){
+    if(!isRollWindow(out[i].date)) continue;      // 만기 창 밖은 무시
+    const r=out[i].close/out[i-1].close-1;
+    if(Math.abs(r)>0.015){                        // 롤오버 갭은 보통 0.5~2%
+      const nx=out[i+1].close/out[i].close-1;
+      if(Math.sign(nx)!==Math.sign(r) && Math.abs(nx)>Math.abs(r)*0.6) continue;
+      gaps.push({i, diff: out[i].close-out[i-1].close, date:out[i].date});
+    }
+  }
+  for(const g of gaps.slice().reverse()){
+    for(let k=0;k<g.i;k++) out[k].close+=g.diff;
+  }
+  return {bars:out.filter(b=>b.close>0), n:gaps.length};
+}
+
+async function fetchBars(sym,days){
+  const url=`/api/history?symbol=${encodeURIComponent(sym)}&start=${etDate(-days)}&end=${etDate(1)}&_=${Date.now()}`;
+  const r=await fetch(url,{cache:'no-store'});
+  const d=await r.json();
+  if(d.error||!d.bars||d.bars.length<30) throw new Error(d.error||'데이터 부족');
+  return d.bars;
+}
+async function loadData(){
+  const st=document.getElementById('status'),as=document.getElementById('asof');
+  st.textContent='로딩'; st.className='status';
+  const src=document.getElementById('src')?document.getElementById('src').value:'auto';
+  const useAdj=document.getElementById('adj')?document.getElementById('adj').value==='1':true;
+  if(src==='auto'){
+    for(const sym of ['NQ=F','^NDX']){
+      try{
+        const b=await fetchBars(sym,11000);
+        if(b[b.length-1].close>5000){
+          const {bars:adj,n:ng}= useAdj? backAdjust(b) : {bars:b,n:0};
+          BARS=adj;
+          ADJ_INFO=useAdj?(ng?` · 롤오버 ${ng}건 보정`:' · 갭 없음'):' · 보정 끔';
+          st.textContent='준비완료'; st.className='status live';
+          as.textContent=`${sym} · ${adj[0].date} ~ ${adj[adj.length-1].date} · ${adj.length}일${ADJ_INFO}`;
+          document.getElementById('d1').value=adj[0].date;
+          document.getElementById('d2').value=adj[adj.length-1].date;
+          return;
+        }
+      }catch(e){}
+    }
+  }
+  // QQQ 환산 (갭 없음)
+  try{
+    const b=await fetchBars('QQQ',11000);
+    const sc=+localStorage.getItem('mnq-scale')||41.4;
+    BARS=b.map(x=>({date:x.date,close:x.close*sc}));
+    st.textContent='QQQ환산'; st.className='status live';
+    as.textContent=`QQQ×${sc.toFixed(1)} · ${b[0].date} ~ ${b[b.length-1].date} · ${b.length}일`;
+    document.getElementById('d1').value=b[0].date;
+    document.getElementById('d2').value=b[b.length-1].date;
+    autoRun();
+  }catch(e){
+    st.textContent='실패'; st.className='status err';
+    as.textContent='데이터 로드 실패: '+e.message;
+  }
+}
+
+function bizDays(a,b){let d=new Date(a),e=new Date(b),n=0;while(d<e){d.setDate(d.getDate()+1);const w=d.getDay();if(w!==0&&w!==6)n++;}return n;}
+
+function ladderFor(total, tiers){
+  /* 총 계약수를 티어에 배분 — 뒤(깊은 티어)부터 +1 */
+  const lad=new Array(tiers).fill(1);
+  let extra=total-tiers, k=0;
+  while(extra>0){ lad[tiers-1-(k%tiers)]++; extra--; k++; }
+  return lad;
+}
+
+function backtest(P){
+  const bars=BARS.filter(b=>b.date>=P.d1&&b.date<=P.d2);
+  if(bars.length<P.ma+2) return null;
+  const cl=bars.map(b=>b.close), dt=bars.map(b=>b.date);
+  const REF = cl[cl.length-1];        // 현재 지수 (정규화 기준)
+  const n=cl.length;
+  let equity=P.cap, pos=[], step=0;
+  let qty = P.qty;                      // 균등 모드용
+  let totalQ = P.tiers * P.qty;         // 사다리 모드용 총 계약수
+  let peak=P.cap, mdd=0, wu=0, liq=0, skip=0, maxHeld=0, wuEquity=P.cap, minRatio=1;
+  let maxNeed=0, maxNeedAt=null, maxNeedQ=0, startNeed=0, wuAt=null, wuQty=0;
+  let liqAt=null, bankrupt=null;
+  const mmdd={}, mpk={}, mstart={};
+  const trades=[], yearly={}, monthly={}, eqCurve=[];
+  let ypk=P.cap, ymdd={};
+
+  for(let i=P.ma;i<n;i++){
+    const p=cl[i], pv=cl[i-1];
+    let s=0; for(let k=i-P.ma+1;k<=i;k++) s+=cl[k];
+    const ma=s/P.ma;
+    let ps=0; for(let k=i-P.ma;k<i;k++) ps+=cl[k];
+    const ym=dt[i].slice(0,7), yy=dt[i].slice(0,4);
+
+    // ── 매도 (MOC 우선) ──
+    const hasMOC = pos.some(x=>(i-x.i)>=P.hold);
+    const keep=[];
+    for(const x of pos.slice().sort((a,b)=>a.i-b.i)){
+      const held=i-x.i;
+      const byTime=held>=P.hold;
+      if(hasMOC && P.mocFirst){                 // MOC 있는 날엔 MOC만 청산
+        if(byTime){ closeOne(x,'MOC'); } else keep.push(x);
+        continue;
+      }
+      if(byTime){ closeOne(x,'MOC'); continue; }
+      const sellThr = (P.smode==='entry')
+        ? Math.ceil(x.e*(1+P.sell/100)/0.25)*0.25
+        : Math.ceil(ma*(1+P.sell/100)/0.25)*0.25;
+      if(p>=sellThr) closeOne(x, P.smode==='entry'?'익절':'MA'); else keep.push(x);
+    }
+    function closeOne(x,rz){
+      const raw = (p-P.slip)-x.e;
+      const adj = P.norm ? (raw/x.e)*REF : raw;      // 정규화: %수익률 × 현재지수
+      const pnl = adj*MULT*x.q*FX;
+      equity+=pnl;
+      trades.push({d:dt[i],pnl,pct:(p/x.e-1)*100,held:i-x.i,q:x.q,reason:rz,entry:x.e,exit:p});
+      monthly[ym]=(monthly[ym]||0)+pnl;
+      yearly[yy]=(yearly[yy]||0)+pnl;
+    }
+    if(!keep.length) step=0;
+    pos=keep;
+
+    // 복리 배수
+    if(P.per>0 && !pos.length){
+      const gain = equity - P.cap;
+      if(P.growMode==='unit'){
+        // 사다리: 총 계약수를 1개씩 조절 (뒤 티어부터 배분)
+        const perOne = P.margin * (1 + P.buffer);          // 계약 1개 추가 소요
+        const want   = P.tiers*P.qty + Math.max(Math.floor(gain/P.per), 0);
+        const afford = Math.floor(equity / perOne);
+        totalQ = Math.max(P.tiers*P.qty, Math.min(want, afford));
+      }else{
+        // 균등: 티어당 계약수를 통째로 조절
+        const perUnit = P.tiers * P.margin * (1 + P.buffer);
+        const want    = P.qty + Math.max(Math.floor(gain/P.per), 0);
+        const afford  = Math.max(Math.floor(equity/perUnit), 1);
+        const nq = Math.min(want, afford);
+        if(nq!==qty) qty=nq;
+      }
+    }
+
+    // 매수
+    const lad = (P.growMode==='unit') ? ladderFor(totalQ, P.tiers) : null;
+    if(step<P.tiers){
+      let thr;
+      if(P.bmode==='low'){
+        thr = Math.min(cl[i-1],cl[i-2]) * (1-P.buy/100);
+      }else if(P.bmode==='prev'){
+        thr = pv * (1-P.buy/100);
+      }else{
+        const f=1-P.buy/100;
+        thr = Math.min(f*ps/(P.ma-f), pv*(1+P.cap2/100));
+      }
+      thr = Math.floor(thr/0.25)*0.25;              // 매수 내림(틱)
+      if(p<=thr){
+        const useQ = lad ? lad[step] : qty;
+        pos.push({e:p+P.slip,i,q:useQ}); step++;
+      }
+    }
+    const un=pos.reduce((a,x)=>a+(P.norm?((p-x.e)/x.e)*REF:(p-x.e))*MULT*x.q*FX,0);
+    const heldQ=pos.reduce((a,x)=>a+x.q,0); maxHeld=Math.max(maxHeld,heldQ);
+    let tot=equity+un;
+    if(un<wu){ wu=un; wuEquity=tot; wuAt=dt[i]; wuQty=heldQ; }
+    if(heldQ>0){ const rr=tot/(heldQ*P.margin); if(rr<minRatio) minRatio=rr; }
+    // 필요자본 추적
+    if(heldQ>0){
+      const need = heldQ*P.margin + Math.max(0,-un);
+      if(need>maxNeed){ maxNeed=need; maxNeedAt=dt[i]; maxNeedQ=heldQ; }
+      if(heldQ<=P.qty*P.tiers && need>startNeed) startNeed=need;
+    }
+
+    // ── 마진콜 / 파산 판정 ──
+    if(P.liqOn && heldQ>0 && tot < heldQ*P.margin*P.maintRatio){
+      for(const x of pos) equity += ((p-P.slip)-x.e)*MULT*x.q*FX;
+      pos=[]; step=0; liq++;
+      if(!liqAt) liqAt=dt[i];
+      tot = equity;
+      if(equity <= 0){ equity=0; tot=0; bankrupt=dt[i]; break; }
+    }
+    if(P.liqOn && tot <= 0){ equity=0; tot=0; bankrupt=dt[i]; break; }
+    peak=Math.max(peak,tot); if(peak>0) mdd=Math.max(Math.min(mdd,(tot-peak)/peak*100),-100);
+    if(!(yy in ymdd)){ypk=tot;ymdd[yy]=0;}
+    ypk=Math.max(ypk,tot); ymdd[yy]=Math.min(ymdd[yy],(tot-ypk)/ypk*100);
+    if(!(ym in mmdd)){ mmdd[ym]=0; mpk[ym]=tot; mstart[ym]=tot; }
+    mpk[ym]=Math.max(mpk[ym],tot);
+    mmdd[ym]=Math.min(mmdd[ym],(tot-mpk[ym])/mpk[ym]*100);
+    mstart[ym+'_end']=tot;
+    eqCurve.push({d:dt[i],v:tot,y:yy});
+  }
+  const un=pos.reduce((a,x)=>a+(P.norm?((cl[n-1]-x.e)/x.e)*REF:(cl[n-1]-x.e))*MULT*x.q*FX,0);
+  const final=equity+un;
+  const years=(new Date(dt[n-1])-new Date(dt[P.ma]))/(365.25*864e5);
+  const wins=trades.filter(t=>t.pnl>0);
+  return {final,profit:final-P.cap,
+    cagr:(years>0&&final>0)?(Math.pow(final/P.cap,1/years)-1)*100:(final<=0?-100:0),
+    mdd,wu,liq,skip,trades,yearly,monthly,ymdd,mmdd,mstart,years,qty,eqCurve,maxHeld,wuEquity,minRatio,maxNeed,maxNeedAt,maxNeedQ,startNeed,wuAt,wuQty,liqAt,bankrupt,ref:REF,
+    wr:trades.length?wins.length/trades.length*100:0,
+    d1:dt[P.ma],d2:dt[n-1],nq0:cl[P.ma],nq1:cl[n-1]};
+}
+
+function fmt(v){const a=Math.abs(v);
+  if(a>=1e8) return (v/1e8).toFixed(2)+'억';
+  return Math.round(v/1e4).toLocaleString()+'만';}
+
+function render(R,P){
+  if(!R){document.getElementById('out').innerHTML='<div class="panel empty">데이터가 부족합니다</div>';return;}
+  let h='';
+  const mgIn   = P.qty*P.tiers*P.margin;                       // 시작 증거금 (최소 필요)
+  const buf    = mgIn*P.buffer;                                // 여유 버퍼
+  const auto   = Math.ceil((mgIn+buf)/100e4)*100e4;            // 자동 산출
+  const init   = P.cap>0 ? P.cap : auto;                       // 입력된 자본 사용
+  const fin  = init + R.profit;
+  const mult = fin/init;
+  const totRet = (mult-1)*100;                                 // 기간 총수익률
+  const realCagr = R.years>0 ? (Math.pow(Math.max(mult,0.01), 1/R.years)-1)*100 : 0;
+  const wuIn   = Math.max(R.startNeed - mgIn, 0);
+  const dstr = R.maxNeedAt ? new Date(R.maxNeedAt).toISOString().slice(0,10) : '-';
+  if(R.bankrupt){
+    h+=`<div class="panel" style="border-color:var(--red);background:#1a0a0a;padding:16px;text-align:center">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:var(--red)">💀 파산</div>
+      <div style="font-size:12px;color:var(--dim);margin-top:8px">
+        ${new Date(R.bankrupt).toISOString().slice(0,10)} 자본 소진 · 백테 중단<br>
+        투입금을 늘리거나 계약수를 줄여야 함</div></div>`;
+  }else if(R.liq>0){
+    h+=`<div class="panel" style="border-color:var(--gold);background:#1a1508;padding:14px;text-align:center">
+      <div style="font-size:15px;font-weight:800;color:var(--gold)">⚠️ 마진콜 ${R.liq}회</div>
+      <div style="font-size:11px;color:var(--dim);margin-top:6px">
+        첫 발생 ${R.liqAt?new Date(R.liqAt).toISOString().slice(0,10):'-'} · 강제청산 후 재시작</div></div>`;
+  }
+  h+=`<div class="panel" style="border-color:var(--green);background:#0a1a10;padding:16px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:800;color:var(--green);text-align:center">
+        💰 최초 투입금 <b style="font-size:24px">${fmt(init)}</b></div>
+      <table style="margin-top:12px;border:none;background:none"><tbody>
+        <tr><td style="color:var(--dim)">① 증거금 (최소)</td><td>${P.qty}계약 × ${P.tiers}티어 = <b>${fmt(mgIn)}</b></td></tr>
+        <tr><td style="color:var(--dim)">② 여유 ${(P.buffer*100).toFixed(0)}%</td><td>${fmt(buf)}</td></tr>
+        <tr><td style="color:var(--dim)"><b>= 투입금</b></td><td><b style="color:var(--green)">${fmt(init)}</b></td></tr>
+        <tr><td colspan="2" style="padding-top:8px;border-top:1px solid var(--border)"></td></tr>
+        <tr><td style="color:var(--dim)">최종 자산</td><td><b style="color:var(--green)">${fmt(fin)}</b> · <b style="color:var(--accent)">${mult.toFixed(1)}배</b></td></tr>
+        <tr><td style="color:var(--dim)">기간 수익률</td><td><b style="color:${totRet>=0?'var(--green)':'var(--red)'};font-size:15px">${totRet>=0?'+':''}${totRet.toFixed(0)}%</b> (${R.years.toFixed(1)}년)</td></tr>
+        <tr><td style="color:var(--dim)">연 환산 CAGR</td><td><b style="color:var(--accent)">${realCagr>=0?'+':''}${realCagr.toFixed(1)}%</b></td></tr>
+        <tr><td style="color:var(--dim)">시작 규모 최악평가손</td><td class="down">${fmt(-wuIn)} ${wuIn>buf?'<span style="color:var(--gold);font-size:10px">← 여유 초과</span>':''}</td></tr>
+        <tr><td colspan="2" style="padding-top:10px;border-top:1px solid var(--border)"></td></tr>
+        <tr><td style="color:var(--dim)">최대 동시보유</td><td>${R.maxHeld}계약 · 증거금 ${fmt(R.maxHeld*P.margin)}</td></tr>
+        <tr><td style="color:var(--dim)">최악 평가손</td><td class="down">${fmt(R.wu)}</td></tr>
+        <tr><td style="color:var(--dim)">└ 발생 시점</td><td>${R.wuAt?new Date(R.wuAt).toISOString().slice(0,10):'-'} · <b>${R.wuQty}계약</b> 보유</td></tr>
+        <tr><td style="color:var(--dim)">└ 그때 순자산</td><td><b style="color:${R.wuEquity>0?'var(--green)':'var(--red)'}">${fmt(R.wuEquity)}</b> · 증거금 ${fmt(R.wuQty*P.margin)} <span style="font-size:10px;color:${R.wuEquity>R.wuQty*P.margin?'var(--green)':'var(--gold)'}">(${R.wuQty?(R.wuEquity/(R.wuQty*P.margin)*100).toFixed(0):0}%)</span></td></tr>
+        <tr><td style="color:var(--dim)">최대 필요액</td><td>${fmt(R.maxNeed)} <span style="color:var(--dim);font-size:10px">← 그땐 이미 벌어놓음</span></td></tr>
+      </tbody></table>
+      <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;color:var(--dim);font-weight:700;margin-bottom:6px">계약수별 투입금 (${P.tiers}티어 · 증거금 ${(P.margin/1e4).toLocaleString()}만 · 여유 ${(P.buffer*100).toFixed(0)}%)</div>
+        <table style="border:none;background:none"><tbody>
+        ${[1,2,3,5,10].map(q=>{
+          const m0=q*P.tiers*P.margin, i0=Math.ceil(m0*(1+P.buffer)/100e4)*100e4;
+          const sel = q===P.qty;
+          return `<tr style="${sel?'background:rgba(59,130,246,.12)':''}">
+            <td style="color:${sel?'var(--accent)':'var(--dim)'};font-weight:${sel?'800':'400'}">${q}계약/티어</td>
+            <td style="color:var(--dim);font-size:11px">증거금 ${fmt(m0)}</td>
+            <td style="text-align:right;font-weight:800;color:${sel?'var(--green)':'var(--text)'}">${fmt(i0)}</td></tr>`;
+        }).join('')}
+        </tbody></table>
+      </div></div>`;
+  h+=`<div class="hero">
+    <div class="hbox"><div class="k">수익금</div><div class="v ${R.profit>=0?'up':'down'}">${fmt(R.profit)}</div></div>
+    <div class="hbox"><div class="k">수익률</div><div class="v ${totRet>=0?'up':'down'}">${totRet>=0?'+':''}${totRet.toFixed(0)}%</div></div>
+    <div class="hbox"><div class="k">연CAGR</div><div class="v ${realCagr>=0?'up':'down'}">${realCagr>=0?'+':''}${realCagr.toFixed(0)}%</div></div>
+    <div class="hbox"><div class="k">MDD</div><div class="v ${R.mdd<-40?'down':'warn'}">${R.mdd.toFixed(1)}%</div></div>
+    <div class="hbox"><div class="k">${R.liq?'마진콜':'최대계약'}</div><div class="v ${R.liq?'down':''}">${R.liq?R.liq+'회':R.maxHeld}</div></div>
+  </div>`;
+
+  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v3</span></div><table><tbody>
+    <tr><td>증설 방식</td><td>${P.growMode==='unit'?`<b style='color:var(--accent)'>1계약씩 (사다리)</b>`:'티어당 +1 (균등)'}</td></tr>
+    <tr><td>시작 구성</td><td>${P.growMode==='unit'?ladderFor(P.tiers*P.qty,P.tiers).join('·')+` = ${P.tiers*P.qty}계약`:`${P.qty}계약 × ${P.tiers}티어 = ${P.qty*P.tiers}계약`}</td></tr>
+    <tr><td>최종 구성</td><td>${P.growMode==='unit'?`<b style='color:var(--accent)'>${ladderFor(R.maxHeld||P.tiers,P.tiers).join('·')}</b> (최대 ${R.maxHeld}계약)`:`${R.qty}계약/티어`}</td></tr>
+    <tr><td>복리</td><td style="color:${P.per>0?'var(--green)':'var(--dim)'}">${P.per>0?'수익 '+(P.per/1e4).toLocaleString()+'만마다 +1계약':'고정 (복리 없음)'}</td></tr>
+    <tr><td>매수 기준</td><td>${P.bmode==='low'?'최근2일 저가':P.bmode==='prev'?'전일 종가':'MA'+P.ma} − ${P.buy}%</td></tr>
+    <tr><td>매도 기준</td><td>${P.smode==='entry'?'진입가':'MA'+P.ma} + ${P.sell}%</td></tr>
+    <tr><td>보유일 / 티어</td><td>${P.hold}일 / ${P.tiers}티어${(P.bmode==='ma'||P.smode==='ma')?` · MA${P.ma}`:''}</td></tr>
+    <tr><td>손익 계산</td><td>${P.norm?`<b style='color:var(--accent)'>현재 지수(${Math.round(R.ref).toLocaleString()}) 기준 정규화</b>`:'실제 당시 금액'}</td></tr>
+    <tr><td>증거금 / 계약1단위</td><td>${(P.margin/1e4).toLocaleString()}만 · 증설에 ${(P.tiers*P.margin*(1+P.buffer)/1e4).toLocaleString()}만 필요</td></tr>
+    <tr><td>상한캡 / 슬리피지</td><td>${P.cap2}% / ${P.slip}pt</td></tr>
+  </tbody></table></div>`;
+
+  h+=`<div class="panel"><div class="pt">요약</div><table><tbody>
+    <tr><td>기간</td><td>${R.d1} ~ ${R.d2} (${R.years.toFixed(1)}년)</td></tr>
+    <tr><td>NQ</td><td>${Math.round(R.nq0).toLocaleString()} → ${Math.round(R.nq1).toLocaleString()} (${((R.nq1/R.nq0-1)*100).toFixed(1)}%)</td></tr>
+    <tr><td>최종자산</td><td>${fmt(R.final)}  (${((R.final/P.cap-1)*100).toFixed(0)}%)</td></tr>
+    <tr><td>거래 / 승률</td><td>${R.trades.length}회 / ${R.wr.toFixed(0)}%</td></tr>
+    <tr><td>최악 평가손</td><td class="down">${fmt(R.wu)}</td></tr>
+    <tr><td>계약/티어 (시작→끝)</td><td>${P.qty}계약 → <b style="color:var(--accent)">${R.qty}계약</b>${P.per>0?' (복리 증설)':''}</td></tr>
+    <tr><td>최대 동시보유</td><td>${R.maxHeld}계약 (증거금 ${(R.maxHeld*P.margin/1e4).toLocaleString()}만)</td></tr>
+  </tbody></table></div>`;
+
+  // 연도별
+  const ys=Object.keys(R.yearly).sort();
+  if(ys.length){
+    const mx=Math.max(...ys.map(y=>Math.abs(R.yearly[y])));
+    h+=`<div class="ct">연도별</div><table><thead><tr><th>연도</th><th>실현손익</th><th>수익률</th><th>MDD</th><th></th></tr></thead><tbody>`;
+    let runY=init;
+    for(const y of ys){
+      const v=R.yearly[y], w=mx?Math.abs(v)/mx*100:0;
+      const ret=runY>0?(v/runY*100):0; runY+=v;
+      h+=`<tr><td>${y}</td><td class="${v>=0?'up':'down'}">${fmt(v)}</td>
+        <td class="${ret>=0?'up':'down'}">${ret>=0?'+':''}${ret.toFixed(0)}%</td>
+        <td class="warn">${(R.ymdd[y]||0).toFixed(1)}%</td>
+        <td style="width:26%"><span class="bar" style="width:${w}%;background:${v>=0?'var(--green)':'var(--red)'}"></span></td></tr>`;
+    }
+    h+=`</tbody></table>`;
+  }
+
+  // 월별
+  const ms=Object.keys(R.monthly).sort();
+  if(ms.length&&ms.length<=80){
+    const mx=Math.max(...ms.map(m=>Math.abs(R.monthly[m])));
+    h+=`<div class="ct">월별 손익 · 수익률 · MDD</div><div class="scroll"><table>
+      <thead><tr><th>월</th><th>실현손익</th><th>수익률</th><th>MDD</th><th></th></tr></thead><tbody>`;
+    let run=init;
+    for(const m of ms){
+      const v=R.monthly[m];
+      const ret=run>0?(v/run*100):0;
+      run+=v;
+      const md=R.mmdd&&R.mmdd[m]!==undefined?R.mmdd[m]:0;
+      const w=mx?Math.abs(v)/mx*100:0;
+      h+=`<tr><td>${m}</td>
+        <td class="${v>=0?'up':'down'}">${fmt(v)}</td>
+        <td class="${ret>=0?'up':'down'}">${ret>=0?'+':''}${ret.toFixed(1)}%</td>
+        <td class="${md<-20?'down':'warn'}">${md.toFixed(1)}%</td>
+        <td style="width:26%"><span class="bar" style="width:${w}%;background:${v>=0?'var(--green)':'var(--red)'}"></span></td></tr>`;
+    }
+    h+=`</tbody></table></div>`;
+  }
+
+  // 거래 (최근 40)
+  h+=`<div class="ct">거래 내역 (최근 40)</div><div class="scroll"><table>
+    <thead><tr><th>청산일</th><th>진입</th><th>청산</th><th>보유</th><th>%</th><th>손익</th><th>사유</th></tr></thead><tbody>`;
+  for(const t of R.trades.slice(-40).reverse()){
+    h+=`<tr><td>${t.d.slice(5)}</td><td>${Math.round(t.entry).toLocaleString()}</td>
+      <td>${Math.round(t.exit).toLocaleString()}</td><td>${t.held}일</td>
+      <td class="${t.pct>=0?'up':'down'}">${t.pct>=0?'+':''}${t.pct.toFixed(2)}</td>
+      <td class="${t.pnl>=0?'up':'down'}">${fmt(t.pnl)}</td><td style="font-size:10px;color:var(--dim)">${t.reason}</td></tr>`;
+  }
+  h+=`</tbody></table></div>`;
+  document.getElementById('out').innerHTML=h;
+}
+
+document.getElementById('run').addEventListener('click',()=>{
+  if(!BARS.length){alert('시세 데이터가 없습니다');return;}
+  const P=readParams();
+  const btn=document.getElementById('run');
+  running=true;
+  btn.disabled=true;btn.textContent='계산 중…';
+  setTimeout(()=>{ 
+    try{
+      const R=backtest(P);
+      render(R,P);
+    }catch(err){
+      document.getElementById('out').innerHTML=
+        `<div class="panel" style="border-color:var(--red);background:#1a0a0a">
+          <div style="color:var(--red);font-weight:800;font-size:13px">⚠️ 계산 오류</div>
+          <div style="color:var(--dim);font-size:11px;margin-top:6px">${err.message}</div></div>`;
+      console.error(err);
+    }
+    running=false;
+    btn.disabled=false;btn.textContent='▶ 백테 실행';
+  },30);
+});
+
+function readParams(){
+  return {
+    d1:document.getElementById('d1').value, d2:document.getElementById('d2').value,
+    cap:(+document.getElementById('cap').value||2200)*1e4,
+    qty:+document.getElementById('qty').value||1,
+    per:(+document.getElementById('per').value||0)*1e4,
+    buy:+document.getElementById('buy').value||0.6,
+    sell:+document.getElementById('sell').value||0.7,
+    ma:Math.max(+document.getElementById('ma').value||3,2),
+    hold:+document.getElementById('hold').value||8,
+    tiers:+document.getElementById('tiers').value||5,
+    cap2:+document.getElementById('cap2').value||5.5,
+    margin:(+document.getElementById('margin').value||400)*1e4,
+    minAdd:(+document.getElementById('minAdd').value||1620)*1e4,
+    buffer:(+document.getElementById('buffer').value||30)/100,
+    growMode:document.getElementById('growMode').value,
+    liqOn:document.getElementById('liqOn').value==='1',
+    maintRatio:(+document.getElementById('maintRatio').value||91)/100,
+    norm:document.getElementById('norm').value==='1',
+    startMode:'1',
+    bmode:document.getElementById('bmode').value,
+    mocFirst:document.getElementById('mocFirst').value==='1',
+
+    smode:document.getElementById('smode').value,
+    slip:+document.getElementById('slip').value||0,
+  };
+}
+
+/* 청산 안 나는 최소 자본 탐색 */
+function findMinCap(P0){
+  let lo=+document.getElementById('cap').value, hi=lo, found=null;
+  for(let k=0;k<12;k++){
+    hi=Math.round(hi*1.4);
+    const P={...P0, cap:hi*1e4};
+    const R=backtest(P);
+    if(R && R.liq===0 && R.final>0){ found={cap:hi,R}; break; }
+  }
+  const el=document.getElementById('out');
+  if(!found){
+    el.insertAdjacentHTML('afterbegin',
+      `<div class="panel" style="border-color:var(--red);background:#1a0a0a">
+        <div style="font-size:13px;font-weight:700;color:var(--red)">자본을 크게 늘려도 청산을 피하지 못함</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:6px">
+          복리 설정이 켜져 있으면 자본이 늘수록 계약도 늘어 효과가 없다. 복리를 0으로 두고 다시 확인.
+        </div></div>`);
+    return;
+  }
+  // 정밀 탐색
+  let a=Math.round(found.cap/1.4), b=found.cap;
+  for(let k=0;k<8;k++){
+    const mid=Math.round((a+b)/2);
+    const R=backtest({...P0,cap:mid*1e4});
+    if(R && R.liq===0 && R.final>0) b=mid; else a=mid;
+  }
+  const R=backtest({...P0,cap:b*1e4});
+  el.insertAdjacentHTML('afterbegin',
+    `<div class="panel" style="border-color:var(--gold);background:#1a1508">
+      <div style="font-size:13px;font-weight:800;color:var(--gold)">🔎 이 구간을 버티려면</div>
+      <table style="margin-top:10px;border:none;background:none"><tbody>
+        <tr><td>최소 자본</td><td style="color:var(--gold);font-weight:800">${b.toLocaleString()}만원</td></tr>
+        <tr><td>안전 자본 (+30%)</td><td style="color:var(--green);font-weight:800">${Math.round(b*1.3).toLocaleString()}만원</td></tr>
+        <tr><td>그때 수익금</td><td>${fmt(R.profit)}</td></tr>
+        <tr><td>그때 MDD</td><td>${R.mdd.toFixed(1)}%</td></tr>
+        <tr><td>최악 평가손</td><td class="down">${fmt(R.wu)}</td></tr>
+      </tbody></table></div>`);
+}
+let capManual=false;
+function syncCap(){
+  if(capManual) return;
+  const q=+document.getElementById('qty').value||1;
+  const t=+document.getElementById('tiers').value||3;
+  const m=+document.getElementById('margin').value||400;
+  const b=(+document.getElementById('buffer').value||30)/100;
+  const v=Math.ceil(q*t*m*(1+b)/100)*100;          // 100만 단위 올림
+  document.getElementById('cap').value=v;
+  document.getElementById('capMode').textContent='자동';
+  document.getElementById('capMode').style.color='var(--green)';
+}
+let autoTimer=null;
+let running=false;
+function autoRun(){
+  if(!BARS.length) return;
+  clearTimeout(autoTimer);
+  autoTimer=setTimeout(()=>{
+    if(running) return;
+    document.getElementById('run').click();
+  },250);
+}
+function updateFormula(){
+  const bm=document.getElementById('bmode').value;
+  const sm=document.getElementById('smode').value;
+  const b=+document.getElementById('buy').value||0;
+  const sl=+document.getElementById('sell').value||0;
+  const man=+document.getElementById('ma').value||3;
+  const cp=+document.getElementById('cap2').value||5.5;
+  const h=+document.getElementById('hold').value||3;
+  const bt = bm==='low' ? `min(전일종가, 그제종가) × (1−${b}%)`
+           : bm==='prev'? `전일종가 × (1−${b}%)`
+           : `min(MA${man}×(1−${b}%), 전일×(1+${cp}%))`;
+  const st = sm==='entry' ? `각 티어 진입가 × (1+${sl}%)`
+           : `MA${man} × (1+${sl}%)`;
+  document.getElementById('formulaText').innerHTML =
+    `매수 = <b style="color:var(--green)">${bt}</b> 이하 (내림)<br>`+
+    `매도 = <b style="color:var(--top)">${st}</b> 이상 (올림) 또는 ${h}일 경과 MOC`;
+  // MA 필드 사용 여부 표시
+  const useMA = (bm==='ma'||sm==='ma');
+  const maBox=document.getElementById('ma');
+  const maWrap = maBox.closest('div');
+  if(maWrap) maWrap.style.display = useMA?'':'none';
+  const gm=document.getElementById('growMode').value;
+  const pl=document.getElementById('perLbl');
+  if(pl) pl.textContent = gm==='unit' ? '복리 (수익 N만마다 총계약 +1)' : '복리 (수익 N만마다 티어당 +1)';
+  const perV=+document.getElementById('per').value||0;
+  document.getElementById('cap').style.opacity = perV>0?'1':'0.4';
+  const mg=+document.getElementById('margin').value||400;
+  document.getElementById('marginText').textContent=`증거금 ${mg.toLocaleString()}만/계약`;
+  const capBox=document.getElementById('cap2');
+  const capWrap = capBox.closest('div');
+  if(capWrap) capWrap.style.display = (bm==='ma')?'':'none';
+}
+// 계약수·티어·증거금·여유% → 자본 자동 갱신
+['qty','tiers','margin','buffer'].forEach(id=>{
+  const el=document.getElementById(id); if(!el) return;
+  const fn=()=>{ syncCap(); updateFormula(); autoRun(); };
+  el.addEventListener('input',fn); el.addEventListener('change',fn);
+});
+// 자본을 직접 만지면 수동 모드
+document.getElementById('cap').addEventListener('input',()=>{
+  capManual=true;
+  const cm=document.getElementById('capMode');
+  cm.textContent='수동'; cm.style.color='var(--gold)';
+  updateFormula(); autoRun();
+});
+document.getElementById('cap').addEventListener('dblclick',()=>{ capManual=false; syncCap(); autoRun(); });
+['bmode','smode','buy','sell','ma','cap2','hold','per','minAdd','slip','norm','growMode'].forEach(id=>{
+  const el=document.getElementById(id); if(!el) return;
+  const fn=()=>{ updateFormula(); autoRun(); };
+  el.addEventListener('input',fn); el.addEventListener('change',fn);
+});
+['d1','d2'].forEach(id=>{
+  const el=document.getElementById(id); if(el) el.addEventListener('change',autoRun);
+});
+document.getElementById('btnToday').addEventListener('click',()=>{
+  if(BARS.length) document.getElementById('d2').value=BARS[BARS.length-1].date;
+});
+document.getElementById('src').addEventListener('change',loadData);
+document.getElementById('adj').addEventListener('change',loadData);
+renderPresets();
+syncCap();
+updateFormula();
+loadData();
+</script>
+</body>
+</html>
