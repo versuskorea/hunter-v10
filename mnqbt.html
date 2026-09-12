@@ -62,7 +62,7 @@ tr:last-child td{border-bottom:none}
 <body>
   <div class="top">
     <a href="/mnq.html" class="back">← MNQ</a>
-    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3</span>
+    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v5</span>
     <span class="status" id="status">대기</span>
   </div>
   <div class="asof" id="asof">시세 불러오는 중…</div>
@@ -298,7 +298,7 @@ function backtest(P){
   const bars=BARS.filter(b=>b.date>=P.d1&&b.date<=P.d2);
   if(bars.length<P.ma+2) return null;
   const cl=bars.map(b=>b.close), dt=bars.map(b=>b.date);
-  const REF = cl[cl.length-1];        // 현재 지수 (정규화 기준)
+  const REF = BARS.length ? BARS[BARS.length-1].close : cl[cl.length-1];  // 전체 데이터 마지막 = 현재 지수
   const n=cl.length;
   let equity=P.cap, pos=[], step=0;
   let qty = P.qty;                      // 균등 모드용
@@ -306,6 +306,7 @@ function backtest(P){
   let peak=P.cap, mdd=0, wu=0, liq=0, skip=0, maxHeld=0, wuEquity=P.cap, minRatio=1;
   let maxNeed=0, maxNeedAt=null, maxNeedQ=0, startNeed=0, wuAt=null, wuQty=0;
   let liqAt=null, bankrupt=null, stopped=null;
+  let limWant=0, limCap=0;
   const buys=[];
   const mmdd={}, mpk={}, mstart={};
   const trades=[], yearly={}, monthly={}, eqCurve=[];
@@ -355,7 +356,9 @@ function backtest(P){
       if(P.growMode==='unit'){
         // 사다리: 총 계약수를 1개씩
         const perOne = P.margin * (1 + P.buffer);
-        totalQ = Math.max(baseTotal, Math.min(wantTotal, Math.floor(equity/perOne)));
+        const aff = Math.floor(equity/perOne);
+        if(wantTotal < aff) limWant++; else if(aff < wantTotal) limCap++;
+        totalQ = Math.max(baseTotal, Math.min(wantTotal, aff));
       }else{
         // 균등: 총 계약수를 티어수로 나눠 올림 단위로
         const perUnit = P.tiers * P.margin * (1 + P.buffer);
@@ -422,7 +425,7 @@ function backtest(P){
   const wins=trades.filter(t=>t.pnl>0);
   return {final,profit:final-P.cap,
     cagr:(years>0&&final>0)?(Math.pow(final/P.cap,1/years)-1)*100:(final<=0?-100:0),
-    mdd,wu,liq,skip,trades,buys,yearly,monthly,ymdd,mmdd,mstart,years,qty,eqCurve,maxHeld,wuEquity,minRatio,maxNeed,maxNeedAt,maxNeedQ,startNeed,wuAt,wuQty,liqAt,bankrupt,stopped,ref:REF,
+    mdd,wu,liq,skip,trades,buys,yearly,monthly,ymdd,mmdd,mstart,years,qty,eqCurve,maxHeld,wuEquity,minRatio,maxNeed,maxNeedAt,maxNeedQ,startNeed,wuAt,wuQty,liqAt,bankrupt,stopped,limWant,limCap,ref:REF,
     wr:trades.length?wins.length/trades.length*100:0,
     d1:dt[P.ma],d2:dt[n-1],nq0:cl[P.ma],nq1:cl[n-1]};
 }
@@ -502,9 +505,10 @@ function render(R,P){
         </tbody></table>
       </div></div>`;
 
-  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v3</span></div><table><tbody>
+  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v5</span></div><table><tbody>
     <tr><td>증설 방식</td><td>${P.growMode==='unit'?`<b style='color:var(--accent)'>1계약씩 (사다리)</b>`:'티어당 +1 (균등)'}</td></tr>
     <tr><td>시작 구성</td><td>${P.growMode==='unit'?ladderFor(P.tiers*P.qty,P.tiers,P.ladOrder).join('·')+` = ${P.tiers*P.qty}계약`:`${P.qty}계약 × ${P.tiers}티어 = ${P.qty*P.tiers}계약`}</td></tr>
+    <tr><td>증설 제한</td><td>${P.growMode==='unit'?`복리 ${R.limWant}회 · <b style="color:${R.limCap>R.limWant?'var(--gold)':'var(--dim)'}">자본 ${R.limCap}회</b>${R.limCap>R.limWant?' ← 자본이 상한, 복리값 무의미':''}`:'-'}</td></tr>
     <tr><td>최종 구성</td><td>${P.growMode==='unit'?`<b style='color:var(--accent)'>${ladderFor(R.maxHeld||P.tiers,P.tiers,P.ladOrder).join('·')}</b> (최대 ${R.maxHeld}계약)`:`${R.qty}계약/티어`}</td></tr>
     <tr><td>복리</td><td style="color:${P.per>0?'var(--green)':'var(--dim)'}">${P.per>0?'수익 '+(P.per/1e4).toLocaleString()+'만마다 +1계약':'고정 (복리 없음)'}</td></tr>
     <tr><td>매수 기준</td><td>${P.bmode==='low'?'최근2일 저가':P.bmode==='prev'?'전일 종가':'MA'+P.ma} − ${P.buy}%</td></tr>
