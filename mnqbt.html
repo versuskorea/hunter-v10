@@ -515,7 +515,7 @@ function render(R,P){
     <tr><td>매도 기준</td><td>${P.smode==='entry'?'진입가':'MA'+P.ma} + ${P.sell}%</td></tr>
     <tr><td>보유일 / 티어</td><td>${P.hold}일 / ${P.tiers}티어${(P.bmode==='ma'||P.smode==='ma')?` · MA${P.ma}`:''}</td></tr>
     <tr><td>손익 계산</td><td>${P.norm?`<b style='color:var(--accent)'>현재 지수(${Math.round(R.ref).toLocaleString()}) 기준 정규화</b>`:'실제 당시 금액'}</td></tr>
-    <tr><td>증거금 / 계약1단위</td><td>${(P.margin/1e4).toLocaleString()}만 · 증설에 ${(P.tiers*P.margin*(1+P.buffer)/1e4).toLocaleString()}만 필요</td></tr>
+    <tr><td>증거금 / 증설비용</td><td>${(P.margin/1e4).toLocaleString()}만 · ${P.growMode==='unit'?`1계약 추가에 <b>${(P.margin*(1+P.buffer)/1e4).toLocaleString()}만</b>`:`티어당+1에 <b>${(P.tiers*P.margin*(1+P.buffer)/1e4).toLocaleString()}만</b>`}</td></tr>
     <tr><td>상한캡 / 슬리피지</td><td>${P.cap2}% / ${P.slip}pt</td></tr>
   </tbody></table></div>`;
 
