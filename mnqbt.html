@@ -33,6 +33,10 @@ input:focus,select:focus{border-color:var(--accent)}
 .run:active{transform:scale(.98)}
 .run:disabled{opacity:.5}
 
+.chartbox{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 10px 8px;margin-bottom:12px}
+.chartbox .ct2{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);letter-spacing:1.2px;font-weight:700;margin:0 4px 8px;display:flex;align-items:center}
+.chartbox .ct2 .rt{margin-left:auto;font-size:11px}
+.chartbox svg{width:100%;display:block}
 .hero{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
 .hbox{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 6px;text-align:center}
 .hbox .k{font-size:10px;color:var(--dim);font-weight:600}
@@ -62,7 +66,7 @@ tr:last-child td{border-bottom:none}
 <body>
   <div class="top">
     <a href="/mnq.html" class="back">← MNQ</a>
-    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v5</span>
+    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v6</span>
     <span class="status" id="status">대기</span>
   </div>
   <div class="asof" id="asof">시세 불러오는 중…</div>
@@ -434,6 +438,57 @@ function fmt(v){const a=Math.abs(v);
   if(a>=1e8) return (v/1e8).toFixed(2)+'억';
   return Math.round(v/1e4).toLocaleString()+'만';}
 
+function equityChart(R, init){
+  const c=R.eqCurve; if(!c||c.length<2) return '';
+  const W=1000, H=300, PL=62, PR=14, PT=14, PB=26;
+  const iw=W-PL-PR, ih=H-PT-PB;
+  const vals=c.map(x=>x.v);
+  let lo=Math.min(...vals, init), hi=Math.max(...vals, init);
+  const logMode = hi/Math.max(lo,1) > 20;
+  const f = v => logMode ? Math.log10(Math.max(v,1)) : v;
+  const flo=f(lo), fhi=f(hi), span=(fhi-flo)||1;
+  const X = i => PL + iw*i/(c.length-1);
+  const Y = v => PT + ih*(1-(f(v)-flo)/span);
+
+  // 자산 곡선
+  let d='';
+  for(let i=0;i<c.length;i++) d += (i?'L':'M')+X(i).toFixed(1)+','+Y(c[i].v).toFixed(1);
+  // 최고점 추적선(drawdown 음영용)
+  let pk=-1e18, dd='';
+  const pkArr=c.map(x=>{ pk=Math.max(pk,x.v); return pk; });
+  for(let i=0;i<c.length;i++) dd += (i?'L':'M')+X(i).toFixed(1)+','+Y(pkArr[i]).toFixed(1);
+  const area = d + 'L'+X(c.length-1).toFixed(1)+','+(PT+ih)+'L'+PL+','+(PT+ih)+'Z';
+
+  // y축 눈금
+  const ticks=[];
+  for(let k=0;k<=4;k++){
+    const fv = flo + span*k/4;
+    ticks.push(logMode ? Math.pow(10,fv) : fv);
+  }
+  // x축 연도
+  const yl=[]; let last='';
+  c.forEach((x,i)=>{ const y=x.d.slice(0,4); if(y!==last){ yl.push({i,y}); last=y; } });
+
+  const up = c[c.length-1].v >= init;
+  const col = up ? 'var(--green)' : 'var(--red)';
+  return `<div class="chartbox">
+    <div class="ct2">자산 곡선 ${logMode?'<span style="color:var(--dim)">(로그)</span>':''}
+      <span class="rt">${fmt(init)} → <b style="color:${col}">${fmt(c[c.length-1].v)}</b></span></div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <defs><linearGradient id="eg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${up?'#22c55e':'#ef4444'}" stop-opacity="0.28"/>
+        <stop offset="100%" stop-color="${up?'#22c55e':'#ef4444'}" stop-opacity="0"/>
+      </linearGradient></defs>
+      ${ticks.map(t=>`<line x1="${PL}" y1="${Y(t).toFixed(1)}" x2="${W-PR}" y2="${Y(t).toFixed(1)}" stroke="#222233" stroke-width="1"/>
+        <text x="${PL-6}" y="${(Y(t)+4).toFixed(1)}" fill="#666" font-size="11" text-anchor="end" font-family="monospace">${fmt(t)}</text>`).join('')}
+      <line x1="${PL}" y1="${Y(init).toFixed(1)}" x2="${W-PR}" y2="${Y(init).toFixed(1)}" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="5,4"/>
+      <path d="${area}" fill="url(#eg)"/>
+      <path d="${dd}" fill="none" stroke="#444455" stroke-width="1.2" stroke-dasharray="3,3"/>
+      <path d="${d}" fill="none" stroke="${up?'#22c55e':'#ef4444'}" stroke-width="2.2" stroke-linejoin="round"/>
+      ${yl.map(o=>`<text x="${X(o.i).toFixed(1)}" y="${H-7}" fill="#666" font-size="11" text-anchor="middle" font-family="monospace">${o.y}</text>`).join('')}
+    </svg></div>`;
+}
+
 function render(R,P){
   if(!R){document.getElementById('out').innerHTML='<div class="panel empty">데이터가 부족합니다</div>';return;}
   let h='';
@@ -454,6 +509,8 @@ function render(R,P){
     <div class="hbox"><div class="k">MDD</div><div class="v ${R.mdd<-40?'down':'warn'}">${R.mdd.toFixed(1)}%</div></div>
     <div class="hbox"><div class="k">${R.liq?'마진콜':'최대계약'}</div><div class="v ${R.liq?'down':''}">${R.liq?R.liq+'회':R.maxHeld}</div></div>
   </div>`;
+  h+=equityChart(R, init);
+
   if(R.stopped){
     h+=`<div class="panel" style="border-color:var(--red);background:#1a0a0a;padding:16px;text-align:center">
       <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:800;color:var(--red)">🛑 마진콜 — 운용 종료</div>
@@ -505,7 +562,7 @@ function render(R,P){
         </tbody></table>
       </div></div>`;
 
-  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v5</span></div><table><tbody>
+  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v6</span></div><table><tbody>
     <tr><td>증설 방식</td><td>${P.growMode==='unit'?`<b style='color:var(--accent)'>1계약씩 (사다리)</b>`:'티어당 +1 (균등)'}</td></tr>
     <tr><td>시작 구성</td><td>${P.growMode==='unit'?ladderFor(P.tiers*P.qty,P.tiers,P.ladOrder).join('·')+` = ${P.tiers*P.qty}계약`:`${P.qty}계약 × ${P.tiers}티어 = ${P.qty*P.tiers}계약`}</td></tr>
     <tr><td>증설 제한</td><td>${P.growMode==='unit'?`복리 ${R.limWant}회 · <b style="color:${R.limCap>R.limWant?'var(--gold)':'var(--dim)'}">자본 ${R.limCap}회</b>${R.limCap>R.limWant?' ← 자본이 상한, 복리값 무의미':''}`:'-'}</td></tr>
