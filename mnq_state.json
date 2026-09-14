@@ -11,5 +11,7 @@
       "reason": "SELL"
     }
   ],
-  "realized": 513.0
+  "realized": 513.0,
+  "step": 0,
+  "equity": 30000513.0
 }
