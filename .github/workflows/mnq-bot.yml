@@ -1,0 +1,60 @@
+name: MNQ Bot
+
+on:
+  schedule:
+    # 미국 정규장 마감(16:00 ET) 직후 실행 — 서머타임 대응으로 두 번 등록
+    - cron: '10 20 * * 1-5'   # EDT(3~11월): 16:10 ET = 05:10 KST
+    - cron: '10 21 * * 1-5'   # EST(11~3월): 16:10 ET = 06:10 KST
+  workflow_dispatch:        # 수동 실행 버튼
+
+permissions:
+  contents: write           # 상태 파일 커밋용
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run bot
+        env:
+          MODE:        ${{ vars.MODE || 'PAPER' }}
+          QTY:         ${{ vars.QTY || '1' }}
+          TIERS:       ${{ vars.TIERS || '3' }}
+          HOLD_DAYS:   ${{ vars.HOLD_DAYS || '3' }}
+          BUY_PCT:     ${{ vars.BUY_PCT || '0.5' }}
+          SELL_PCT:    ${{ vars.SELL_PCT || '0.5' }}
+          MARGIN_USD:  ${{ vars.MARGIN_USD || '4721' }}
+          FX:          ${{ vars.FX || '1390' }}
+          TOTAL_PAID:  ${{ vars.TOTAL_PAID || '3000' }}
+          PER_CONTRACT: ${{ vars.PER_CONTRACT || '2000' }}
+          BUFFER:      ${{ vars.BUFFER || '30' }}
+          LAD_ORDER:   ${{ vars.LAD_ORDER || 'mid' }}
+          ATK_ON:      ${{ vars.ATK_ON || '0' }}
+          ATK_MA:      ${{ vars.ATK_MA || '20' }}
+          ATK_BUY:     ${{ vars.ATK_BUY || '0.5' }}
+          ATK_SELL:    ${{ vars.ATK_SELL || '1.0' }}
+          HUNTER_API:  ${{ vars.HUNTER_API || 'https://hunter-v10.vercel.app' }}
+          STATE_FILE:  mnq_state.json
+          TG_TOKEN:    ${{ secrets.TG_TOKEN }}
+          TG_CHAT:     ${{ secrets.TG_CHAT }}
+          # LIVE 모드일 때만 필요
+          KIS_APP_KEY:      ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET:   ${{ secrets.KIS_APP_SECRET }}
+          KIS_ACCOUNT_NO:   ${{ secrets.KIS_ACCOUNT_NO }}
+          KIS_ACCOUNT_CODE: ${{ secrets.KIS_ACCOUNT_CODE }}
+        run: python mnq_bot.py
+
+      - name: Commit state
+        continue-on-error: true
+        run: |
+          git config user.name "mnq-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add -A mnq_state.json
+          git diff --staged --quiet && echo "변경 없음" && exit 0
+          git commit -m "state update"
+          git push
