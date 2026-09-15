@@ -135,7 +135,7 @@ def fetch_hunter(symbol="NQ=F", days=40):
     d = _get_json(url)
     if d.get("error") or not d.get("bars"):
         raise RuntimeError(d.get("error", "no bars"))
-    return [(b["date"], float(b["close"])) for b in d["bars"] if b.get("close")]
+    return dedup_daily([(b["date"], float(b["close"])) for b in d["bars"] if b.get("close")])
 
 def fetch_1600(symbol="NQ=F", days=12):
     """5분봉에서 매일 16:00 ET 이전 마지막 종가만 추출 (한국 05:00 기준)"""
@@ -175,7 +175,7 @@ def fetch_yahoo(symbol="NQ=F", days=40):
         if c is None: continue
         dt = datetime.fromtimestamp(t, et_tz())
         out.append((dt.strftime("%Y-%m-%d"), float(c)))
-    return out
+    return dedup_daily(out)
 
 def fetch_stooq(symbol="qqq.us", days=40):
     """Stooq CSV (야후 차단 시 폴백). NQ 선물은 없어 QQQ/^NDX만"""
@@ -189,7 +189,14 @@ def fetch_stooq(symbol="qqq.us", days=40):
         if len(c) >= 5:
             try: out.append((c[0], float(c[4])))
             except ValueError: pass
-    return out[-days:]
+    return dedup_daily(out)[-days:]
+
+def dedup_daily(bars):
+    """같은 날짜가 여러 개면 마지막(가장 늦은) 값만 남긴다"""
+    by = {}
+    for d, c in bars:
+        by[d] = c                      # 뒤에 오는 값이 덮어씀
+    return [(k, by[k]) for k in sorted(by)]
 
 def drop_intraday(bars):
     """미국 정규장 마감(16:00 ET) 전이면 당일 봉 제외 (서머타임 반영)"""
@@ -368,7 +375,7 @@ def kis_daily(symbol=None, days=30):
                 out.append((f"{d[:4]}-{d[4:6]}-{d[6:8]}", float(c)))
             except ValueError:
                 pass
-    out.sort()
+    out = dedup_daily(out)
     if len(out) < 4:
         raise RuntimeError(f"봉 부족 ({len(out)})")
     return out
@@ -532,6 +539,8 @@ def main():
     _held_sym = st.get("contract")
     CONTRACT = active_contract(_held_sym, bool(_pos0))
     px, p1, p2, today, src, closes = get_prices(CONTRACT)
+    if len(closes) >= 3 and (px == p1 or p1 == p2):
+        log(f"⚠️ 종가 중복 의심: {px}/{p1}/{p2}")
 
     # 같은 거래일을 이미 처리했으면 중복 실행 방지 (cron 2개 대응)
     if st.get("last_date") == today and not FORCE_RUN:
