@@ -6,6 +6,11 @@ on:
     - cron: '10 20 * * 1-5'   # EDT(3~11월): 16:10 ET = 05:10 KST
     - cron: '10 21 * * 1-5'   # EST(11~3월): 16:10 ET = 06:10 KST
   workflow_dispatch:        # 수동 실행 버튼
+    inputs:
+      force:
+        description: '장 마감 전·중복이어도 강제 실행 (테스트)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write           # 상태 파일 커밋용
@@ -46,7 +51,7 @@ jobs:
           PAUSE_BUY:   ${{ vars.PAUSE_BUY || '0' }}
           PAUSE_ALL:   ${{ vars.PAUSE_ALL || '0' }}
           CLOSE_ALL:   ${{ vars.CLOSE_ALL || '0' }}
-          FORCE_RUN:   ${{ vars.FORCE_RUN || '0' }}
+          FORCE_RUN:   ${{ inputs.force && '1' || vars.FORCE_RUN || '0' }}
           SYMBOL:      ${{ vars.SYMBOL || 'MNQ' }}
           ROLL_STOP_DAYS: ${{ vars.ROLL_STOP_DAYS || '14' }}
           QQQ_SCALE:   ${{ vars.QQQ_SCALE || '41.4' }}
