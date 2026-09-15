@@ -20,7 +20,12 @@ from datetime import datetime, timedelta, timezone
 import urllib.request, urllib.parse, urllib.error
 
 # ─────────── 설정 ───────────
-MODE       = os.getenv("MODE", "PAPER").upper()
+def _flag(name, default="0"):
+    """환경변수를 유연하게 불리언으로 — 공백/대소문자/true 허용"""
+    v = (os.getenv(name) or default).strip().lower()
+    return v in ("1", "true", "yes", "y", "on")
+
+MODE       = os.getenv("MODE", "PAPER").strip().upper()
 QTY        = int(os.getenv("QTY", "1"))        # 티어당 계약수
 TIERS      = int(os.getenv("TIERS", "3"))      # 최대 티어
 HOLD_DAYS  = int(os.getenv("HOLD_DAYS", "3"))  # 보유일(거래일)
@@ -37,7 +42,7 @@ PER_CONTRACT = float(os.getenv("PER_CONTRACT", "2000")) * 1e4  # 수익 N만마�
 BUFFER     = float(os.getenv("BUFFER", "30")) / 100   # 여유 버퍼
 LAD_ORDER  = os.getenv("LAD_ORDER", "mid")            # mid / back / front
 # ── 공격모드 (T1만) ──
-ATK_ON     = os.getenv("ATK_ON", "0") == "1"
+ATK_ON     = _flag("ATK_ON", "0")
 ATK_MA     = int(os.getenv("ATK_MA", "20"))
 ATK_BUY    = float(os.getenv("ATK_BUY", "0.5"))
 ATK_SELL   = float(os.getenv("ATK_SELL", "1.0"))
@@ -86,15 +91,15 @@ def save_state(s):
 
 # ─────────── 시세 ───────────
 HUNTER_API = (os.getenv("HUNTER_API") or "https://hunter-v10.vercel.app").rstrip("/")
-CLOSE_1600 = os.getenv("CLOSE_1600", "1") == "1"   # 16:00 ET(한국 5시) 종가 사용
+CLOSE_1600 = _flag("CLOSE_1600", "1")   # 16:00 ET(한국 5시) 종가 사용
 DATA_SYMBOL = os.getenv("DATA_SYMBOL", "^NDX")     # 폴백 데이터 (만기 없는 지수)
-USE_CONTRACT_SYM = os.getenv("USE_CONTRACT_SYM", "1") == "1"   # 거래 월물과 같은 심볼 우선
-USE_KIS_QUOTE = os.getenv("USE_KIS_QUOTE", "1") == "1"         # 한투 시세 우선 사용
+USE_CONTRACT_SYM = _flag("USE_CONTRACT_SYM", "1")   # 거래 월물과 같은 심볼 우선
+USE_KIS_QUOTE = _flag("USE_KIS_QUOTE", "1")         # 한투 시세 우선 사용
 # ── 운용 스위치 ──
-PAUSE_BUY  = os.getenv("PAUSE_BUY",  "0") == "1"   # 신규 매수만 중단 (보유분은 정상 청산)
-PAUSE_ALL  = os.getenv("PAUSE_ALL",  "0") == "1"   # 전체 중단 (알림만)
-CLOSE_ALL  = os.getenv("CLOSE_ALL",  "0") == "1"   # 보유분 전량 청산
-FORCE_RUN  = os.getenv("FORCE_RUN",  "0") == "1"   # 장 마감 전/중복이어도 강제 실행 (테스트용)
+PAUSE_BUY = _flag("PAUSE_BUY", "0")   # 신규 매수만 중단 (보유분은 정상 청산)
+PAUSE_ALL = _flag("PAUSE_ALL", "0")   # 전체 중단 (알림만)
+CLOSE_ALL = _flag("CLOSE_ALL", "0")   # 보유분 전량 청산
+FORCE_RUN = _flag("FORCE_RUN", "0")   # 장 마감 전/중복이어도 강제 실행 (테스트용)
 
 def us_dst(d=None):
     """미국 서머타임 여부 — 3월 둘째 일요일 ~ 11월 첫째 일요일"""
@@ -551,6 +556,8 @@ def main():
     st = load_state()
     # 같은 거래일에 두 번 실행되면 두 번째는 스킵 (cron 2개 등록 대응)
     _et = et_now()
+    log(f"MODE={MODE} FORCE_RUN={FORCE_RUN} PAUSE_BUY={PAUSE_BUY} "
+        f"KIS={'Y' if (KIS_KEY and KIS_SECRET) else 'N'} ET={_et.strftime('%m-%d %H:%M')}")
     if _et.hour < 16 and not FORCE_RUN:
         log(f"장 마감 전 ({_et.strftime('%H:%M')} ET) — 실행 스킵")
         return
