@@ -86,6 +86,14 @@ def save_state(s):
 
 # ─────────── 시세 ───────────
 HUNTER_API = (os.getenv("HUNTER_API") or "https://hunter-v10.vercel.app").rstrip("/")
+CLOSE_1600 = os.getenv("CLOSE_1600", "1") == "1"   # 16:00 ET(한국 5시) 종가 사용
+DATA_SYMBOL = os.getenv("DATA_SYMBOL", "^NDX")     # 폴백 데이터 (만기 없는 지수)
+USE_CONTRACT_SYM = os.getenv("USE_CONTRACT_SYM", "1") == "1"   # 거래 월물과 같은 심볼 우선
+USE_KIS_QUOTE = os.getenv("USE_KIS_QUOTE", "1") == "1"         # 한투 시세 우선 사용
+# ── 운용 스위치 ──
+PAUSE_BUY  = os.getenv("PAUSE_BUY",  "0") == "1"   # 신규 매수만 중단 (보유분은 정상 청산)
+PAUSE_ALL  = os.getenv("PAUSE_ALL",  "0") == "1"   # 전체 중단 (알림만)
+CLOSE_ALL  = os.getenv("CLOSE_ALL",  "0") == "1"   # 보유분 전량 청산
 
 def us_dst(d=None):
     """미국 서머타임 여부 — 3월 둘째 일요일 ~ 11월 첫째 일요일"""
@@ -128,6 +136,32 @@ def fetch_hunter(symbol="NQ=F", days=40):
         raise RuntimeError(d.get("error", "no bars"))
     return [(b["date"], float(b["close"])) for b in d["bars"] if b.get("close")]
 
+def fetch_1600(symbol="NQ=F", days=12):
+    """5분봉에서 매일 16:00 ET 이전 마지막 종가만 추출 (한국 05:00 기준)"""
+    end = (et_now() + timedelta(days=1)).strftime("%Y-%m-%d")
+    start = (et_now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    url = (f"{HUNTER_API}/api/history?symbol={urllib.parse.quote(symbol)}"
+           f"&start={start}&end={end}&interval=5m&_={int(time.time())}")
+    d = _get_json(url)
+    if d.get("error") or not d.get("bars"):
+        raise RuntimeError(d.get("error", "no 5m bars"))
+    by_day = {}
+    for b in d["bars"]:
+        et_t = b.get("etTime")
+        if not et_t or b.get("close") is None:
+            continue
+        hh, mm = (int(x) for x in et_t.split(":"))
+        mins = hh * 60 + mm
+        if mins > 16 * 60:          # 16:00 이후 제외
+            continue
+        day = b["date"]
+        if day not in by_day or mins > by_day[day][0]:
+            by_day[day] = (mins, float(b["close"]))
+    out = [(k, v[1]) for k, v in sorted(by_day.items())]
+    if len(out) < 4:
+        raise RuntimeError("5분봉 부족")
+    return out
+
 def fetch_yahoo(symbol="NQ=F", days=40):
     """야후 직접 (폴백)"""
     end = int(time.time()); start = end - days*86400
@@ -164,11 +198,50 @@ def drop_intraday(bars):
         return bars[:-1]
     return bars
 
-def get_prices():
+def contract_symbols(code=None):
+    """거래 월물의 야후 심볼 후보들"""
+    code = code or active_contract()  # 예: MNQZ26
+    M = {"H":"H","M":"M","U":"U","Z":"Z"}
+    mth = code[-3]                    # Z
+    yy  = code[-2:]                   # 26
+    root_e = f"NQ{mth}{yy}"           # E-mini
+    root_m = f"MNQ{mth}{yy}"          # Micro
+    return [f"{root_e}.CME", root_e, f"{root_m}.CME", root_m]
+
+def get_prices(contract=None):
     """(당일종가, 전일종가, 그제종가, 날짜, 소스, 종가리스트)"""
     errs = []
+    # 0-0) 한투 시세 — 실제 거래 상품과 동일 (LIVE 키가 있을 때만)
+    if USE_KIS_QUOTE and KIS_KEY and KIS_SECRET:
+        try:
+            sym = contract or active_contract()
+            b = kis_daily(sym)
+            if len(b) >= 3 and b[-1][1] > 5000:
+                return b[-1][1], b[-2][1], b[-3][1], b[-1][0], f"{sym}/한투", [x[1] for x in b]
+        except Exception as e:
+            errs.append(f"KIS: {str(e)[:40]}")
+
+    # 0-A) 거래 월물과 동일한 심볼 우선 (롤오버 갭 원천 차단)
+    if USE_CONTRACT_SYM:
+        for sym in contract_symbols(contract):
+            try:
+                b = fetch_1600(sym) if CLOSE_1600 else drop_intraday(fetch_hunter(sym))
+                if len(b) >= 3 and b[-1][1] > 5000:
+                    tag = f"{sym}{' 16:00ET' if CLOSE_1600 else ''}"
+                    return b[-1][1], b[-2][1], b[-3][1], b[-1][0], tag, [x[1] for x in b]
+            except Exception as e:
+                errs.append(f"{sym}: {str(e)[:30]}")
+
+    # 0-B) 만기 없는 지수 (폴백)
+    if CLOSE_1600:
+        try:
+            b = fetch_1600(DATA_SYMBOL)
+            if len(b) >= 3 and b[-1][1] > 5000:
+                return b[-1][1], b[-2][1], b[-3][1], b[-1][0], f"{DATA_SYMBOL} 16:00ET", [x[1] for x in b]
+        except Exception as e:
+            errs.append(f"1600: {e}")
     # 1) 헌터 앱 (선물 직접)
-    for sym in ("NQ=F", "^NDX"):
+    for sym in (DATA_SYMBOL, "NQ=F"):
         try:
             b = drop_intraday(fetch_hunter(sym))
             if len(b) >= 3 and b[-1][1] > 5000:
@@ -177,7 +250,7 @@ def get_prices():
             errs.append(f"hunter {sym}: {e}")
 
     # 2) 야후 (429 대비 재시도)
-    for sym in ("NQ=F", "^NDX"):
+    for sym in (DATA_SYMBOL, "NQ=F"):
         for attempt in range(3):
             try:
                 b = drop_intraday(fetch_yahoo(sym))
@@ -271,12 +344,89 @@ def kis_order(side, qty, symbol_full, price=None):
     }
     return _kis_post("/uapi/overseas-futureoption/v1/trading/order", "OTFM3001U", body)
 
+def kis_daily(symbol=None, days=30):
+    """한투 해외선물 일봉 조회 — 실제 거래 상품과 100% 동일
+       tr_id=HHDFC55020100 / srs_cd=MNQZ26 / exch_cd=CME"""
+    sym = symbol or active_contract()
+    end = et_now().strftime("%Y%m%d")
+    r = _kis_get("/uapi/overseas-futureoption/v1/quotations/daily-ccnl", "HHDFC55020100", {
+        "SRS_CD": sym, "EXCH_CD": "CME",
+        "START_DATE_TIME": "", "CLOSE_DATE_TIME": end,
+        "QRY_TP": "Q", "QRY_CNT": str(min(days, 40)),
+        "QRY_GAP": "", "INDEX_KEY": "",
+    })
+    if r.get("rt_cd") != "0":
+        raise RuntimeError(r.get("msg1", "daily-ccnl 실패"))
+    rows = r.get("output2") or []
+    out = []
+    for x in rows:
+        d = x.get("data_date") or x.get("data_dt") or ""
+        c = x.get("data_close") or x.get("ovrs_nmix_prpr") or x.get("last")
+        if d and c:
+            try:
+                out.append((f"{d[:4]}-{d[4:6]}-{d[6:8]}", float(c)))
+            except ValueError:
+                pass
+    out.sort()
+    if len(out) < 4:
+        raise RuntimeError(f"봉 부족 ({len(out)})")
+    return out
+
 def kis_positions():
     """미결제 내역 조회  tr_id=OTFM1412R"""
     return _kis_get("/uapi/overseas-futureoption/v1/trading/inquire-unpd", "OTFM1412R", {
         "CANO": KIS_ACCT, "ACNT_PRDT_CD": KIS_PROD,
-        "CTX_AREA_FK200": "", "CTX_AREA_NK200": "",
+        "FUOP_DVSN": "01",                      # 01=선물
+        "CTX_AREA_FK100": "", "CTX_AREA_NK100": "",
     })
+
+def sync_from_broker(local_pos):
+    """한투 실제 잔고로 포지션 동기화.
+       수동 매매·부분청산이 있어도 실제 계좌를 기준으로 맞춘다."""
+    r = kis_positions()
+    if r.get("rt_cd") != "0":
+        raise RuntimeError(r.get("msg1", "잔고조회 실패"))
+    rows = r.get("output1") or r.get("output") or []
+    sym = active_contract()
+    held = 0
+    avg = None
+    for x in rows:
+        code = str(x.get("ovrs_futr_fx_pdno") or x.get("pdno") or "")
+        if SYMBOL not in code:
+            continue
+        q = int(float(x.get("ustl_qty") or x.get("cblc_qty") or 0))
+        if q <= 0:
+            continue
+        held += q
+        p = x.get("fm_ccld_pric") or x.get("avg_unpr") or x.get("pchs_avg_pric")
+        if p:
+            try: avg = float(p)
+            except ValueError: pass
+
+    local_q = sum(x["qty"] for x in local_pos)
+    if held == local_q:
+        return local_pos, None                       # 일치 — 그대로
+
+    if held == 0:
+        return [], f"계좌 0계약 · 봇 {local_q}계약 → 봇 기록 초기화"
+
+    if held < local_q:
+        # 실제가 적음 → 오래된 것부터 줄임
+        pos = sorted(local_pos, key=lambda x: x["date"])
+        need = local_q - held
+        out = []
+        for x in pos:
+            if need <= 0: out.append(x); continue
+            cut = min(x["qty"], need)
+            x["qty"] -= cut; need -= cut
+            if x["qty"] > 0: out.append(x)
+        return out, f"계좌 {held}계약 · 봇 {local_q}계약 → 줄임"
+
+    # 실제가 많음 → 수동 매수로 간주, 오늘 날짜로 추가
+    extra = held - local_q
+    today = et_now().strftime("%Y-%m-%d")
+    local_pos.append({"entry": avg or 0, "date": today, "qty": extra, "m": "def"})
+    return local_pos, f"계좌 {held}계약 · 봇 {local_q}계약 → {extra}계약 추가(수동매수 추정)"
 
 def kis_deposit():
     """예수금 조회  tr_id=OTFM1411R"""
@@ -309,12 +459,26 @@ def contract_info():
                 return f"{SYMBOL}{M[q]}{str(y)[2:]}", exp, d2e
     return f"{SYMBOL}Z{str(now.year)[2:]}", None, 99
 
+def data_expiry_days():
+    """데이터 소스(야후 NQ=F = 최근월물)의 만기까지 남은 일수"""
+    now = et_now().replace(tzinfo=None)
+    for y in (now.year, now.year + 1):
+        for q in (3, 6, 9, 12):
+            exp = third_friday(y, q)
+            if exp and exp >= now:
+                return (exp - now).days
+    return 99
+
 def days_to_expiry():
     _, exp, d = contract_info()
     return d, exp
 
-def active_contract():
-    return contract_info()[0]
+def active_contract(held_sym=None, has_pos=False):
+    """보유 포지션이 있으면 그 월물을 유지, 없으면 새 월물로 전환"""
+    new_sym, exp, d2e = contract_info()
+    if has_pos and held_sym:
+        return held_sym          # 정리될 때까지 기존 월물 유지
+    return new_sym
 
 # ─────────── 사다리 · 증거금 ───────────
 def ladder_for(total, tiers=None, order=None):
@@ -363,7 +527,10 @@ def main():
         log(f"장 마감 전 ({_et.strftime('%H:%M')} ET) — 실행 스킵")
         return
     pos = sorted(st["positions"], key=lambda x: x["date"])
-    px, p1, p2, today, src, closes = get_prices()
+    _pos0 = st.get("positions", [])
+    _held_sym = st.get("contract")
+    CONTRACT = active_contract(_held_sym, bool(_pos0))
+    px, p1, p2, today, src, closes = get_prices(CONTRACT)
 
     # 같은 거래일을 이미 처리했으면 중복 실행 방지 (cron 2개 대응)
     if st.get("last_date") == today:
@@ -377,17 +544,32 @@ def main():
         sma = sum(closes[-(ATK_MA+1):-1]) / ATK_MA
         is_atk = p1 > sma
     atk_thr = cel(p1 * (1 + ATK_BUY/100)) if is_atk else None
-    contract = active_contract()
+    contract = CONTRACT
 
     lines = [f"<b>🎯 MNQ {MODE}</b>",
              f"{src} · {today} 종가 <b>{px:,.2f}</b>",
              f"월물 {contract} · 보유 {len(pos)}/{TIERS}티어", ""]
-    _d2e, _exp = days_to_expiry()
-    if _exp: lines[2] += f" · 만기 D-{_d2e}"
+    _newsym = contract_info()[0]
+    if _newsym != CONTRACT:
+        lines.append(f"🔄 <b>{_newsym}로 전환 대기</b> — 보유분 정리 후 자동 전환")
+
+    # ── 운용 스위치 ──
+    if PAUSE_ALL:
+        lines.append("⏸️ <b>전체 중단</b> (PAUSE_ALL=1) — 판정·주문 없음")
+        if pos:
+            lines.append(f"보유 {sum(x['qty'] for x in pos)}계약 유지 중")
+        notify("\n".join(lines))
+        return
 
     # ── 조건 판정 (종가 기준) → 충족분만 시장가 주문 ──
     moc = [x for x in pos if biz_days(x["date"], today) >= HOLD_DAYS]
     orders = []
+
+    if CLOSE_ALL and pos:
+        for x in pos:
+            orders.append(("MOC", x["qty"], f"전량청산 지시 · {x['date']} 진입 {x['entry']:,.2f}"))
+        lines.append("🛑 <b>전량 청산</b> (CLOSE_ALL=1)")
+        moc = list(pos)
 
     if moc:
         # MOC 있는 날: MOC만 청산 (다른 매도 없음)
@@ -402,6 +584,17 @@ def main():
             if px >= sp:
                 orders.append(("SELL", x["qty"],
                                f"T{i+1} 진입 {x['entry']:,.2f} → 기준 {sp:,.2f} 충족"))
+
+    # ── LIVE: 실제 잔고와 동기화 (수동 개입 반영) ──
+    if MODE == "LIVE" and KIS_KEY and KIS_SECRET:
+        try:
+            pos, msg = sync_from_broker(pos)
+            if msg:
+                lines.append(f"🔄 <b>잔고 동기화</b> — {msg}")
+                st["positions"] = pos
+                st["step"] = len(pos)
+        except Exception as e:
+            lines.append(f"⚠️ 잔고 조회 실패: {str(e)[:40]}")
 
     # ── 자본 · 계약수 계산 (백테와 동일) ──
     equity = st.get("equity", TOTAL_PAID)
@@ -418,8 +611,19 @@ def main():
     buy_qty = min(want_buy, room)
 
     # 매수 조건 (만기 임박 시 신규 중단)
-    d2e, exp_dt = days_to_expiry()
-    roll_block = d2e <= HOLD_DAYS + 2
+    # 실제 거래 중인 월물의 만기까지 남은 일수
+    def _sym_days(sym):
+        M={"H":3,"M":6,"U":9,"Z":12}
+        try:
+            q=M[sym[-3]]; y=2000+int(sym[-2:])
+            e=third_friday(y,q)
+            return (e - et_now().replace(tzinfo=None)).days if e else 99
+        except Exception: return 99
+    d2e = _sym_days(CONTRACT)
+    exp_dt = None
+    # 판정 데이터가 만기 없는 지수면 데이터 롤오버 차단 불필요
+    d2e_data = 99 if DATA_SYMBOL.startswith("^") else data_expiry_days()
+    roll_block = (d2e <= HOLD_DAYS + 2) or (d2e_data <= HOLD_DAYS + 1) or PAUSE_BUY
     use_atk = is_atk and step == 0            # T1 자리에서만 공격
     if use_atk:
         hit = px >= atk_thr; thr_show = atk_thr; mode_tag = "공격"
@@ -434,8 +638,15 @@ def main():
         orders.append(("BUY", buy_qty, memo))
     elif step < TIERS and hit and not roll_block and buy_qty == 0:
         lines.append(f"⚠️ <b>매수 조건 충족 · 증거금 부족으로 스킵</b>")
-    elif roll_block and step < TIERS and px <= buy_thr:
-        lines.append(f"⚠️ <b>만기 D-{d2e} — 신규 매수 중단</b> (조건은 충족했음)")
+    elif roll_block and step < TIERS and hit:
+        if PAUSE_BUY: why = "신규 매수 중단 설정 (PAUSE_BUY=1)"
+        elif d2e_data <= HOLD_DAYS+1: why = f"데이터 월물 만기 D-{d2e_data}"
+        else: why = f"거래 월물 만기 D-{d2e}"
+        lines.append(f"⚠️ <b>{why} — 신규 매수 중단</b> (조건은 충족했음)")
+
+    # 데이터 롤오버 경고
+    if d2e_data <= HOLD_DAYS + 1:
+        lines.append(f"🔄 <b>데이터 롤오버 구간</b> (NQ=F 월물 만기 D-{d2e_data}) — 신호 신뢰도 낮음")
 
     # 만기 임박 경고
     if roll_block and pos:
@@ -444,6 +655,8 @@ def main():
     # 출력
     lines.append(f"자산 <b>{equity/1e4:,.0f}만</b> · 구성 {'·'.join(map(str,lad))} ({total_q}계약)"
                  + (f" · 여유 {room}계" if room < 99 else ""))
+    if PAUSE_BUY:
+        lines.append("⏸️ <b>신규 매수 중단 중</b> (보유분은 정상 청산)")
     if is_atk:
         lines.append(f"📈 <b>상승 추세</b> (MA{ATK_MA} 위) — T1 공격모드")
         lines.append(f"기준가 · T1 매수 <code>{atk_thr:,.2f}</code> 이상 (공격)")
@@ -513,6 +726,7 @@ def main():
         st["positions"] = pos
         st["step"] = 0 if not pos else step + (1 if any(o[0]=="BUY" for o in orders) else 0)
         st["last_date"] = today
+        st["contract"] = CONTRACT if pos else None
         save_state(st)
     else:
         # PAPER: 조건 충족분을 종가에 체결한 것으로 기록
@@ -532,6 +746,7 @@ def main():
         st["step"] = 0 if not pos else step + (1 if any(o[0]=="BUY" for o in orders) else 0)
         st["equity"] = TOTAL_PAID + st["realized"]
         st["last_date"] = today
+        st["contract"] = CONTRACT if pos else None
         save_state(st)
         log(f"누적 실현 ${st['realized']:,.0f} · 거래 {len(st['history'])}건")
 
