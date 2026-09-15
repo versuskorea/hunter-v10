@@ -46,6 +46,7 @@ jobs:
           PAUSE_BUY:   ${{ vars.PAUSE_BUY || '0' }}
           PAUSE_ALL:   ${{ vars.PAUSE_ALL || '0' }}
           CLOSE_ALL:   ${{ vars.CLOSE_ALL || '0' }}
+          FORCE_RUN:   ${{ vars.FORCE_RUN || '0' }}
           SYMBOL:      ${{ vars.SYMBOL || 'MNQ' }}
           ROLL_STOP_DAYS: ${{ vars.ROLL_STOP_DAYS || '14' }}
           QQQ_SCALE:   ${{ vars.QQQ_SCALE || '41.4' }}
