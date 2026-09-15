@@ -94,6 +94,7 @@ USE_KIS_QUOTE = os.getenv("USE_KIS_QUOTE", "1") == "1"         # 한투 시세 �
 PAUSE_BUY  = os.getenv("PAUSE_BUY",  "0") == "1"   # 신규 매수만 중단 (보유분은 정상 청산)
 PAUSE_ALL  = os.getenv("PAUSE_ALL",  "0") == "1"   # 전체 중단 (알림만)
 CLOSE_ALL  = os.getenv("CLOSE_ALL",  "0") == "1"   # 보유분 전량 청산
+FORCE_RUN  = os.getenv("FORCE_RUN",  "0") == "1"   # 장 마감 전/중복이어도 강제 실행 (테스트용)
 
 def us_dst(d=None):
     """미국 서머타임 여부 — 3월 둘째 일요일 ~ 11월 첫째 일요일"""
@@ -523,7 +524,7 @@ def main():
     st = load_state()
     # 같은 거래일에 두 번 실행되면 두 번째는 스킵 (cron 2개 등록 대응)
     _et = et_now()
-    if _et.hour < 16:
+    if _et.hour < 16 and not FORCE_RUN:
         log(f"장 마감 전 ({_et.strftime('%H:%M')} ET) — 실행 스킵")
         return
     pos = sorted(st["positions"], key=lambda x: x["date"])
@@ -533,7 +534,7 @@ def main():
     px, p1, p2, today, src, closes = get_prices(CONTRACT)
 
     # 같은 거래일을 이미 처리했으면 중복 실행 방지 (cron 2개 대응)
-    if st.get("last_date") == today:
+    if st.get("last_date") == today and not FORCE_RUN:
         log(f"{today} 이미 처리됨 — 중복 실행 스킵")
         return
 
@@ -546,7 +547,7 @@ def main():
     atk_thr = cel(p1 * (1 + ATK_BUY/100)) if is_atk else None
     contract = CONTRACT
 
-    lines = [f"<b>🎯 MNQ {MODE}</b>",
+    lines = [f"<b>🎯 MNQ {MODE}</b>" + (" <i>(테스트)</i>" if FORCE_RUN else ""),
              f"{src} · {today} 종가 <b>{px:,.2f}</b>",
              f"월물 {contract} · 보유 {len(pos)}/{TIERS}티어", ""]
     _newsym = contract_info()[0]
@@ -747,7 +748,10 @@ def main():
         st["equity"] = TOTAL_PAID + st["realized"]
         st["last_date"] = today
         st["contract"] = CONTRACT if pos else None
-        save_state(st)
+        if FORCE_RUN:
+            log("FORCE_RUN — 상태 저장 생략 (테스트)")
+        else:
+            save_state(st)
         log(f"누적 실현 ${st['realized']:,.0f} · 거래 {len(st['history'])}건")
 
 if __name__ == "__main__":
