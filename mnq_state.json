@@ -1,5 +1,12 @@
 {
-  "positions": [],
+  "positions": [
+    {
+      "entry": 29277.75,
+      "date": "2026-09-15",
+      "qty": 1,
+      "m": "def"
+    }
+  ],
   "history": [
     {
       "entry": 29135.25,
@@ -12,7 +19,8 @@
     }
   ],
   "realized": 513.0,
-  "step": 0,
+  "step": 1,
   "equity": 30000513.0,
-  "last_date": "2026-09-14"
+  "last_date": "2026-09-15",
+  "contract": "MNQZ26"
 }
