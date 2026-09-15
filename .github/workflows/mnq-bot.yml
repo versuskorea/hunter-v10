@@ -39,6 +39,17 @@ jobs:
           ATK_BUY:     ${{ vars.ATK_BUY || '0.5' }}
           ATK_SELL:    ${{ vars.ATK_SELL || '1.0' }}
           HUNTER_API:  ${{ vars.HUNTER_API || 'https://hunter-v10.vercel.app' }}
+          CLOSE_1600:  ${{ vars.CLOSE_1600 || '1' }}
+          DATA_SYMBOL: ${{ vars.DATA_SYMBOL || '^NDX' }}
+          USE_CONTRACT_SYM: ${{ vars.USE_CONTRACT_SYM || '1' }}
+          USE_KIS_QUOTE: ${{ vars.USE_KIS_QUOTE || '1' }}
+          PAUSE_BUY:   ${{ vars.PAUSE_BUY || '0' }}
+          PAUSE_ALL:   ${{ vars.PAUSE_ALL || '0' }}
+          CLOSE_ALL:   ${{ vars.CLOSE_ALL || '0' }}
+          SYMBOL:      ${{ vars.SYMBOL || 'MNQ' }}
+          ROLL_STOP_DAYS: ${{ vars.ROLL_STOP_DAYS || '14' }}
+          QQQ_SCALE:   ${{ vars.QQQ_SCALE || '41.4' }}
+          NDX_SCALE:   ${{ vars.NDX_SCALE || '1.0' }}
           STATE_FILE:  mnq_state.json
           TG_TOKEN:    ${{ secrets.TG_TOKEN }}
           TG_CHAT:     ${{ secrets.TG_CHAT }}
