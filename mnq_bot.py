@@ -17,7 +17,7 @@ MNQ 방어모드 자동매매
 """
 import os, json, math, sys, time
 from datetime import datetime, timedelta, timezone
-import urllib.request, urllib.parse
+import urllib.request, urllib.parse, urllib.error
 
 # ─────────── 설정 ───────────
 MODE       = os.getenv("MODE", "PAPER").upper()
@@ -123,8 +123,14 @@ def _get_json(url, timeout=15):
                       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
         "Accept": "application/json,text/plain,*/*",
     })
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.load(r)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        body = ""
+        try: body = e.read().decode("utf-8", "replace")[:200]
+        except Exception: pass
+        raise RuntimeError(f"HTTP {e.code} · {url[:90]} · {body}") from None
 
 def fetch_hunter(symbol="NQ=F", days=40):
     """헌터 앱 /api/history 사용 (권장)"""
@@ -227,7 +233,7 @@ def get_prices(contract=None):
             if len(b) >= 3 and b[-1][1] > 5000:
                 return b[-1][1], b[-2][1], b[-3][1], b[-1][0], f"{sym}/한투", [x[1] for x in b]
         except Exception as e:
-            errs.append(f"KIS: {str(e)[:40]}")
+            errs.append(f"KIS: {str(e)[:200]}")
 
     # 0-A) 거래 월물과 동일한 심볼 우선 (롤오버 갭 원천 차단)
     if USE_CONTRACT_SYM:
@@ -301,8 +307,16 @@ def kis_token():
                        "appkey": KIS_KEY, "appsecret": KIS_SECRET}).encode()
     req = urllib.request.Request(KIS_BASE + "/oauth2/tokenP", data=body,
                                  headers={"content-type": "application/json"})
-    with urllib.request.urlopen(req, timeout=15) as r:
-        d = json.load(r)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            d = json.load(r)
+    except urllib.error.HTTPError as e:
+        det = ""
+        try: det = e.read().decode("utf-8", "replace")[:300]
+        except Exception: pass
+        raise RuntimeError(f"토큰발급 HTTP {e.code} · {det}") from None
+    if "access_token" not in d:
+        raise RuntimeError(f"토큰발급 실패 · {str(d)[:200]}")
     _token["v"] = d["access_token"]
     _token["exp"] = time.time() + 60*60*20      # 24h 유효, 20h로 보수적
     return _token["v"]
@@ -323,8 +337,14 @@ def _kis_get(path, tr_id, params):
         "authorization": f"Bearer {kis_token()}",
         "appkey": KIS_KEY, "appsecret": KIS_SECRET, "tr_id": tr_id,
     })
-    with urllib.request.urlopen(req, timeout=15) as r:
-        return json.load(r)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        body = ""
+        try: body = e.read().decode("utf-8", "replace")[:300]
+        except Exception: pass
+        raise RuntimeError(f"HTTP {e.code} · {body}") from None
 
 def kis_order(side, qty, symbol_full, price=None):
     """해외선물 주문  tr_id=OTFM3001U
