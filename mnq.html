@@ -135,7 +135,7 @@ summary::-webkit-details-marker{display:none}
   </div>
 
   <div class="ordbox">
-    <div class="ordhead">체결 기록</div>
+    <div class="ordhead">체결 기록 <span class="r" id="posSrc"></span></div>
     <div class="f g2" style="margin-bottom:6px">
       <div><label>진입가</label><input id="in-px" type="number" step="0.25" placeholder="29400.00"></div>
       <div><label>진입일</label><input id="in-dt" type="date"></div>
@@ -300,7 +300,23 @@ async function fetchNQ(){
 }
 
 let S={px:0,p1:0,p2:0,date:'',src:''};
-const loadPos=()=>{try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return[];}};
+const BOT_URL='https://raw.githubusercontent.com/versuskorea/hunter-v10/main/mnq_state.json';
+let BOT=null, BOT_ON = localStorage.getItem('mnq-botsync')!=='0';
+
+async function loadBot(){
+  if(!BOT_ON) return null;
+  try{
+    const r=await fetch(BOT_URL+'?_='+Date.now(),{cache:'no-store'});
+    if(!r.ok) throw new Error(r.status);
+    return await r.json();
+  }catch(e){ console.log('봇 상태 로드 실패',e.message); return null; }
+}
+
+const loadPos=()=>{
+  if(BOT_ON && BOT && Array.isArray(BOT.positions))
+    return BOT.positions.map(x=>({entry:+x.entry,date:x.date,qty:+(x.qty||1)}));
+  try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return[];}
+};
 const savePos=a=>localStorage.setItem(KEY,JSON.stringify(a));
 function bizDays(a,b){let d=new Date(a),e=new Date(b),n=0;while(d<e){d.setDate(d.getDate()+1);const w=d.getDay();if(w!==0&&w!==6)n++;}return n;}
 const fmtW=v=>(v>=0?'+':'')+Math.round(v/1e4).toLocaleString()+'만';
@@ -309,6 +325,7 @@ async function load(){
   const st=document.getElementById('status'),as=document.getElementById('asof');
   st.textContent='불러오는중'; st.className='status';
   try{
+    BOT = await loadBot();
     const {bars,scale,src}=await fetchNQ();
     const c=bars.map(b=>b.close*scale), n=c.length;
     S={px:c[n-1],p1:c[n-2],p2:c[n-3],date:bars[n-1].date,src};
@@ -347,6 +364,13 @@ function render(){
   ce.className='chg '+(ch>0?'up':ch<0?'down':'');
   document.getElementById('low2').textContent = low2?low2.toLocaleString(undefined,{maximumFractionDigits:0}):'—';
   document.getElementById('tiers').textContent = pos.length+' / '+P.nt;
+  const _ps=document.getElementById('posSrc');
+  if(_ps) _ps.innerHTML = (BOT_ON&&BOT)
+    ? `<span style="color:var(--green)">🤖 봇 연동</span>`
+    : `<span style="color:var(--dim)">직접 입력</span>`;
+  const _inp=document.querySelector('.f.g2');
+  const _add=document.getElementById('add');
+  if(BOT_ON&&BOT){ if(_inp)_inp.style.display='none'; if(_add)_add.style.display='none'; }
 
   // ── 오늘 주문표 ──
   const orders=[];
