@@ -49,6 +49,16 @@ input:focus,select:focus{border-color:var(--accent)}
 .chartbox .ct2 .rt{margin-left:auto;font-size:11px}
 .chartbox svg{width:100%;display:block}
 .hero{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+.ctbl{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.ctbl th{font-size:11px;color:var(--dim);padding:8px 6px;border-bottom:1px solid var(--border);text-align:right}
+.ctbl th:first-child{text-align:left}
+.ctbl td{padding:9px 6px;border-bottom:1px solid rgba(255,255,255,.04);text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700}
+.ctbl td.ck{text-align:left;font-family:'DM Sans',sans-serif;font-weight:600;color:var(--dim);font-size:12px}
+.ctbl td.cs{font-size:10px;font-weight:600;color:var(--dim);font-family:'DM Sans',sans-serif}
+.btn2{background:var(--card);color:var(--text);border:1px solid var(--border);margin-top:6px}
+#cmpBox{margin:10px 0}
+#cmpBox summary{font-size:12px;color:var(--dim);cursor:pointer;padding:6px 0}
+.f.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .hbox{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 6px;text-align:center}
 .hbox .k{font-size:10px;color:var(--dim);font-weight:600}
 .hbox .v{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:800;margin-top:4px}
@@ -77,7 +87,7 @@ tr:last-child td{border-bottom:none}
 <body>
   <div class="top">
     <a href="/mnq.html" class="back">← MNQ</a>
-    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v22</span>
+    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v25</span>
     <span class="status" id="status">대기</span>
   </div>
   <div class="asof" id="asof">시세 불러오는 중…</div>
@@ -178,8 +188,25 @@ tr:last-child td{border-bottom:none}
       </details>
     </details>
 
+    <details style="margin:10px 0">
+      <summary style="font-size:12px;color:var(--dim);cursor:pointer;padding:6px 0">⚖️ 비교용 B 설정</summary>
+      <div class="f">
+        <div><label>B 매수 −%</label><input id="b_buy" type="number" step="0.1" value="0.2"></div>
+        <div><label>B 매도 +%</label><input id="b_sell" type="number" step="0.1" value="0.3"></div>
+      </div>
+      <div class="f">
+        <div><label>B 보유일</label><input id="b_hold" type="number" value="3"></div>
+        <div><label>B 티어</label><input id="b_tiers" type="number" value="3"></div>
+      </div>
+      <div class="f">
+        <div><label>B 복리(만)</label><input id="b_per" type="number" value="700"></div>
+        <div><label>B 자본(만)</label><input id="b_cap" type="number" value="3000"></div>
+      </div>
+    </details>
+
     <button class="run" id="run">▶ 백테 실행</button>
     <button class="run" id="dist" style="margin-top:8px;background:#1a1a2a;color:var(--accent);border:1px solid var(--accent)">📊 시작일 분포 (36회)</button>
+    <button class="run" id="cmp" style="margin-top:8px;background:#1a1a1a;color:var(--text);border:1px solid var(--border)">⚖️ 두 설정 비교</button>
     <div class="note">
       <span id="formulaText">—</span><br>
       <span id="marginText">증거금 600만/계약</span> · <span id="liqText">순자산이 유지증거금 밑돌면 마진콜</span>
@@ -665,7 +692,7 @@ function render(R,P){
         </tbody></table>
       </div></div>`;
 
-  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v22</span></div><table><tbody>
+  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v25</span></div><table><tbody>
     <tr><td>증설 방식</td><td>${P.growMode==='unit'?`<b style='color:var(--accent)'>1계약씩 (사다리)</b>`:'티어당 +1 (균등)'}</td></tr>
     <tr><td>시작 구성</td><td>${P.growMode==='unit'?ladderFor(P.tiers*P.qty,P.tiers,P.ladOrder).join('·')+` = ${P.tiers*P.qty}계약`:`${P.qty}계약 × ${P.tiers}티어 = ${P.qty*P.tiers}계약`}</td></tr>
     <tr><td>증설 제한</td><td>${P.growMode==='unit'?`복리 ${R.limWant}회 · <b style="color:${R.limCap>R.limWant?'var(--gold)':'var(--dim)'}">자본 ${R.limCap}회</b>${R.limCap>R.limWant?' ← 자본이 상한, 복리값 무의미':''}`:'-'}</td></tr>
@@ -773,6 +800,69 @@ function render(R,P){
     }
     h+=`</tbody></table></div>`;
   }
+  document.getElementById('out').innerHTML=h;
+}
+
+document.getElementById('cmp').addEventListener('click',()=>{
+  if(!BARS.length){alert('시세 데이터가 없습니다');return;}
+  const btn=document.getElementById('cmp');
+  btn.disabled=true; btn.textContent='비교 중…';
+  setTimeout(()=>{
+    try{
+      const A=readParams();
+      const B={...A,
+        buyp:+document.getElementById('b_buy').value||0.2,
+        sellp:+document.getElementById('b_sell').value||0.3,
+        hold:+document.getElementById('b_hold').value||3,
+        tiers:+document.getElementById('b_tiers').value||3,
+        per:(+document.getElementById('b_per').value||700)*1e4,
+        cap:(+document.getElementById('b_cap').value||3000)*1e4
+      };
+      const RA=backtest(A), RB=backtest(B);
+      renderCompare(RA,A,RB,B);
+    }catch(err){
+      document.getElementById('out').innerHTML=
+        `<div class="panel" style="border-color:var(--red)"><div style="color:var(--red)">⚠️ ${err.message}</div></div>`;
+      console.error(err);
+    }
+    btn.disabled=false; btn.textContent='⚖️ 두 설정 비교';
+  },30);
+});
+
+function renderCompare(RA,A,RB,B){
+  const lbl=P=>`−${P.buyp}% / +${P.sellp}% · ${P.hold}일 · ${P.tiers}티어 · 복리 ${(P.per/1e4).toLocaleString()}만`;
+  const cagr=R=>R.cagr||0;
+  const row=(k,a,b,better)=>{
+    const win = better==='hi' ? (a.v>b.v?0:(b.v>a.v?1:-1))
+              : better==='lo' ? (a.v<b.v?0:(b.v<a.v?1:-1)) : -1;
+    const hl=i=>win===i?'color:var(--green);font-weight:900':'';
+    return `<tr><td class="ck">${k}</td>
+      <td style="${hl(0)}">${a.t}</td><td style="${hl(1)}">${b.t}</td></tr>`;
+  };
+  const f=v=>(v>=1e8?(v/1e8).toFixed(1)+'억':Math.round(v/1e4).toLocaleString()+'만');
+  const h=`
+  <div class="panel">
+    <div class="ct" style="margin-top:0">⚖️ 설정 비교 (${A.d1} ~ ${A.d2})</div>
+    <table class="ctbl">
+      <thead><tr><th></th><th>A (현재)</th><th>B (비교)</th></tr></thead>
+      <tbody>
+        <tr><td class="ck">설정</td><td class="cs">${lbl(A)}</td><td class="cs">${lbl(B)}</td></tr>
+        ${row('투입금',{v:A.cap,t:f(A.cap)},{v:B.cap,t:f(B.cap)},null)}
+        ${row('총납입',{v:RA.paid,t:f(RA.paid)},{v:RB.paid,t:f(RB.paid)},null)}
+        ${row('최종자산',{v:RA.final,t:f(RA.final)},{v:RB.final,t:f(RB.final)},'hi')}
+        ${row('순수익',{v:RA.profit,t:f(RA.profit)},{v:RB.profit,t:f(RB.profit)},'hi')}
+        ${row('배수',{v:RA.final/RA.paid,t:(RA.final/RA.paid).toFixed(1)+'배'},{v:RB.final/RB.paid,t:(RB.final/RB.paid).toFixed(1)+'배'},'hi')}
+        ${row('CAGR',{v:cagr(RA),t:cagr(RA).toFixed(1)+'%'},{v:cagr(RB),t:cagr(RB).toFixed(1)+'%'},'hi')}
+        ${row('MDD',{v:RA.mdd,t:RA.mdd.toFixed(1)+'%'},{v:RB.mdd,t:RB.mdd.toFixed(1)+'%'},'hi')}
+        ${row('칼마',{v:cagr(RA)/Math.abs(RA.mdd),t:(cagr(RA)/Math.abs(RA.mdd)).toFixed(2)},{v:cagr(RB)/Math.abs(RB.mdd),t:(cagr(RB)/Math.abs(RB.mdd)).toFixed(2)},'hi')}
+        ${row('거래수',{v:(RA.trades||[]).length,t:(RA.trades||[]).length+'회'},{v:(RB.trades||[]).length,t:(RB.trades||[]).length+'회'},'hi')}
+        ${row('최대계약',{v:RA.maxHeld||0,t:(RA.maxHeld||0).toLocaleString()+'계'},{v:RB.maxHeld||0,t:(RB.maxHeld||0).toLocaleString()+'계'},null)}
+        ${row('부분청산',{v:(RA.liq||0),t:(RA.liq||0)+'회'},{v:(RB.liq||0),t:(RB.liq||0)+'회'},'lo')}
+        ${row('승률',{v:RA.wr||0,t:(RA.wr||0).toFixed(0)+'%'},{v:RB.wr||0,t:(RB.wr||0).toFixed(0)+'%'},'hi')}
+      </tbody>
+    </table>
+    <div class="note" style="margin-top:10px">초록 = 더 나은 쪽 · MDD는 절댓값이 작을수록 좋음</div>
+  </div>`;
   document.getElementById('out').innerHTML=h;
 }
 
