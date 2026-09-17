@@ -38,6 +38,7 @@ MARGIN_USD = float(os.getenv("MARGIN_USD", "4721"))   # 개시증거금 (달러)
 FX         = float(os.getenv("FX", "1390"))           # 환율
 # ── 자본 / 복리 ──
 TOTAL_PAID = float(os.getenv("TOTAL_PAID", "3000")) * 1e4   # 총 납입액 (만원) — 입금하면 갱신
+INITIAL_CAP = float(os.getenv("INITIAL_CAP", "3000")) * 1e4 # 최초 자본 (복리 기준선, 고정)
 PER_CONTRACT = float(os.getenv("PER_CONTRACT", "2000")) * 1e4  # 수익 N만마다 총계약 +1
 BUFFER     = float(os.getenv("BUFFER", "30")) / 100   # 여유 버퍼
 LAD_ORDER  = os.getenv("LAD_ORDER", "mid")            # mid / back / front
@@ -224,8 +225,8 @@ def contract_symbols(code=None):
     mth = code[-3]                    # Z
     yy  = code[-2:]                   # 26
     root_e = f"NQ{mth}{yy}"           # E-mini
-    root_m = f"MNQ{mth}{yy}"          # Micro
-    return [f"{root_e}.CME", root_e, f"{root_m}.CME", root_m]
+    root_m = f"MNQ{mth}{yy}"          # Micro — 실제 거래 상품이라 우선
+    return [f"{root_m}.CME", root_m, f"{root_e}.CME", root_e]
 
 def get_prices(contract=None):
     """(당일종가, 전일종가, 그제종가, 날짜, 소스, 종가리스트)"""
@@ -534,7 +535,7 @@ def plan_contracts(equity, unrealized=0.0):
     """자산 기준 총 계약수 결정 (백테와 동일 로직)"""
     mg = margin_krw()
     per_one = mg * (1 + BUFFER)
-    gain = equity - TOTAL_PAID
+    gain = equity - INITIAL_CAP        # 납입금도 굴린다 (앱과 동일)
     want = TIERS + max(int(gain // PER_CONTRACT), 0) if PER_CONTRACT > 0 else TIERS
     afford = int((equity + unrealized) // per_one)
     return max(TIERS, min(want, afford)), want, afford
@@ -598,6 +599,17 @@ def main():
         notify("\n".join(lines))
         return
 
+    # ── LIVE: 실제 잔고와 동기화 (수동 개입 반영) ──
+    if MODE == "LIVE" and KIS_KEY and KIS_SECRET:
+        try:
+            pos, msg = sync_from_broker(pos)
+            if msg:
+                lines.append(f"🔄 <b>잔고 동기화</b> — {msg}")
+                st["positions"] = pos
+                st["step"] = len(pos)
+        except Exception as e:
+            lines.append(f"⚠️ 잔고 조회 실패: {str(e)[:40]}")
+
     # ── 조건 판정 (종가 기준) → 충족분만 시장가 주문 ──
     moc = [x for x in pos if biz_days(x["date"], today) >= HOLD_DAYS]
     orders = []
@@ -621,17 +633,6 @@ def main():
             if px >= sp:
                 orders.append(("SELL", x["qty"],
                                f"T{i+1} 진입 {x['entry']:,.2f} → 기준 {sp:,.2f} 충족"))
-
-    # ── LIVE: 실제 잔고와 동기화 (수동 개입 반영) ──
-    if MODE == "LIVE" and KIS_KEY and KIS_SECRET:
-        try:
-            pos, msg = sync_from_broker(pos)
-            if msg:
-                lines.append(f"🔄 <b>잔고 동기화</b> — {msg}")
-                st["positions"] = pos
-                st["step"] = len(pos)
-        except Exception as e:
-            lines.append(f"⚠️ 잔고 조회 실패: {str(e)[:40]}")
 
     # ── 자본 · 계약수 계산 (백테와 동일) ──
     equity = st.get("equity", TOTAL_PAID)
@@ -669,7 +670,8 @@ def main():
 
     if step < TIERS and hit and not roll_block and buy_qty > 0:
         sign = "≥" if use_atk else "≤"
-        memo = f"T{len(pos)+1} [{mode_tag}] · 종가 {px:,.2f} {sign} 기준 {thr_show:,.2f}"
+        tag = f" [{mode_tag}]" if ATK_ON else ""
+        memo = f"T{len(pos)+1}{tag} · 종가 {px:,.2f} {sign} 기준 {thr_show:,.2f}"
         if buy_qty < want_buy:
             memo += f" · 증거금 부족 {want_buy}→{buy_qty}계약"
         orders.append(("BUY", buy_qty, memo))
