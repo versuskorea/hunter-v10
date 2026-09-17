@@ -15,5 +15,30 @@
   "step": 0,
   "equity": 30000513.0,
   "last_date": "2026-09-17",
-  "contract": null
+  "contract": null,
+  "cfg": {
+    "buy_pct": 0.3,
+    "sell_pct": 0.3,
+    "hold": 3,
+    "tiers": 3,
+    "per": 2000.0,
+    "lad": "mid",
+    "margin_usd": 4721.0,
+    "fx": 1390.0,
+    "buffer": 30.0,
+    "paid": 2000.0,
+    "icap": 3000.0
+  },
+  "quote": {
+    "px": 29661.0,
+    "p1": 29269.5,
+    "p2": 29277.75,
+    "date": "2026-09-17",
+    "src": "MNQZ26.CME 16:00ET",
+    "buy_thr": 29181.5,
+    "contract": "MNQZ26",
+    "total_q": 3,
+    "want": 3,
+    "afford": 3
+  }
 }
