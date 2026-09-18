@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎯 MNQ 주문</title>
+<meta http-equiv="Cache-Control" content="no-store, must-revalidate">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#08080a;--card:#111118;--card2:#1a1a1f;--border:#222233;--accent:#3b82f6;
+      --green:#22c55e;--red:#ef4444;--text:#f0f0f0;--dim:#666;--gold:#fbbf24;--purple:#a78bfa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
+     padding:12px;max-width:600px;margin:0 auto}
+.top{display:flex;align-items:center;gap:8px;padding:6px 0}
+.top h1{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px}
+.top h1 span{color:var(--accent)}
+.status{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;
+        font-weight:700;padding:5px 9px;border-radius:20px;background:var(--card);color:var(--dim)}
+.status.live{color:var(--green);border:1px solid var(--green)}
+.status.err{color:var(--gold);border:1px solid var(--gold)}
+.asof{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);margin:4px 2px 12px}
+
+.todo{border-radius:15px;padding:16px;margin-bottom:12px}
+.todo .lb{font-size:10px;letter-spacing:1.5px;opacity:.75;font-weight:700}
+.todo .big{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800;
+           line-height:1.25;margin-top:5px}
+.todo .sub{font-size:12px;font-weight:600;opacity:.9;margin-top:6px;line-height:1.5}
+.t-buy{background:linear-gradient(135deg,#15803d,#22c55e);color:#fff}
+.t-sell{background:linear-gradient(135deg,#6d28d9,#a78bfa);color:#fff}
+.t-both{background:linear-gradient(135deg,#0369a1,#3b82f6);color:#fff}
+.t-none{background:var(--card);color:var(--dim);border:1px solid var(--border)}
+
+.box{background:var(--card);border:1px solid var(--border);border-radius:14px;
+     overflow:hidden;margin-bottom:12px}
+.bhead{background:var(--card2);padding:9px 14px;font-family:'JetBrains Mono',monospace;
+       font-size:10px;color:var(--dim);letter-spacing:1.2px;font-weight:700;display:flex}
+.bhead .r{margin-left:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{font-size:10px;color:var(--dim);font-weight:700;text-align:left;
+        padding:6px;border-bottom:1px solid var(--border)}
+.tbl td{padding:9px 6px}
+.tbl .sym{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim)}
+.tbl .px{font-family:'JetBrains Mono',monospace;font-weight:700;text-align:right}
+.tbl .qty{font-family:'JetBrains Mono',monospace;text-align:right}
+.tag{font-size:10px;font-weight:700;padding:3px 7px;border-radius:5px}
+.t-b{background:rgba(34,197,94,.15);color:var(--green)}
+.t-s{background:rgba(167,139,250,.15);color:var(--purple)}
+.t-m{background:rgba(251,191,36,.15);color:var(--gold)}
+.memo{font-size:11px;color:var(--dim);padding:0 6px 9px!important}
+.note{font-size:10px;color:var(--dim);padding:8px 14px;border-top:1px solid var(--border);line-height:1.5}
+.empty{padding:20px;text-align:center;color:var(--dim);font-size:12px}
+
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.c{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:11px}
+.c .l{font-size:9px;color:var(--dim);letter-spacing:1px;font-weight:700}
+.c .v{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:800;margin-top:3px}
+.c .s{font-size:10px;margin-top:2px;color:var(--dim)}
+.up{color:var(--green)}.down{color:var(--red)}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>🎯 MNQ <span>주문</span></h1>
+  <div class="status" id="st">로딩</div>
+</div>
+<div class="asof" id="asof">—</div>
+
+<div id="todo" class="todo t-none">
+  <div class="lb">오늘 할 일</div>
+  <div class="big">불러오는 중…</div>
+</div>
+
+<div class="cards">
+  <div class="c"><div class="l">종가 16:00ET</div><div class="v" id="cPx">—</div><div class="s" id="cChg">—</div></div>
+  <div class="c"><div class="l">매수 기준가</div><div class="v" id="cThr">—</div><div class="s" id="cLow">—</div></div>
+  <div class="c"><div class="l">보유</div><div class="v" id="cPos">—</div><div class="s" id="cQty">—</div></div>
+</div>
+
+<div class="box">
+  <div class="bhead">주문표 <span class="r" id="ordCnt">—</span></div>
+  <div id="ordBody"><div class="empty">불러오는 중…</div></div>
+  <div class="note">LOC = 종가가 주문가 이하(매수)·이상(매도)이면 체결 · 봇이 05:00에 시장가 집행</div>
+</div>
+
+<div class="box">
+  <div class="bhead">보유 포지션 <span class="r" id="posSrc">—</span></div>
+  <div id="posBody"><div class="empty">—</div></div>
+</div>
+
+<div class="box">
+  <div class="bhead">봇 설정</div>
+  <div id="cfgBody"><div class="empty">—</div></div>
+</div>
+
+<script>
+var BOT_URL = 'https://raw.githubusercontent.com/versuskorea/hunter-v10/main/mnq_state.json';
+var API     = 'https://hunter-v10.vercel.app';
+var TICK    = 0.25;
+
+function flr(v){ return Math.floor(v/TICK)*TICK; }
+function cel(v){ return Math.ceil(v/TICK)*TICK; }
+function fmt(v,d){
+  if(d===undefined) d=2;
+  if(v===null||v===undefined||isNaN(v)) return '—';
+  return (+v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+}
+function ymd(offset){
+  var t = new Date(Date.now() + (offset||0)*86400000);
+  return t.toISOString().slice(0,10);
+}
+
+/* 활성 월물 — 3·6·9·12월 */
+function activeContract(){
+  var n = new Date(), y = n.getUTCFullYear(), m = n.getUTCMonth()+1, d = n.getUTCDate();
+  var codes = {3:'H',6:'M',9:'U',12:'Z'};
+  var months = [3,6,9,12];
+  var cm = null;
+  for(var i=0;i<months.length;i++){
+    if(months[i] > m || (months[i] === m && d <= 18)){ cm = months[i]; break; }
+  }
+  var cy = y;
+  if(cm === null){ cm = 3; cy = y+1; }
+  return 'MNQ' + codes[cm] + String(cy).slice(-2);
+}
+
+/* 1분봉에서 매일 16:00 ET 이전 마지막 종가 */
+function closes1600(sym){
+  var url = API + '/api/history?symbol=' + encodeURIComponent(sym)
+          + '&start=' + ymd(-6) + '&end=' + ymd(1)
+          + '&interval=1m&_=' + Date.now();
+  return fetch(url, {cache:'no-store'}).then(function(r){
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(d){
+    if(d.error || !d.bars || !d.bars.length) throw new Error(d.error || 'no 1m bars');
+    var byDay = {};
+    for(var i=0;i<d.bars.length;i++){
+      var b = d.bars[i];
+      if(!b.etTime || b.close == null) continue;
+      var parts = b.etTime.split(':');
+      var mins = (+parts[0])*60 + (+parts[1]);
+      if(mins > 16*60) continue;
+      if(!byDay[b.date] || mins > byDay[b.date][0]) byDay[b.date] = [mins, +b.close];
+    }
+    var keys = Object.keys(byDay).sort();
+    if(keys.length < 3) throw new Error('1분봉 부족 (' + keys.length + '일)');
+    return keys.map(function(k){ return {date:k, close:byDay[k][1], min:byDay[k][0]}; });
+  });
+}
+
+function loadBot(){
+  return fetch(BOT_URL + '?_=' + Date.now(), {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+    .catch(function(e){ console.log('봇 로드 실패', e.message); return null; });
+}
+
+function ladder(total, tiers){
+  var l = [], i;
+  for(i=0;i<tiers;i++) l.push(1);
+  var seq = [];
+  for(i=0;i<tiers;i++) seq.push(i);
+  seq.sort(function(a,b){
+    var da = Math.abs(a-(tiers-1)/2), db = Math.abs(b-(tiers-1)/2);
+    return da - db || a - b;
+  });
+  var e = total - tiers, k = 0;
+  while(e > 0){ l[seq[k % tiers]]++; e--; k++; }
+  return l;
+}
+
+function render(){
+  var stEl = document.getElementById('st');
+
+  loadBot().then(function(BOT){
+    var sym = (BOT && BOT.quote && BOT.quote.contract) || activeContract();
+
+    return closes1600(sym + '.CME')
+      .then(function(bars){ return {BOT:BOT, sym:sym, bars:bars, err:null}; })
+      .catch(function(e){ return {BOT:BOT, sym:sym, bars:null, err:e.message}; });
+
+  }).then(function(ctx){
+    var BOT = ctx.BOT, sym = ctx.sym, bars = ctx.bars;
+    var BQ  = (BOT && BOT.quote) || null;
+    var cfg = (BOT && BOT.cfg) || {};
+    var buyPct  = cfg.buy_pct  != null ? cfg.buy_pct  : 0.3;
+    var sellPct = cfg.sell_pct != null ? cfg.sell_pct : 0.3;
+    var hold    = cfg.hold     != null ? cfg.hold     : 3;
+    var tiers   = cfg.tiers    != null ? cfg.tiers    : 3;
+
+    var px, p1, p2, thr, src, asof;
+
+    if(BQ && BQ.buy_thr != null){
+      px = BQ.px; p1 = BQ.p1; p2 = BQ.p2; thr = BQ.buy_thr;
+      src = BQ.src || '봇'; asof = BQ.date;
+      stEl.textContent = '봇 연동'; stEl.className = 'status live';
+    }else if(bars && bars.length >= 3){
+      var n = bars.length;
+      px = bars[n-1].close; p1 = bars[n-2].close; p2 = bars[n-3].close;
+      thr = flr(Math.min(p1,p2) * (1 - buyPct/100));
+      src = sym + '.CME 1분봉'; asof = bars[n-1].date;
+      stEl.textContent = '직접 계산'; stEl.className = 'status err';
+    }else{
+      stEl.textContent = '오류'; stEl.className = 'status err';
+      document.getElementById('asof').textContent = ctx.err || '데이터 없음';
+      document.getElementById('todo').innerHTML =
+        '<div class="lb">오류</div><div class="big">데이터 없음</div>' +
+        '<div class="sub">' + (ctx.err || '') + '</div>';
+      return;
+    }
+
+    document.getElementById('asof').textContent = sym + ' · ' + src + ' · ' + asof;
+
+    document.getElementById('cPx').textContent = fmt(px);
+    var chg = p1 ? (px/p1 - 1)*100 : 0;
+    var chgEl = document.getElementById('cChg');
+    chgEl.textContent = (chg>0?'+':'') + chg.toFixed(2) + '%';
+    chgEl.className = 's ' + (chg>0?'up':chg<0?'down':'');
+    document.getElementById('cThr').textContent = fmt(thr);
+    document.getElementById('cLow').textContent = '최근2일 저가 ' + fmt(Math.min(p1,p2),0);
+
+    var pos = (BOT && BOT.positions && BOT.positions.length) ? BOT.positions : [];
+    var held = 0;
+    for(var i=0;i<pos.length;i++) held += (pos[i].qty || 1);
+    document.getElementById('cPos').textContent = pos.length + ' / ' + tiers;
+    document.getElementById('cQty').textContent = held + '계약';
+
+    var totalQ = (BQ && BQ.total_q) || tiers;
+    var lad = ladder(totalQ, tiers);
+    var today = ymd(0);
+    var orders = [];
+
+    if(pos.length < tiers){
+      orders.push({ t:'매수', cls:'t-b', px:thr, qty:lad[pos.length] || 1,
+        memo:'T' + (pos.length+1) + ' · 최근2일 저가 −' + buyPct + '% · '
+             + (px <= thr ? '✅ 충족' : '대기') });
+    }
+    for(i=0;i<pos.length;i++){
+      var p = pos[i];
+      var dd = Math.max(0, Math.round((new Date(today) - new Date(p.date))/86400000));
+      var moc = dd >= hold;
+      orders.push({ t: moc?'MOC':'매도', cls: moc?'t-m':'t-s',
+        px: moc ? null : cel(p.entry*(1+sellPct/100)), qty: p.qty || 1,
+        memo: 'T' + (i+1) + ' · 진입 ' + fmt(p.entry) + ' · D+' + dd + (moc?' · 오늘 청산':'') });
+    }
+
+    document.getElementById('ordCnt').textContent = orders.length + '건';
+    if(orders.length){
+      var rows = '';
+      for(i=0;i<orders.length;i++){
+        var o = orders[i];
+        rows += '<tr><td class="sym">' + sym + '</td>'
+              + '<td><span class="tag ' + o.cls + '">' + o.t + '</span></td>'
+              + '<td style="font-size:11px;color:var(--dim)">' + (o.px==null?'시장가':'LOC') + '</td>'
+              + '<td class="px">' + (o.px==null?'—':fmt(o.px)) + '</td>'
+              + '<td class="qty"><b>' + o.qty + '</b></td></tr>'
+              + '<tr><td class="memo" colspan="5">' + o.memo + '</td></tr>';
+      }
+      document.getElementById('ordBody').innerHTML =
+        '<table class="tbl"><thead><tr><th>종목</th><th>구분</th><th>주문</th>'
+        + '<th style="text-align:right">주문가</th><th style="text-align:right">수량</th></tr></thead>'
+        + '<tbody>' + rows + '</tbody></table>';
+    }else{
+      document.getElementById('ordBody').innerHTML = '<div class="empty">주문 없음</div>';
+    }
+
+    var hasBuy = (px <= thr) && (pos.length < tiers);
+    var hasSell = pos.length > 0;
+    var todo = document.getElementById('todo');
+    if(hasBuy && hasSell){
+      todo.className = 'todo t-both';
+      todo.innerHTML = '<div class="lb">오늘 할 일</div><div class="big">매수 + 매도</div>'
+        + '<div class="sub">매수 ' + fmt(thr) + ' 이하 · 보유 ' + pos.length + '티어</div>';
+    }else if(hasBuy){
+      todo.className = 'todo t-buy';
+      todo.innerHTML = '<div class="lb">오늘 할 일</div><div class="big">매수 ' + fmt(thr) + '</div>'
+        + '<div class="sub">종가 ' + fmt(px) + ' — 조건 충족</div>';
+    }else if(hasSell){
+      todo.className = 'todo t-sell';
+      todo.innerHTML = '<div class="lb">오늘 할 일</div><div class="big">매도 대기</div>'
+        + '<div class="sub">보유 ' + pos.length + '티어 · ' + held + '계약</div>';
+    }else{
+      todo.className = 'todo t-none';
+      todo.innerHTML = '<div class="lb">오늘 할 일</div><div class="big">대기</div>'
+        + '<div class="sub">종가 ' + fmt(px) + ' · 기준가 ' + fmt(thr) + ' 이하면 매수</div>';
+    }
+
+    document.getElementById('posSrc').innerHTML = BOT
+      ? '<span style="color:var(--green)">🤖 봇</span>' : '—';
+    if(pos.length){
+      var prows = '';
+      for(i=0;i<pos.length;i++){
+        var q = pos[i];
+        var d2 = Math.max(0, Math.round((new Date(today) - new Date(q.date))/86400000));
+        prows += '<tr><td>T' + (i+1) + '</td>'
+               + '<td style="font-size:11px;color:var(--dim)">' + q.date + '</td>'
+               + '<td class="px">' + fmt(q.entry) + '</td>'
+               + '<td class="px">' + fmt(cel(q.entry*(1+sellPct/100))) + '</td>'
+               + '<td class="qty">' + (d2>=hold ? '<b style="color:var(--gold)">MOC</b>' : 'D+'+d2) + '</td></tr>';
+      }
+      document.getElementById('posBody').innerHTML =
+        '<table class="tbl"><thead><tr><th>T</th><th>진입일</th>'
+        + '<th style="text-align:right">진입가</th><th style="text-align:right">매도가</th>'
+        + '<th style="text-align:right">D</th></tr></thead><tbody>' + prows + '</tbody></table>';
+    }else{
+      document.getElementById('posBody').innerHTML = '<div class="empty">보유 없음</div>';
+    }
+
+    if(BOT && BOT.cfg){
+      document.getElementById('cfgBody').innerHTML =
+        '<table class="tbl"><tbody>'
+        + '<tr><td style="color:var(--dim);font-size:11px">복리</td><td class="px">' + fmt(cfg.per,0) + '만</td>'
+        + '<td style="color:var(--dim);font-size:11px">기준선</td><td class="px">' + fmt(cfg.icap,0) + '만</td></tr>'
+        + '<tr><td style="color:var(--dim);font-size:11px">매수/매도</td><td class="px">' + buyPct + '/' + sellPct + '%</td>'
+        + '<td style="color:var(--dim);font-size:11px">보유일</td><td class="px">' + hold + '일</td></tr>'
+        + '<tr><td style="color:var(--dim);font-size:11px">총납입</td><td class="px">' + fmt(cfg.paid,0) + '만</td>'
+        + '<td style="color:var(--dim);font-size:11px">티어</td><td class="px">' + tiers + '</td></tr>'
+        + '</tbody></table>';
+    }else{
+      document.getElementById('cfgBody').innerHTML = '<div class="empty">봇 데이터 없음</div>';
+    }
+  }).catch(function(e){
+    stEl.textContent = '오류'; stEl.className = 'status err';
+    document.getElementById('asof').textContent = e.message;
+    console.error(e);
+  });
+}
+
+render();
+setInterval(render, 60000);
+</script>
+</body>
+</html>
