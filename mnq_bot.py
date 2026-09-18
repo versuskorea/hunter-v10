@@ -101,6 +101,10 @@ PAUSE_BUY = _flag("PAUSE_BUY", "0")   # 신규 매수만 중단 (보유분은 �
 PAUSE_ALL = _flag("PAUSE_ALL", "0")   # 전체 중단 (알림만)
 CLOSE_ALL = _flag("CLOSE_ALL", "0")   # 보유분 전량 청산
 FORCE_RUN = _flag("FORCE_RUN", "0")   # 장 마감 전/중복이어도 강제 실행 (테스트용)
+WAIT_CLOSE = _flag("WAIT_CLOSE", "1")           # 16:00 ET 마감까지 대기 후 즉시 판정
+WAIT_MAX_SEC = int(float(os.getenv("WAIT_MAX_SEC", "420")))   # 최대 대기(초)
+ORDER_DEADLINE = int(float(os.getenv("ORDER_DEADLINE", "5")))  # 16:00 이후 N분 넘으면 주문 취소
+MIN_GAP    = os.getenv("MIN_GAP", "1").strip() or "1"        # 한투 분봉 간격(분)
 
 def us_dst(d=None):
     """미국 서머타임 여부 — 3월 둘째 일요일 ~ 11월 첫째 일요일"""
@@ -170,6 +174,7 @@ def fetch_1600(symbol="NQ=F", days=12):
         day = b["date"]
         if day not in by_day or mins > by_day[day][0]:
             by_day[day] = (mins, float(b["close"]))
+    globals()["_LAST_BAR_MIN"] = by_day[max(by_day)][0] if by_day else None
     out = [(k, v[1]) for k, v in sorted(by_day.items())]
     if len(out) < 4:
         raise RuntimeError("5분봉 부족")
@@ -233,13 +238,16 @@ def get_prices(contract=None):
     errs = []
     # 0-0) 한투 시세 — 실제 거래 상품과 동일 (LIVE 키가 있을 때만)
     if USE_KIS_QUOTE and KIS_KEY and KIS_SECRET:
-        try:
-            sym = contract or active_contract()
-            b = kis_daily(sym)
-            if len(b) >= 3 and b[-1][1] > 5000:
-                return b[-1][1], b[-2][1], b[-3][1], b[-1][0], f"{sym}/한투", [x[1] for x in b]
-        except Exception as e:
-            errs.append(f"KIS: {str(e)[:200]}")
+        sym = contract or active_contract()
+        # 16:00 ET(한국 05:00) 종가 — 한투 5분봉
+        if CLOSE_1600:
+            try:
+                b = kis_min_1600(sym)
+                if len(b) >= 3 and b[-1][1] > 5000:
+                    return b[-1][1], b[-2][1], b[-3][1], b[-1][0], f"{sym}/한투 16:00ET", [x[1] for x in b]
+            except Exception as e:
+                errs.append(f"KIS분봉: {str(e)[:150]}")
+        # 한투 일봉은 17:00 ET 정산가라 05:00 기준과 어긋남 → 폴백에서 제외
 
     # 0-A) 거래 월물과 동일한 심볼 우선 (롤오버 갭 원천 차단)
     if USE_CONTRACT_SYM:
@@ -406,6 +414,45 @@ def kis_daily(symbol=None, days=30):
         raise RuntimeError(f"봉 부족 ({len(out)})")
     return out
 
+def kis_min_1600(symbol=None, days=12):
+    """한투 5분봉에서 매일 16:00 ET 이전 마지막 종가 추출 (한국 05:00 기준)
+       tr_id=HHDFC55020400 · QRY_GAP=1(분) — 16:00에 가장 가까운 값"""
+    sym = symbol or active_contract()
+    end = et_now().strftime("%Y%m%d")
+    r = _kis_get("/uapi/overseas-futureoption/v1/quotations/inquire-time-futurechartprice",
+                 "HHDFC55020400", {
+        "SRS_CD": sym, "EXCH_CD": "CME",
+        "START_DATE_TIME": "", "CLOSE_DATE_TIME": end,
+        "QRY_TP": "Q", "QRY_CNT": "400", "QRY_GAP": MIN_GAP, "INDEX_KEY": "",
+    })
+    if r.get("rt_cd") != "0":
+        raise RuntimeError(r.get("msg1", "분봉 조회 실패"))
+    rows = r.get("output2") or []
+    by_day, last_min = {}, None
+    for x in rows:
+        d = str(x.get("data_date") or x.get("data_dt") or "")
+        t = str(x.get("data_time") or x.get("data_tm") or "")
+        c = x.get("data_close") or x.get("last") or x.get("ovrs_nmix_prpr")
+        if not (d and t and c):
+            continue
+        t = t.zfill(6)
+        try:
+            hh, mm = int(t[:2]), int(t[2:4])
+            px = float(c)
+        except ValueError:
+            continue
+        mins = hh*60 + mm
+        if mins > 16*60:                      # 16:00 이후 제외
+            continue
+        key = f"{d[:4]}-{d[4:6]}-{d[6:8]}"
+        if key not in by_day or mins > by_day[key][0]:
+            by_day[key] = (mins, px)
+    if len(by_day) < 3:
+        raise RuntimeError(f"분봉 부족 ({len(by_day)}일)")
+    newest = max(by_day)
+    globals()["_LAST_BAR_MIN"] = by_day[newest][0]
+    return [(k, v[1]) for k, v in sorted(by_day.items())][-days:]
+
 def kis_positions():
     """미결제 내역 조회  tr_id=OTFM1412R"""
     return _kis_get("/uapi/overseas-futureoption/v1/trading/inquire-unpd", "OTFM1412R", {
@@ -559,6 +606,16 @@ def main():
     _et = et_now()
     log(f"MODE={MODE} FORCE_RUN={FORCE_RUN} PAUSE_BUY={PAUSE_BUY} "
         f"KIS={'Y' if (KIS_KEY and KIS_SECRET) else 'N'} ET={_et.strftime('%m-%d %H:%M')}")
+    # ── 16:00 ET 마감까지 대기 ──
+    # 04:55 KST 등 마감 직전에 시작된 실행은 정각까지 기다렸다가 바로 판정한다.
+    if WAIT_CLOSE and not FORCE_RUN:
+        _secs = (16*3600) - (_et.hour*3600 + _et.minute*60 + _et.second)
+        if 0 < _secs <= WAIT_MAX_SEC:
+            log(f"16:00 ET 까지 {_secs}초 대기 (현재 {_et.strftime('%H:%M:%S')} ET)")
+            time.sleep(_secs + 8)          # 16:00 봉이 닫히도록 8초 여유
+            _et = et_now()
+            log(f"대기 완료 — 현재 {_et.strftime('%H:%M:%S')} ET")
+
     INTRADAY = _et.hour < 16          # 미국 장 마감 전 = 미리보기
     if INTRADAY and not FORCE_RUN:
         log(f"장 마감 전 ({_et.strftime('%H:%M')} ET) — 실행 스킵")
@@ -577,6 +634,15 @@ def main():
     px, p1, p2, today, src, closes = get_prices(CONTRACT)
     if len(closes) >= 3 and (px == p1 or p1 == p2):
         log(f"⚠️ 종가 중복 의심: {px}/{p1}/{p2}")
+
+    # ── 16:00 봉 완성 검사 (야후 5분봉 경로) ──
+    _lbm = globals().get("_LAST_BAR_MIN")
+    if not FORCE_RUN and "16:00ET" in src and _lbm is not None and _lbm < 16*60:
+        _hh, _mm = divmod(_lbm, 60)
+        msg = (f"⏳ <b>종가 미확정</b> — 마지막 봉 {_hh:02d}:{_mm:02d} ET "
+               f"(16:00 미완성) · 다음 실행 대기")
+        log(msg.replace("<b>","").replace("</b>",""))
+        return
 
     # ── 시세 신선도 검사 ──
     # 마감 직후 실행인데 데이터 제공처가 아직 당일 일봉을 안 올렸으면
@@ -754,6 +820,16 @@ def main():
     # 매달 1일 납입 리마인더
     if datetime.now(timezone(timedelta(hours=9))).day <= 3:
         lines.append(f"\n💰 <i>이번 달 납입했으면 TOTAL_PAID 갱신 (현재 {TOTAL_PAID/1e4:,.0f}만)</i>")
+
+    # ── 주문 마감 시각 검사 ──
+    # 종가 직후에만 체결해야 백테와 맞는다. 지연되면 주문을 포기한다.
+    _now = et_now()
+    _late = (_now.hour*60 + _now.minute) - 16*60
+    if orders and not FORCE_RUN and _late > ORDER_DEADLINE:
+        lines.append(f"\n⛔ <b>주문 취소</b> — 16:{_late:02d} ET 경과 "
+                     f"(마감 {ORDER_DEADLINE}분 초과) · 종가 괴리로 스킵")
+        notify("\n".join(lines))
+        return
 
     notify("\n".join(lines))
 
