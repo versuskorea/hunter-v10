@@ -233,7 +233,17 @@ function render(){
       return;
     }
 
-    document.getElementById('asof').textContent = sym + ' · ' + src + ' · ' + asof;
+    // 다음 판정일 = 다음 영업일 (한국 기준 미국장 마감 다음날 새벽)
+    var nd = new Date(asof + 'T00:00:00Z');
+    do { nd.setUTCDate(nd.getUTCDate()+1); } while (nd.getUTCDay()===0 || nd.getUTCDay()===6);
+    var wk = ['일','월','화','수','목','금','토'];
+    var ndStr = (nd.getUTCMonth()+1) + '/' + nd.getUTCDate() + '(' + wk[nd.getUTCDay()] + ')';
+    var kd = new Date(nd.getTime() + 86400000);   // 한국은 하루 뒤 새벽
+    var kdStr = (kd.getUTCMonth()+1) + '/' + kd.getUTCDate() + '(' + wk[kd.getUTCDay()] + ') 05:00';
+
+    document.getElementById('asof').innerHTML =
+      sym + ' · ' + src + '<br>'
+      + '<span style="color:var(--gold)">다음 판정 ' + ndStr + ' 미국장 → 한국 ' + kdStr + '</span>';
 
     document.getElementById('cPx').textContent = fmt(px);
     var chg = p1 ? (px/p1 - 1)*100 : 0;
@@ -306,7 +316,7 @@ function render(){
     }else{
       todo.className = 'todo t-none';
       todo.innerHTML = '<div class="lb">'
-        + (sessionDone ? '다음 거래일 매수 기준가' : '오늘 매수 기준가') + '</div>'
+        + (sessionDone ? ndStr + ' 미국장 매수 기준가' : '오늘 매수 기준가') + '</div>'
         + '<div class="big" style="color:var(--green)">' + fmt(thr) + ' 이하</div>'
         + '<div class="sub">'
         + (sessionDone ? '직전 종가 ' + fmt(px) : '종가 ' + fmt(px) + ' · 대기')
