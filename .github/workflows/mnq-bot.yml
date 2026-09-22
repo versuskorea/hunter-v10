@@ -41,19 +41,21 @@ jobs:
           QTY:         ${{ vars.QTY || '1' }}
           TIERS:       ${{ vars.TIERS || '3' }}
           HOLD_DAYS:   ${{ vars.HOLD_DAYS || '3' }}
-          BUY_PCT:     ${{ vars.BUY_PCT || '0.5' }}
+          BUY_PCT:     ${{ vars.BUY_PCT || '0.3' }}
           SELL_PCT:    ${{ vars.SELL_PCT || '0.5' }}
-          MARGIN_USD:  ${{ vars.MARGIN_USD || '4721' }}
-          FX:          ${{ vars.FX || '1390' }}
-          TOTAL_PAID:  ${{ vars.TOTAL_PAID || '3000' }}
-          INITIAL_CAP: ${{ vars.INITIAL_CAP || '3000' }}
-          PER_CONTRACT: ${{ vars.PER_CONTRACT || '2000' }}
+          MARGIN_USD:  ${{ vars.MARGIN_USD || '3138' }}
+          FX:          ${{ vars.FX || '1350' }}
+          TOTAL_PAID:  ${{ vars.TOTAL_PAID || '4500' }}
+          INITIAL_CAP: ${{ vars.INITIAL_CAP || '4500' }}
+          PER_CONTRACT: ${{ vars.PER_CONTRACT || '1000' }}
           BUFFER:      ${{ vars.BUFFER || '30' }}
           LAD_ORDER:   ${{ vars.LAD_ORDER || 'mid' }}
-          ATK_ON:      ${{ vars.ATK_ON || '0' }}
+          ATK_ON:      ${{ vars.ATK_ON || '1' }}
           ATK_MA:      ${{ vars.ATK_MA || '20' }}
           ATK_BUY:     ${{ vars.ATK_BUY || '0.5' }}
-          ATK_SELL:    ${{ vars.ATK_SELL || '1.0' }}
+          ATK_SELL:    ${{ vars.ATK_SELL || '0.5' }}
+          FOMO_DAYS:   ${{ vars.FOMO_DAYS || '4' }}
+          FOMO_MULT:   ${{ vars.FOMO_MULT || '2.0' }}
           HUNTER_API:  ${{ vars.HUNTER_API || 'https://hunter-v10.vercel.app' }}
           CLOSE_1600:  ${{ vars.CLOSE_1600 || '1' }}
           DATA_SYMBOL: ${{ vars.DATA_SYMBOL || '^NDX' }}
