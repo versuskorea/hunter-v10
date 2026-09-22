@@ -1,18 +1,11 @@
 {
-  "positions": [
-    {
-      "entry": 30893.5,
-      "date": "2026-09-22",
-      "qty": 1,
-      "m": "atk"
-    }
-  ],
+  "positions": [],
   "history": [],
   "realized": 0.0,
-  "step": 1,
+  "step": 0,
   "equity": 30000000,
-  "last_date": "",
-  "contract": "MNQZ26",
+  "last_date": "2026-09-22",
+  "contract": null,
   "cfg": {
     "buy_pct": 0.3,
     "sell_pct": 0.3,
@@ -33,12 +26,12 @@
     "fomo_mult": 2.0
   },
   "quote": {
-    "px": 30783.25,
-    "p1": 29915.5,
-    "p2": 29744.75,
-    "date": "2026-09-21",
+    "px": 31030.5,
+    "p1": 30783.25,
+    "p2": 29915.5,
+    "date": "2026-09-22",
     "src": "MNQZ26.CME 16:00ET",
-    "buy_thr": 29655.5,
+    "buy_thr": 29825.75,
     "contract": "MNQZ26",
     "total_q": 3,
     "want": 3,
