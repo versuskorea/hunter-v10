@@ -1,10 +1,17 @@
 {
-  "positions": [],
+  "positions": [
+    {
+      "entry": 30783.25,
+      "date": "2026-09-22",
+      "qty": 1,
+      "m": "atk"
+    }
+  ],
   "history": [],
   "realized": 0.0,
-  "step": 0,
+  "step": 1,
   "equity": 30000000,
-  "last_date": "2026-09-21",
+  "last_date": "",
   "contract": null,
   "cfg": {
     "buy_pct": 0.3,
