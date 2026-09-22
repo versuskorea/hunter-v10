@@ -198,6 +198,12 @@ function render(){
     var tiers   = cfg.tiers    != null ? cfg.tiers    : 3;
 
     var px, p1, p2, thr, src, asof;
+    // 봇이 저장한 설정을 읽는다 (없으면 기본값)
+    var ATK_ON    = cfg.atk_on    !== undefined ? !!cfg.atk_on   : true;
+    var ATK_BUY   = cfg.atk_buy   !== undefined ? +cfg.atk_buy   : 0.5;
+    var FOMO_DAYS = cfg.fomo_days !== undefined ? +cfg.fomo_days : 4;
+    var FOMO_MULT = cfg.fomo_mult !== undefined ? +cfg.fomo_mult : 2;
+    var isAtk = false, atkThr = null, fomoHot = false, fomoRun = 0;
 
     // 선물 세션 종료(17:00 ET = 한국 06:00) 이후면 당일 종가를 기준가 계산에 포함.
     // 그 전에는 오늘 쓸 기준가(직전 2일 기준)를 그대로 보여준다.
@@ -222,6 +228,29 @@ function render(){
       }
       thr = flr(Math.min(p1,p2) * (1 - buyPct/100));
       asof = bars[n-1].date;
+      // 공격모드: p1이 MA20 위면 T1은 상승 돌파로 매수
+      if(ATK_ON && bars.length >= 21){
+        var base = sessionDone ? n-1 : n-2;
+        var sma = 0, cnt = 0;
+        for(var k = base-19; k <= base; k++){ if(bars[k]) { sma += bars[k].close; cnt++; } }
+        if(cnt === 20){
+          sma /= 20;
+          if(p1 > sma){
+            isAtk = true;
+            atkThr = Math.ceil(p1 * (1 + ATK_BUY/100) / 0.25) * 0.25;
+            // 포모: 전일까지 N일 연속 상승
+            if(FOMO_DAYS > 0){
+              var run = 0;
+              for(var f = 0; f < FOMO_DAYS; f++){
+                if(bars[base-f] && bars[base-f-1] && bars[base-f].close > bars[base-f-1].close) run++;
+                else break;
+              }
+              fomoRun = run;
+              fomoHot = run >= FOMO_DAYS;
+            }
+          }
+        }
+      }
       stEl.textContent = sessionDone ? '다음 기준' : '직접 계산';
       stEl.className = 'status ' + (sessionDone ? 'live' : 'err');
     }else{
@@ -250,10 +279,13 @@ function render(){
     var chgEl = document.getElementById('cChg');
     chgEl.textContent = (chg>0?'+':'') + chg.toFixed(2) + '%';
     chgEl.className = 's ' + (chg>0?'up':chg<0?'down':'');
-    document.getElementById('cThr').textContent = fmt(thr);
-    document.getElementById('cLow').textContent = '최근2일 저가 ' + fmt(Math.min(p1,p2),0);
-
     var pos = (BOT && BOT.positions && BOT.positions.length) ? BOT.positions : [];
+    var _t1atk = isAtk && pos.length === 0;
+    document.getElementById('cThr').textContent = fmt(_t1atk ? atkThr : thr);
+    document.getElementById('cLow').textContent = _t1atk
+      ? ('전일 ' + fmt(p1,0) + ' × +' + ATK_BUY + '% [공격]')
+      : ('최근2일 저가 ' + fmt(Math.min(p1,p2),0));
+
     var held = 0;
     for(var i=0;i<pos.length;i++) held += (pos[i].qty || 1);
     document.getElementById('cPos').textContent = pos.length + ' / ' + tiers;
@@ -298,16 +330,21 @@ function render(){
       document.getElementById('ordBody').innerHTML = '<div class="empty">주문 없음</div>';
     }
 
-    var hasBuy = (px <= thr) && (pos.length < tiers);
+    // T1 자리가 비어 있고 공격모드면 T1은 상승 돌파 조건
+    var t1Atk = isAtk && pos.length === 0;
+    var showThr = t1Atk ? atkThr : thr;
+    var hasBuy = (t1Atk ? (px >= atkThr) : (px <= thr)) && (pos.length < tiers);
+    var sign = t1Atk ? '이상' : '이하';
+    var modeTag = t1Atk ? (fomoHot ? ' 🔥공격×' + FOMO_MULT : ' 공격') : '';
     var hasSell = pos.length > 0;
     var todo = document.getElementById('todo');
     if(hasBuy && hasSell){
       todo.className = 'todo t-both';
       todo.innerHTML = '<div class="lb">오늘 할 일</div><div class="big">매수 + 매도</div>'
-        + '<div class="sub">매수 ' + fmt(thr) + ' 이하 · 보유 ' + pos.length + '티어</div>';
+        + '<div class="sub">매수 ' + fmt(showThr) + ' ' + sign + modeTag + ' · 보유 ' + pos.length + '티어</div>';
     }else if(hasBuy){
       todo.className = 'todo t-buy';
-      todo.innerHTML = '<div class="lb">오늘 할 일</div><div class="big">매수 ' + fmt(thr) + '</div>'
+      todo.innerHTML = '<div class="lb">오늘 할 일</div><div class="big">매수 ' + fmt(showThr) + modeTag + '</div>'
         + '<div class="sub">종가 ' + fmt(px) + ' — 조건 충족</div>';
     }else if(hasSell){
       todo.className = 'todo t-sell';
@@ -317,7 +354,9 @@ function render(){
       todo.className = 'todo t-none';
       todo.innerHTML = '<div class="lb">'
         + (sessionDone ? ndStr + ' 미국장 매수 기준가' : '오늘 매수 기준가') + '</div>'
-        + '<div class="big" style="color:var(--green)">' + fmt(thr) + ' 이하</div>'
+        + '<div class="big" style="color:var(--green)">' + fmt(showThr) + ' ' + sign + '</div>'
+        + (t1Atk ? '<div class="sub" style="color:var(--gold)">📈 MA20 위 · T1 공격모드'
+                   + (fomoHot ? ' · 🔥 포모 ' + fomoRun + '일연속 ×' + FOMO_MULT : '') + '</div>' : '')
         + '<div class="sub">'
         + (sessionDone ? '직전 종가 ' + fmt(px) : '종가 ' + fmt(px) + ' · 대기')
         + '</div>';
