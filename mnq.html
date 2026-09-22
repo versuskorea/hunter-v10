@@ -31,13 +31,17 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 .t-buy{background:linear-gradient(135deg,#15803d,#22c55e);color:#fff}
 .t-sell{background:linear-gradient(135deg,#6d28d9,#a78bfa);color:#fff}
 .t-both{background:linear-gradient(135deg,#0369a1,#3b82f6);color:#fff}
-.t-none{background:var(--card);color:var(--dim);border:1px solid var(--border)}
-.todo .trow{display:flex;align-items:center;gap:7px;margin-top:9px}
-.todo .trow .tl{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700}
+.t-none{background:linear-gradient(135deg,#171720,#20202c);color:var(--text);
+        border:1px solid #30304a}
+.todo .trow{display:flex;align-items:center;gap:8px;margin-top:7px;
+            padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05)}
+.todo .trow .tl{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700}
 .todo .trow .tr{margin-left:auto;font-family:'JetBrains Mono',monospace;
-                font-size:18px;font-weight:800;letter-spacing:-.3px}
-.todo .trow.off{opacity:.6}
-.todo .trow .hit{font-size:11px;font-weight:800}
+                font-size:19px;font-weight:800;letter-spacing:-.3px;color:#fff}
+.todo .trow.on{background:rgba(255,255,255,.14);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
+.todo .trow .hit{font-size:12px;font-weight:800}
+.todo .sub{color:inherit}
+.t-none .todo-sub,.t-none .sub{opacity:.72}
 .mtag{font-size:9px;font-weight:800;letter-spacing:.5px;padding:2px 6px;border-radius:5px}
 .mtag.atk{color:#ffe27a;background:rgba(251,191,36,.18);
           text-shadow:0 0 5px rgba(251,191,36,.95),0 0 13px rgba(251,191,36,.6);
@@ -59,9 +63,9 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 .tbl .px{font-family:'JetBrains Mono',monospace;font-weight:700;text-align:right}
 .tbl .qty{font-family:'JetBrains Mono',monospace;text-align:right}
 .tag{font-size:10px;font-weight:700;padding:3px 7px;border-radius:5px}
-.t-b{background:rgba(34,197,94,.15);color:var(--green)}
-.t-s{background:rgba(167,139,250,.15);color:var(--purple)}
-.t-m{background:rgba(251,191,36,.15);color:var(--gold)}
+.t-b{background:rgba(34,197,94,.22);color:#4ade80}
+.t-s{background:rgba(167,139,250,.24);color:#c4b5fd}
+.t-m{background:rgba(251,191,36,.24);color:#fcd34d}
 .memo{font-size:11px;color:var(--dim);padding:0 6px 9px!important}
 .note{font-size:10px;color:var(--dim);padding:8px 14px;border-top:1px solid var(--border);line-height:1.5}
 .empty{padding:20px;text-align:center;color:var(--dim);font-size:12px}
@@ -127,6 +131,14 @@ function fmt(v,d){
   if(v===null||v===undefined||isNaN(v)) return '—';
   return (+v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
 }
+  // 봇의 biz_days와 동일 — 주말 제외 거래일 수
+  function bizDays(d1, d2){
+    var a = new Date(d1 + 'T00:00:00'), b = new Date(d2 + 'T00:00:00'), n = 0;
+    if(isNaN(a) || isNaN(b)) return 0;
+    while(a < b){ a.setDate(a.getDate() + 1);
+      if(a.getDay() > 0 && a.getDay() < 6) n++; }
+    return n;
+  }
 function ymd(offset){
   var t = new Date(Date.now() + (offset||0)*86400000);
   return t.toISOString().slice(0,10);
@@ -324,7 +336,7 @@ function render(){
     }
     for(i=0;i<pos.length;i++){
       var p = pos[i];
-      var dd = Math.max(0, Math.round((new Date(today) - new Date(p.date))/86400000));
+      var dd = bizDays(p.date, today);
       var moc = dd >= hold;
       orders.push({ t: moc?'MOC':'매도', cls: moc?'t-m':'t-s',
         px: moc ? null : cel(p.entry*(1+sellPctOf(p)/100)), qty: p.qty || 1,
@@ -363,7 +375,7 @@ function render(){
              + (isAtkPos ? '공격' : '방어') + '</span>';
     }
     function trow(tagCls, tagTxt, tier, badge, val, hit){
-      return '<div class="trow' + (hit ? '' : ' off') + '">'
+      return '<div class="trow' + (hit ? ' on' : '') + '">'
         + '<span class="tl"><span class="tag ' + tagCls + '">' + tagTxt + '</span>'
         + tier + (badge || '') + '</span>'
         + '<span class="tr">' + val + (hit ? ' <span class="hit">✅</span>' : '') + '</span></div>';
@@ -377,7 +389,7 @@ function render(){
     }
     for(i=0;i<pos.length;i++){
       var pp  = pos[i];
-      var dd2 = Math.max(0, Math.round((new Date(today) - new Date(pp.date))/86400000));
+      var dd2 = bizDays(pp.date, today);
       if(dd2 >= hold){
         mocQty += (pp.qty || 1);
         rows += trow('t-m', 'MOC', 'T' + (i+1), mtag(pp.m === 'atk'), '시장가', true);
@@ -409,7 +421,7 @@ function render(){
       var prows = '';
       for(i=0;i<pos.length;i++){
         var q = pos[i];
-        var d2 = Math.max(0, Math.round((new Date(today) - new Date(q.date))/86400000));
+        var d2 = bizDays(q.date, today);
         prows += '<tr><td>T' + (i+1) + '</td>'
                + '<td style="font-size:11px;color:var(--dim)">' + q.date + '</td>'
                + '<td class="px">' + fmt(q.entry)
