@@ -375,6 +375,7 @@ function backtest(P){
   let liqAt=null, bankrupt=null, stopped=null, liqQty=0;
   let limWant=0, limCap=0;
   const buys=[];
+  const cycles=[]; let cyc=null;   // 사이클: 첫 진입 → 전량 청산
   const mmdd={}, mpk={}, mstart={};
   const trades=[], yearly={}, monthly={}, eqCurve=[];
   let ypk=P.cap, ymdd={};
@@ -415,11 +416,17 @@ function backtest(P){
       const pnl = adj*MULT*x.q*FX;
       equity+=pnl;
       trades.push({d:dt[i],pnl,pct:(p/x.e-1)*100,held:i-x.i,q:x.q,reason:rz,entry:x.e,exit:p});
+      if(cyc){ cyc.exits.push(rz); cyc.pnl+=pnl; }
       monthly[ym]=(monthly[ym]||0)+pnl;
       yearly[yy]=(yearly[yy]||0)+pnl;
     }
     if(!keep.length) step=0;
     pos=keep;
+    if(cyc && !pos.length){
+      cyc.end=dt[i];
+      cyc.last=cyc.exits.length?cyc.exits[cyc.exits.length-1]:'';
+      cycles.push(cyc); cyc=null;
+    }
 
     // 복리 배수
     if(P.per>0 && !pos.length){
@@ -487,6 +494,9 @@ function backtest(P){
         }
         if(useQ>0){
           pos.push({e:p+P.slip,i,q:useQ,m:atkTier?'atk':'def'}); step++;
+          if(!cyc) cyc={start:dt[i], maxTier:0, t1:(atkTier?'atk':'def'), fomo:!!fomoHit,
+                        exits:[], pnl:0, qty:0};
+          cyc.maxTier=Math.max(cyc.maxTier, step); cyc.qty+=useQ;
           buys.push({d:dt[i], px:p+P.slip, q:useQ, tier:step, m:(atkTier?(fomoHit?'공격🔥':'공격'):'방어'), held:pos.reduce((a,x)=>a+x.q,0)});
         }
       }
@@ -516,6 +526,10 @@ function backtest(P){
       }
       pos = pos.filter(x=>x.q>0);
       step = pos.length;
+      if(cyc){ cyc.exits.push('청산'); cyc.liq=true; }
+      if(cyc && !pos.length){
+        cyc.end=dt[i]; cyc.last='청산'; cycles.push(cyc); cyc=null;
+      }
       liq++;
       if(!liqAt) liqAt=dt[i];
       const un2 = pos.reduce((a,x)=>a+(p-x.e)*MULT*x.q*FX,0);
@@ -533,13 +547,14 @@ function backtest(P){
     mstart[ym+'_end']=tot;
     eqCurve.push({d:dt[i],v:tot,y:yy});
   }
+  if(cyc){ cyc.end=dt[n-1]; cyc.last='미청산'; cyc.open=true; cycles.push(cyc); }
   const un=pos.reduce((a,x)=>a+(cl[n-1]-x.e)*MULT*x.q*FX,0);
   const final=equity+un;
   const years=(new Date(dt[n-1])-new Date(dt[P.ma]))/(365.25*864e5);
   const wins=trades.filter(t=>t.pnl>0);
   return {final,profit:final-paid,   // 납입 총액 대비 순수익
     cagr:(years>0&&final>0)?(Math.pow(final/P.cap,1/years)-1)*100:(final<=0?-100:0),
-    mdd,wu,liq,skip,paid,trades,buys,yearly,monthly,ymdd,mmdd,mstart,years,qty,eqCurve,maxHeld,wuEquity,minRatio,maxNeed,maxNeedAt,maxNeedQ,startNeed,wuAt,wuQty,liqAt,bankrupt,stopped,liqQty,limWant,limCap,ref:REF,
+    mdd,wu,liq,skip,paid,trades,buys,cycles,yearly,monthly,ymdd,mmdd,mstart,years,qty,eqCurve,maxHeld,wuEquity,minRatio,maxNeed,maxNeedAt,maxNeedQ,startNeed,wuAt,wuQty,liqAt,bankrupt,stopped,liqQty,limWant,limCap,ref:REF,
     wr:trades.length?wins.length/trades.length*100:0,
     d1:dt[P.ma],d2:dt[n-1],nq0:cl[P.ma],nq1:cl[n-1]};
 }
@@ -796,6 +811,53 @@ function render(R,P){
       <td class="${t.pnl>=0?'up':'down'}">${fmt(t.pnl)}</td><td style="font-size:10px;color:var(--dim)">${t.reason}</td></tr>`;
   }
   h+=`</tbody></table></div>`;
+
+  // 사이클 통계 — 최대 몇 티어까지 갔는지, 어떻게 끝났는지
+  if(R.cycles && R.cycles.length){
+    const CY=R.cycles, NT=CY.length;
+    const pc=v=>(v/NT*100).toFixed(1)+'%';
+    const tierMax=Math.max(...CY.map(c=>c.maxTier));
+    let rows='';
+    for(let t=1;t<=tierMax;t++){
+      const g=CY.filter(c=>c.maxTier===t);
+      if(!g.length) continue;
+      const tp=g.filter(c=>c.last==='익절'||c.last==='MA').length;
+      const mo=g.filter(c=>c.last==='MOC').length;
+      const lq=g.filter(c=>c.last==='청산').length;
+      const op=g.filter(c=>c.open).length;
+      const pnl=g.reduce((a,c)=>a+c.pnl,0);
+      const win=g.filter(c=>c.pnl>0).length;
+      rows+=`<tr>
+        <td style="color:var(--accent);font-weight:800">T${t}까지</td>
+        <td><b>${g.length}</b><span style="color:var(--dim);font-size:11px"> · ${pc(g.length)}</span></td>
+        <td style="color:var(--green)">${tp}</td>
+        <td style="color:var(--gold)">${mo}</td>
+        <td style="color:var(--red)">${lq||'-'}${op?' <span style="color:var(--dim)">+'+op+'미청산</span>':''}</td>
+        <td>${(win/g.length*100).toFixed(0)}%</td>
+        <td class="${pnl>=0?'up':'down'}">${fmt(pnl)}</td></tr>`;
+    }
+    const atk=CY.filter(c=>c.t1==='atk'), def=CY.filter(c=>c.t1==='def');
+    const fom=CY.filter(c=>c.fomo);
+    const t1only=CY.filter(c=>c.maxTier===1);
+    const t1tp=t1only.filter(c=>c.last==='익절'||c.last==='MA').length;
+    const avgLen=(CY.reduce((a,c)=>a+c.exits.length,0)/NT).toFixed(1);
+    h+=`<div class="ct">사이클 분석 <span style="color:var(--dim);font-size:11px">
+        첫 진입부터 전량 청산까지 — 총 ${NT}회</span></div>
+      <div class="scroll"><table>
+      <thead><tr><th>도달 티어</th><th>횟수</th><th>익절</th><th>MOC</th><th>강제청산</th><th>승률</th><th>손익</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+      <table style="width:100%;margin-top:8px"><tbody>
+        <tr><td style="color:var(--dim)">T1만으로 끝난 사이클</td>
+            <td><b style="color:var(--accent)">${t1only.length}회</b> (${pc(t1only.length)}) ·
+                익절 ${t1tp} / MOC ${t1only.length-t1tp}</td></tr>
+        <tr><td style="color:var(--dim)">T1 진입 모드</td>
+            <td>공격 <b style="color:var(--gold)">${atk.length}</b> (${pc(atk.length)}) ·
+                방어 <b>${def.length}</b> (${pc(def.length)})</td></tr>
+        <tr><td style="color:var(--dim)">포모 부스트 발동</td>
+            <td><b>${fom.length}회</b> (${pc(fom.length)})${fom.length?` · 손익 <span class="${fom.reduce((a,c)=>a+c.pnl,0)>=0?'up':'down'}">${fmt(fom.reduce((a,c)=>a+c.pnl,0))}</span>`:''}</td></tr>
+        <tr><td style="color:var(--dim)">사이클당 평균 청산 건수</td><td>${avgLen}건</td></tr>
+      </tbody></table>`;
+  }
 
   // 매수 내역
   if(R.buys && R.buys.length){
