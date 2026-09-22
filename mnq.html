@@ -201,6 +201,8 @@ function render(){
     // 봇이 저장한 설정을 읽는다 (없으면 기본값)
     var ATK_ON    = cfg.atk_on    !== undefined ? !!cfg.atk_on   : true;
     var ATK_BUY   = cfg.atk_buy   !== undefined ? +cfg.atk_buy   : 0.5;
+    var ATK_SELL  = cfg.atk_sell  !== undefined ? +cfg.atk_sell  : 0.5;
+    var sellPctOf = function(p){ return (p && p.m === 'atk') ? ATK_SELL : sellPct; };
     var FOMO_DAYS = cfg.fomo_days !== undefined ? +cfg.fomo_days : 4;
     var FOMO_MULT = cfg.fomo_mult !== undefined ? +cfg.fomo_mult : 2;
     var isAtk = false, atkThr = null, fomoHot = false, fomoRun = 0;
@@ -297,16 +299,22 @@ function render(){
     var orders = [];
 
     if(pos.length < tiers){
-      orders.push({ t:'매수', cls:'t-b', px:thr, qty:lad[pos.length] || 1,
-        memo:'T' + (pos.length+1) + ' · 최근2일 저가 −' + buyPct + '% · '
-             + (px <= thr ? '✅ 충족' : '대기') });
+      var _t1b  = isAtk && pos.length === 0;
+      var _thrB = _t1b ? atkThr : thr;
+      var _qtyB = lad[pos.length] || 1;
+      if(_t1b && fomoHot) _qtyB = Math.floor(_qtyB * FOMO_MULT);
+      orders.push({ t:'매수', cls:'t-b', px:_thrB, qty:_qtyB,
+        memo:'T' + (pos.length+1) + ' · '
+             + (_t1b ? ('전일 +' + ATK_BUY + '% [공격]' + (fomoHot ? ' 🔥×' + FOMO_MULT : ''))
+                     : ('최근2일 저가 −' + buyPct + '%'))
+             + ' · ' + ((_t1b ? px >= _thrB : px <= _thrB) ? '✅ 충족' : '대기') });
     }
     for(i=0;i<pos.length;i++){
       var p = pos[i];
       var dd = Math.max(0, Math.round((new Date(today) - new Date(p.date))/86400000));
       var moc = dd >= hold;
       orders.push({ t: moc?'MOC':'매도', cls: moc?'t-m':'t-s',
-        px: moc ? null : cel(p.entry*(1+sellPct/100)), qty: p.qty || 1,
+        px: moc ? null : cel(p.entry*(1+sellPctOf(p)/100)), qty: p.qty || 1,
         memo: 'T' + (i+1) + ' · 진입 ' + fmt(p.entry) + ' · D+' + dd + (moc?' · 오늘 청산':'') });
     }
 
@@ -331,35 +339,80 @@ function render(){
     }
 
     // T1 자리가 비어 있고 공격모드면 T1은 상승 돌파 조건
-    var t1Atk = isAtk && pos.length === 0;
+    var t1Atk   = isAtk && pos.length === 0;
     var showThr = t1Atk ? atkThr : thr;
-    var hasBuy = (t1Atk ? (px >= atkThr) : (px <= thr)) && (pos.length < tiers);
-    var sign = t1Atk ? '이상' : '이하';
+    var sign    = t1Atk ? '이상' : '이하';
     var modeTag = t1Atk ? (fomoHot ? ' 🔥공격×' + FOMO_MULT : ' 공격') : '';
-    var hasSell = pos.length > 0;
+
+    // 대기 중인 주문을 매수·매도 각각 따로 판정
+    var canBuy  = pos.length < tiers;
+    var buyHit  = canBuy && (t1Atk ? (px >= atkThr) : (px <= thr));
+    var mocQty = 0, sellThr = null, sellHit = false;
+    for(i=0;i<pos.length;i++){
+      var pp  = pos[i];
+      var dd2 = Math.max(0, Math.round((new Date(today) - new Date(pp.date))/86400000));
+      if(dd2 >= hold){ mocQty += (pp.qty || 1); continue; }
+      var sp = cel(pp.entry*(1+sellPctOf(pp)/100));
+      if(sellThr === null || sp < sellThr) sellThr = sp;
+      if(px >= sp) sellHit = true;
+    }
+    var canSell = (sellThr !== null);
+    var lbTxt   = (sessionDone ? ndStr + ' 미국장' : '오늘') + ' 할 일';
+
     var todo = document.getElementById('todo');
-    if(hasBuy && hasSell){
-      todo.className = 'todo t-both';
-      todo.innerHTML = '<div class="lb">오늘 할 일</div><div class="big">매수 + 매도</div>'
-        + '<div class="sub">매수 ' + fmt(showThr) + ' ' + sign + modeTag + ' · 보유 ' + pos.length + '티어</div>';
-    }else if(hasBuy){
-      todo.className = 'todo t-buy';
-      todo.innerHTML = '<div class="lb">오늘 할 일</div><div class="big">매수 ' + fmt(showThr) + modeTag + '</div>'
-        + '<div class="sub">종가 ' + fmt(px) + ' — 조건 충족</div>';
-    }else if(hasSell){
+    var _sub = [];
+    if(canBuy)  _sub.push('매수 ' + fmt(showThr) + ' ' + sign + modeTag);
+    if(canSell) _sub.push('매도 ' + fmt(sellThr) + ' 이상');
+    var _modes = [];
+    for(i=0;i<pos.length;i++) _modes.push('T' + (i+1) + (pos[i].m === 'atk' ? ' 공격' : ' 방어'));
+    var _hold = pos.length
+      ? ('보유 ' + pos.length + '티어 · ' + held + '계약 · ' + _modes.join(' · '))
+      : '보유 없음';
+
+    if(mocQty > 0){
       todo.className = 'todo t-sell';
-      todo.innerHTML = '<div class="lb">오늘 할 일</div><div class="big">매도 대기</div>'
-        + '<div class="sub">보유 ' + pos.length + '티어 · ' + held + '계약</div>';
+      todo.innerHTML = '<div class="lb">' + lbTxt + '</div>'
+        + '<div class="big" style="color:var(--gold)">MOC 청산 ' + mocQty + '계약'
+        + (buyHit ? ' + 매수' : '') + '</div>'
+        + '<div class="sub">보유일 ' + hold + '일 경과 · 시장가 청산</div>'
+        + (canBuy ? '<div class="sub">매수 ' + fmt(showThr) + ' ' + sign + modeTag
+                    + (buyHit ? ' — ✅ 충족' : ' — 대기') + '</div>' : '');
+    }else if(buyHit && sellHit){
+      todo.className = 'todo t-both';
+      todo.innerHTML = '<div class="lb">' + lbTxt + '</div>'
+        + '<div class="big">매수 + 익절</div>'
+        + '<div class="sub">매수 ' + fmt(showThr) + modeTag + ' · 익절 ' + fmt(sellThr) + '</div>'
+        + '<div class="sub">' + _hold + '</div>';
+    }else if(buyHit){
+      todo.className = 'todo t-buy';
+      todo.innerHTML = '<div class="lb">' + lbTxt + '</div>'
+        + '<div class="big">매수 ' + fmt(showThr) + modeTag + '</div>'
+        + '<div class="sub">종가 ' + fmt(px) + ' — 조건 충족</div>'
+        + (canSell ? '<div class="sub">매도 ' + fmt(sellThr) + ' 이상 — 대기</div>' : '');
+    }else if(sellHit){
+      todo.className = 'todo t-sell';
+      todo.innerHTML = '<div class="lb">' + lbTxt + '</div>'
+        + '<div class="big">익절 ' + fmt(sellThr) + '</div>'
+        + '<div class="sub">종가 ' + fmt(px) + ' — 조건 충족</div>'
+        + (canBuy ? '<div class="sub">매수 ' + fmt(showThr) + ' ' + sign + modeTag + ' — 대기</div>' : '');
+    }else if(canBuy || canSell){
+      todo.className = 'todo t-none';
+      todo.innerHTML = '<div class="lb">' + lbTxt + '</div>'
+        + '<div class="big">' + (canBuy && canSell ? '매수·매도 대기'
+                                 : canBuy ? '매수 대기' : '매도 대기') + '</div>'
+        + '<div class="sub">' + _sub.join(' · ') + '</div>'
+        + (pos.length === 0
+            ? '<div class="sub" style="color:' + (t1Atk ? 'var(--gold)' : 'var(--dim)') + '">'
+              + (t1Atk ? '📈 MA20 위 · T1 공격모드'
+                         + (fomoHot ? ' · 🔥 포모 ' + fomoRun + '일연속 ×' + FOMO_MULT : '')
+                       : '🛡 MA20 아래 · T1 방어모드') + '</div>'
+            : '')
+        + '<div class="sub">' + _hold + ' · 종가 ' + fmt(px) + '</div>';
     }else{
       todo.className = 'todo t-none';
-      todo.innerHTML = '<div class="lb">'
-        + (sessionDone ? ndStr + ' 미국장 매수 기준가' : '오늘 매수 기준가') + '</div>'
-        + '<div class="big" style="color:var(--green)">' + fmt(showThr) + ' ' + sign + '</div>'
-        + (t1Atk ? '<div class="sub" style="color:var(--gold)">📈 MA20 위 · T1 공격모드'
-                   + (fomoHot ? ' · 🔥 포모 ' + fomoRun + '일연속 ×' + FOMO_MULT : '') + '</div>' : '')
-        + '<div class="sub">'
-        + (sessionDone ? '직전 종가 ' + fmt(px) : '종가 ' + fmt(px) + ' · 대기')
-        + '</div>';
+      todo.innerHTML = '<div class="lb">' + lbTxt + '</div>'
+        + '<div class="big">대기</div>'
+        + '<div class="sub">종가 ' + fmt(px) + '</div>';
     }
 
     document.getElementById('posSrc').innerHTML = BOT
@@ -371,8 +424,10 @@ function render(){
         var d2 = Math.max(0, Math.round((new Date(today) - new Date(q.date))/86400000));
         prows += '<tr><td>T' + (i+1) + '</td>'
                + '<td style="font-size:11px;color:var(--dim)">' + q.date + '</td>'
-               + '<td class="px">' + fmt(q.entry) + '</td>'
-               + '<td class="px">' + fmt(cel(q.entry*(1+sellPct/100))) + '</td>'
+               + '<td class="px">' + fmt(q.entry)
+               + ' <span style="font-size:10px;color:' + (q.m === 'atk' ? 'var(--gold)' : 'var(--dim)') + '">'
+               + (q.m === 'atk' ? '공격' : '방어') + '</span></td>'
+               + '<td class="px">' + fmt(cel(q.entry*(1+sellPctOf(q)/100))) + '</td>'
                + '<td class="qty">' + (d2>=hold ? '<b style="color:var(--gold)">MOC</b>' : 'D+'+d2) + '</td></tr>';
       }
       document.getElementById('posBody').innerHTML =
@@ -388,7 +443,7 @@ function render(){
         '<table class="tbl"><tbody>'
         + '<tr><td style="color:var(--dim);font-size:11px">복리</td><td class="px">' + fmt(cfg.per,0) + '만</td>'
         + '<td style="color:var(--dim);font-size:11px">기준선</td><td class="px">' + fmt(cfg.icap,0) + '만</td></tr>'
-        + '<tr><td style="color:var(--dim);font-size:11px">매수/매도</td><td class="px">' + buyPct + '/' + sellPct + '%</td>'
+        + '<tr><td style="color:var(--dim);font-size:11px">매수/매도</td><td class="px">' + buyPct + '/' + sellPct + '%' + (ATK_ON ? ' <span style="color:var(--dim);font-size:10px">공격 ' + ATK_SELL + '%</span>' : '') + '</td>'
         + '<td style="color:var(--dim);font-size:11px">보유일</td><td class="px">' + hold + '일</td></tr>'
         + '<tr><td style="color:var(--dim);font-size:11px">총납입</td><td class="px">' + fmt(cfg.paid,0) + '만</td>'
         + '<td style="color:var(--dim);font-size:11px">티어</td><td class="px">' + tiers + '</td></tr>'
