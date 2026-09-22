@@ -12,7 +12,7 @@
   "step": 1,
   "equity": 30000000,
   "last_date": "",
-  "contract": null,
+  "contract": "MNQZ26",
   "cfg": {
     "buy_pct": 0.3,
     "sell_pct": 0.3,
@@ -20,11 +20,17 @@
     "tiers": 3,
     "per": 700.0,
     "lad": "mid",
-    "margin_usd": 4721.0,
-    "fx": 1390.0,
-    "buffer": 30.0,
+    "margin_usd": 4734.0,
+    "fx": 1360.0,
+    "buffer": 20.0,
     "paid": 3000.0,
-    "icap": 3000.0
+    "icap": 3000.0,
+    "atk_on": true,
+    "atk_ma": 20,
+    "atk_buy": 0.5,
+    "atk_sell": 0.2,
+    "fomo_days": 4,
+    "fomo_mult": 2.0
   },
   "quote": {
     "px": 30783.25,
