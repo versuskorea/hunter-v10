@@ -30,23 +30,26 @@ QTY        = int(os.getenv("QTY", "1"))        # 티어당 계약수
 TIERS      = int(os.getenv("TIERS", "3"))      # 최대 티어
 HOLD_DAYS  = int(os.getenv("HOLD_DAYS", "3"))  # 보유일(거래일)
 ROLL_STOP_DAYS = int(os.getenv("ROLL_STOP_DAYS", "14"))  # 만기 N일 전에 다음 월물로 전환
-BUY_PCT    = float(os.getenv("BUY_PCT", "0.5"))
+BUY_PCT    = float(os.getenv("BUY_PCT", "0.3"))
 SELL_PCT   = float(os.getenv("SELL_PCT", "0.5"))
 TICK       = 0.25
 MULT       = 2                                  # MNQ 승수 $2
-MARGIN_USD = float(os.getenv("MARGIN_USD", "4721"))   # 개시증거금 (달러)
-FX         = float(os.getenv("FX", "1390"))           # 환율
+MARGIN_USD = float(os.getenv("MARGIN_USD", "3138"))   # 개시증거금 (달러)
+FX         = float(os.getenv("FX", "1350"))           # 환율
 # ── 자본 / 복리 ──
-TOTAL_PAID = float(os.getenv("TOTAL_PAID", "3000")) * 1e4   # 총 납입액 (만원) — 입금하면 갱신
-INITIAL_CAP = float(os.getenv("INITIAL_CAP", "3000")) * 1e4 # 최초 자본 (복리 기준선, 고정)
-PER_CONTRACT = float(os.getenv("PER_CONTRACT", "2000")) * 1e4  # 수익 N만마다 총계약 +1
+TOTAL_PAID = float(os.getenv("TOTAL_PAID", "4500")) * 1e4   # 총 납입액 (만원) — 입금하면 갱신
+INITIAL_CAP = float(os.getenv("INITIAL_CAP", "4500")) * 1e4 # 최초 자본 (복리 기준선, 고정)
+PER_CONTRACT = float(os.getenv("PER_CONTRACT", "1000")) * 1e4  # 수익 N만마다 총계약 +1
 BUFFER     = float(os.getenv("BUFFER", "30")) / 100   # 여유 버퍼
 LAD_ORDER  = os.getenv("LAD_ORDER", "mid")            # mid / back / front
 # ── 공격모드 (T1만) ──
-ATK_ON     = _flag("ATK_ON", "0")
+ATK_ON     = _flag("ATK_ON", "1")
 ATK_MA     = int(os.getenv("ATK_MA", "20"))
 ATK_BUY    = float(os.getenv("ATK_BUY", "0.5"))
-ATK_SELL   = float(os.getenv("ATK_SELL", "1.0"))
+ATK_SELL   = float(os.getenv("ATK_SELL", "0.5"))
+# ── 포모 부스트: N일 연속 상승 뒤 공격 진입이면 계약 배수 ──
+FOMO_DAYS  = int(os.getenv("FOMO_DAYS", "4"))      # 0=끔, 4=4일 연속 상승
+FOMO_MULT  = float(os.getenv("FOMO_MULT", "2.0"))  # 배수
 
 STATE_FILE = os.getenv("STATE_FILE", "mnq_state.json")
 TG_TOKEN   = os.getenv("TG_TOKEN", "")
@@ -473,6 +476,14 @@ def kis_min_1600(symbol=None, days=12):
     return [(k, v[1]) for k, v in sorted(by_day.items())][-days:]
 
 
+def kis_fills():
+    """당일 체결내역 조회  tr_id=OTFM3116R — 슬리피지 측정용"""
+    return _kis_get("/uapi/overseas-futureoption/v1/trading/inquire-ccld", "OTFM3116R", {
+        "CANO": KIS_ACCT, "ACNT_PRDT_CD": KIS_PROD,
+        "CCLD_NCCS_DVSN": "02", "SLL_BUY_DVSN_CD": "%%",
+        "FUOP_DVSN": "01", "CTX_AREA_FK200": "", "CTX_AREA_NK200": "",
+    })
+
 def kis_positions():
     """미결제 내역 조회  tr_id=OTFM1412R"""
     return _kis_get("/uapi/overseas-futureoption/v1/trading/inquire-unpd", "OTFM1412R", {
@@ -757,6 +768,16 @@ def main():
     room = room_for(equity, unreal, held)
     buy_qty = min(want_buy, room)
 
+    # ── 마진콜선 — 지수가 몇 % 빠지면 부분청산이 시작되는지 ──
+    mg_one    = margin_krw()
+    net_eq    = equity + unreal
+    maint_one = mg_one * 0.91
+    notional  = held * px * MULT * FX if held else 0.0
+    room_krw  = net_eq - held * maint_one
+    mc_pct    = (room_krw / notional * 100) if notional > 0 else None
+    low_margin = (net_eq < mg_one)
+    short_of   = mg_one - net_eq
+
     # 매수 조건 (만기 임박 시 신규 중단)
     # 실제 거래 중인 월물의 만기까지 남은 일수
     def _sym_days(sym):
@@ -771,7 +792,20 @@ def main():
     # 판정 데이터가 만기 없는 지수면 데이터 롤오버 차단 불필요
     d2e_data = 99 if DATA_SYMBOL.startswith("^") else data_expiry_days()
     roll_block = (d2e <= HOLD_DAYS + 2) or (d2e_data <= HOLD_DAYS + 1) or PAUSE_BUY
+    # ── 포모 부스트 판정 ──
+    # 전일까지 FOMO_DAYS 일 연속 상승했고, T1을 공격으로 진입하면 계약을 배수로
+    # closes[-1] = 오늘 종가이므로 전일까지를 보려면 [-2]부터 센다
+    up_run = 0
+    if FOMO_DAYS > 0 and len(closes) >= FOMO_DAYS + 2:
+        for _k in range(2, FOMO_DAYS + 2):
+            if closes[-_k] > closes[-_k-1]: up_run += 1
+            else: break
+    fomo_hot = FOMO_DAYS > 0 and up_run >= FOMO_DAYS
+
     use_atk = is_atk and step == 0            # T1 자리에서만 공격
+    if fomo_hot and use_atk:
+        want_buy = int(want_buy * FOMO_MULT)
+        buy_qty = min(want_buy, room)
     if use_atk:
         hit = px >= atk_thr; thr_show = atk_thr; mode_tag = "공격"
     else:
@@ -781,6 +815,8 @@ def main():
         sign = "≥" if use_atk else "≤"
         tag = f" [{mode_tag}]" if ATK_ON else ""
         memo = f"T{len(pos)+1}{tag} · 종가 {px:,.2f} {sign} 기준 {thr_show:,.2f}"
+        if fomo_hot and use_atk:
+            memo += f" · 🔥 포모 {up_run}일연속 ×{FOMO_MULT:g}"
         if buy_qty < want_buy:
             memo += f" · 증거금 부족 {want_buy}→{buy_qty}계약"
         orders.append(("BUY", buy_qty, memo))
@@ -806,6 +842,13 @@ def main():
     # 현재 설정 한 줄 — Variables가 제대로 들어갔는지 매일 눈으로 확인
     lines.append(f"⚙️ 복리 {PER_CONTRACT/1e4:,.0f}만 · 기준선 {INITIAL_CAP/1e4:,.0f}만 · "
                  f"{BUY_PCT}/{SELL_PCT} · {HOLD_DAYS}일 · {TIERS}티어")
+    if mc_pct is not None:
+        icon = "🚨" if mc_pct < 4 else ("⚠️" if mc_pct < 7 else "🛡️")
+        lines.append(f"{icon} 마진콜선 <b>-{mc_pct:.1f}%</b> · {held}계약 · "
+                     f"여유 {room_krw/1e4:,.0f}만")
+    if low_margin:
+        lines.append(f"🚨 <b>증거금 부족</b> — 순자산 {net_eq/1e4:,.0f}만 < 1계약 {mg_one/1e4:,.0f}만")
+        lines.append(f"   <b>{short_of/1e4:,.0f}만원 입금하면 재개</b>")
     if PAUSE_BUY:
         lines.append("⏸️ <b>신규 매수 중단 중</b> (보유분은 정상 청산)")
     if is_atk:
@@ -878,7 +921,30 @@ def main():
                 results.append(f"❌ {typ} 실패: {e}")
                 log(f"주문 실패 {typ}:", e)
         if results:
-            notify("<b>주문 결과</b>\n" + "\n".join(results))
+            time.sleep(3)
+            slip_lines = []
+            try:
+                fr = kis_fills()
+                if fr.get("rt_cd") == "0":
+                    frows = fr.get("output") or fr.get("output1") or []
+                    if not isinstance(frows, list): frows = [frows]
+                    for fx in frows:
+                        fp = fx.get("ccld_prc") or fx.get("avg_prc") or fx.get("ft_ccld_prc")
+                        sb = fx.get("sll_buy_dvsn_cd") or ""
+                        if not fp: continue
+                        try: fpv = float(fp)
+                        except ValueError: continue
+                        if fpv <= 0: continue
+                        d = fpv - px
+                        side = "매수" if sb == "02" else ("매도" if sb == "01" else "")
+                        slip_lines.append(
+                            f"📊 {side} 체결 <code>{fpv:,.2f}</code> · 판정 <code>{px:,.2f}</code> "
+                            f"· 슬리피지 <b>{d:+.2f}pt</b>")
+            except Exception as e:
+                log("체결 조회 실패:", e)
+            msg = "<b>주문 결과</b>\n" + "\n".join(results)
+            if slip_lines: msg += "\n\n" + "\n".join(slip_lines)
+            notify(msg)
         # 잔고로 포지션 동기화
         try:
             bal = kis_positions()
@@ -896,7 +962,9 @@ def main():
         st["cfg"] = {"buy_pct": BUY_PCT, "sell_pct": SELL_PCT, "hold": HOLD_DAYS,
                      "tiers": TIERS, "per": PER_CONTRACT/1e4, "lad": LAD_ORDER,
                      "margin_usd": MARGIN_USD, "fx": FX, "buffer": BUFFER*100,
-                     "paid": TOTAL_PAID/1e4, "icap": INITIAL_CAP/1e4}
+                     "paid": TOTAL_PAID/1e4, "icap": INITIAL_CAP/1e4,
+                     "atk_on": ATK_ON, "atk_ma": ATK_MA, "atk_buy": ATK_BUY,
+                     "atk_sell": ATK_SELL, "fomo_days": FOMO_DAYS, "fomo_mult": FOMO_MULT}
         st["quote"] = {"px": px, "p1": p1, "p2": p2, "date": today, "src": src,
                        "buy_thr": buy_thr, "contract": CONTRACT,
                        "total_q": total_q, "want": want_q, "afford": afford_q}
@@ -926,7 +994,9 @@ def main():
         st["cfg"] = {"buy_pct": BUY_PCT, "sell_pct": SELL_PCT, "hold": HOLD_DAYS,
                      "tiers": TIERS, "per": PER_CONTRACT/1e4, "lad": LAD_ORDER,
                      "margin_usd": MARGIN_USD, "fx": FX, "buffer": BUFFER*100,
-                     "paid": TOTAL_PAID/1e4, "icap": INITIAL_CAP/1e4}
+                     "paid": TOTAL_PAID/1e4, "icap": INITIAL_CAP/1e4,
+                     "atk_on": ATK_ON, "atk_ma": ATK_MA, "atk_buy": ATK_BUY,
+                     "atk_sell": ATK_SELL, "fomo_days": FOMO_DAYS, "fomo_mult": FOMO_MULT}
         st["quote"] = {"px": px, "p1": p1, "p2": p2, "date": today, "src": src,
                        "buy_thr": buy_thr, "contract": CONTRACT,
                        "total_q": total_q, "want": want_q, "afford": afford_q}
