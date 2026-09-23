@@ -42,8 +42,12 @@ INITIAL_CAP = float(os.getenv("INITIAL_CAP", "4500")) * 1e4 # 최초 자본 (복
 PER_CONTRACT = float(os.getenv("PER_CONTRACT", "1000")) * 1e4  # 수익 N만마다 총계약 +1
 BUFFER     = float(os.getenv("BUFFER", "30")) / 100   # 여유 버퍼
 LAD_ORDER  = os.getenv("LAD_ORDER", "mid")            # mid / back / front
-# ── 공격모드 (T1만) ──
-ATK_ON     = _flag("ATK_ON", "1")
+# ── 공격모드 (T1 자리에만 적용) ──
+#   ATK_MODE  0=끄기(항상 방어)  1=T1만 공격  2=T1 양방향(공격 우선, 미충족이면 방어도)
+#   ATK_MODE 를 지정하지 않으면 기존 ATK_ON 값을 따른다.
+ATK_MODE   = int(float(os.getenv("ATK_MODE", "1" if _flag("ATK_ON", "1") else "0")))
+ATK_ON     = ATK_MODE > 0
+ATK_BOTH   = ATK_MODE == 2
 ATK_MA     = int(os.getenv("ATK_MA", "20"))
 ATK_BUY    = float(os.getenv("ATK_BUY", "0.5"))
 ATK_SELL   = float(os.getenv("ATK_SELL", "0.5"))
@@ -240,6 +244,37 @@ def contract_symbols(code=None):
     root_e = f"NQ{mth}{yy}"           # E-mini
     root_m = f"MNQ{mth}{yy}"          # Micro — 실제 거래 상품이라 우선
     return [f"{root_m}.CME", root_m, f"{root_e}.CME", root_e]
+
+def ma_closes(contract, short_closes, want):
+    """MA·포모 판정용 장기 종가.
+
+    CLOSE_1600 경로는 야후 1분봉(최근 5거래일)으로 종가를 뽑기 때문에
+    closes 가 4~5개뿐이다. 그 상태로는 len(closes) > ATK_MA 가 영원히
+    거짓이라 공격모드가 켜지지 않는다. 부족하면 일봉으로 보강한다."""
+    if len(short_closes) > want:
+        return short_closes
+    syms = []
+    if USE_CONTRACT_SYM:
+        try: syms += list(contract_symbols(contract))
+        except Exception: pass
+    syms += [DATA_SYMBOL, "NQ=F"]
+    need_days = max(want * 2 + 20, 60)
+    for sym in syms:
+        for fn in (fetch_hunter, fetch_yahoo):
+            try:
+                b = drop_intraday(fn(sym, days=need_days))
+                if len(b) > want:
+                    daily = [x[1] for x in b]
+                    # 최근 구간은 정확한 16:00 종가로 덮어쓴다
+                    k = min(len(short_closes), len(daily))
+                    if k: daily[-k:] = short_closes[-k:]
+                    log(f"MA 보강: {sym} 일봉 {len(daily)}개 (1600종가 {len(short_closes)}개)")
+                    return daily
+            except Exception:
+                continue
+    log(f"⚠️ MA 보강 실패 — 종가 {len(short_closes)}개로 진행 (공격모드 판정 불가)")
+    return short_closes
+
 
 def get_prices(contract=None):
     """(당일종가, 전일종가, 그제종가, 날짜, 소스, 종가리스트)"""
@@ -696,10 +731,14 @@ def main():
         return
 
     buy_thr  = flr(min(p1, p2) * (1 - BUY_PCT/100))    # 방어: 전일·그제
+    # MA·포모 판정은 장기 종가가 필요 — 1분봉 기반이면 일봉으로 보강
+    _want = max(ATK_MA, FOMO_DAYS + 1) if ATK_ON else FOMO_DAYS + 1
+    mac = ma_closes(CONTRACT, closes, _want)
     # 추세 판정 (전일 종가 > MA)
     is_atk = False
-    if ATK_ON and len(closes) > ATK_MA:
-        sma = sum(closes[-(ATK_MA+1):-1]) / ATK_MA
+    sma = None
+    if ATK_ON and len(mac) > ATK_MA:
+        sma = sum(mac[-(ATK_MA+1):-1]) / ATK_MA
         is_atk = p1 > sma
     atk_thr = cel(p1 * (1 + ATK_BUY/100)) if is_atk else None
     contract = CONTRACT
@@ -763,6 +802,11 @@ def main():
     # 사이클 내 매수 횟수(step) — 포지션이 완전히 비면 0으로 리셋
     step = st.get("step", len(pos))
     if not pos: step = 0
+    # 백테와 동일: 오늘 매도가 먼저 처리된다. 오늘 전량 청산되면 사이클이 끝나므로
+    # 같은 날 매수는 T1 자리(공격 가능)로 본다.
+    _sell_q = sum(q for tag, q, _m in orders if tag in ("SELL", "MOC"))
+    if held and _sell_q >= held:
+        step = 0
     tier_idx = step
     want_buy = lad[tier_idx] if tier_idx < len(lad) else 0
     room = room_for(equity, unreal, held)
@@ -796,25 +840,30 @@ def main():
     # 전일까지 FOMO_DAYS 일 연속 상승했고, T1을 공격으로 진입하면 계약을 배수로
     # closes[-1] = 오늘 종가이므로 전일까지를 보려면 [-2]부터 센다
     up_run = 0
-    if FOMO_DAYS > 0 and len(closes) >= FOMO_DAYS + 2:
+    if FOMO_DAYS > 0 and len(mac) >= FOMO_DAYS + 2:
         for _k in range(2, FOMO_DAYS + 2):
-            if closes[-_k] > closes[-_k-1]: up_run += 1
+            if mac[-_k] > mac[-_k-1]: up_run += 1
             else: break
     fomo_hot = FOMO_DAYS > 0 and up_run >= FOMO_DAYS
 
     use_atk = is_atk and step == 0            # T1 자리에서만 공격
+    if use_atk:
+        hit = px >= atk_thr; thr_show = atk_thr; mode_tag = "공격"
+        # 양방향: 공격 미충족이면 같은 날 방어 조건도 본다 (T1 자리 한정)
+        if not hit and ATK_BOTH and px <= buy_thr:
+            use_atk = False
+            hit = True; thr_show = buy_thr; mode_tag = "방어"
+    else:
+        hit = px <= buy_thr; thr_show = buy_thr; mode_tag = "방어"
+    # 포모는 공격 진입으로 확정된 뒤에만 적용
     if fomo_hot and use_atk:
         want_buy = int(want_buy * FOMO_MULT)
         buy_qty = min(want_buy, room)
-    if use_atk:
-        hit = px >= atk_thr; thr_show = atk_thr; mode_tag = "공격"
-    else:
-        hit = px <= buy_thr; thr_show = buy_thr; mode_tag = "방어"
 
     if step < TIERS and hit and not roll_block and buy_qty > 0:
         sign = "≥" if use_atk else "≤"
         tag = f" [{mode_tag}]" if ATK_ON else ""
-        memo = f"T{len(pos)+1}{tag} · 종가 {px:,.2f} {sign} 기준 {thr_show:,.2f}"
+        memo = f"T{step+1}{tag} · 종가 {px:,.2f} {sign} 기준 {thr_show:,.2f}"
         if fomo_hot and use_atk:
             memo += f" · 🔥 포모 {up_run}일연속 ×{FOMO_MULT:g}"
         if buy_qty < want_buy:
@@ -852,9 +901,15 @@ def main():
     if PAUSE_BUY:
         lines.append("⏸️ <b>신규 매수 중단 중</b> (보유분은 정상 청산)")
     if is_atk:
-        lines.append(f"📈 <b>상승 추세</b> (MA{ATK_MA} 위) — T1 공격모드")
+        lines.append(f"📈 <b>상승 추세</b> (MA{ATK_MA} {sma:,.2f} · 전일 {p1:,.2f}) — T1 "
+                     + ("양방향" if ATK_BOTH else "공격모드"))
         lines.append(f"기준가 · T1 매수 <code>{atk_thr:,.2f}</code> 이상 (공격)")
+        if ATK_BOTH:
+            lines.append(f"        T1 매수 <code>{buy_thr:,.2f}</code> 이하 (방어)")
         lines.append(f"        T2~ 매수 <code>{buy_thr:,.2f}</code> 이하 (방어)")
+    elif ATK_ON and sma is not None:
+        lines.append(f"🛡 <b>하락 추세</b> (MA{ATK_MA} {sma:,.2f} · 전일 {p1:,.2f}) — 방어모드")
+        lines.append(f"기준가 · 매수 <code>{buy_thr:,.2f}</code> 이하")
     else:
         lines.append(f"기준가 · 매수 <code>{buy_thr:,.2f}</code> 이하")
     if pos and not moc:
@@ -963,7 +1018,7 @@ def main():
                      "tiers": TIERS, "per": PER_CONTRACT/1e4, "lad": LAD_ORDER,
                      "margin_usd": MARGIN_USD, "fx": FX, "buffer": BUFFER*100,
                      "paid": TOTAL_PAID/1e4, "icap": INITIAL_CAP/1e4,
-                     "atk_on": ATK_ON, "atk_ma": ATK_MA, "atk_buy": ATK_BUY,
+                     "atk_on": ATK_ON, "atk_mode": ATK_MODE, "atk_ma": ATK_MA, "atk_buy": ATK_BUY,
                      "atk_sell": ATK_SELL, "fomo_days": FOMO_DAYS, "fomo_mult": FOMO_MULT}
         st["quote"] = {"px": px, "p1": p1, "p2": p2, "date": today, "src": src,
                        "buy_thr": buy_thr, "contract": CONTRACT,
@@ -995,7 +1050,7 @@ def main():
                      "tiers": TIERS, "per": PER_CONTRACT/1e4, "lad": LAD_ORDER,
                      "margin_usd": MARGIN_USD, "fx": FX, "buffer": BUFFER*100,
                      "paid": TOTAL_PAID/1e4, "icap": INITIAL_CAP/1e4,
-                     "atk_on": ATK_ON, "atk_ma": ATK_MA, "atk_buy": ATK_BUY,
+                     "atk_on": ATK_ON, "atk_mode": ATK_MODE, "atk_ma": ATK_MA, "atk_buy": ATK_BUY,
                      "atk_sell": ATK_SELL, "fomo_days": FOMO_DAYS, "fomo_mult": FOMO_MULT}
         st["quote"] = {"px": px, "p1": p1, "p2": p2, "date": today, "src": src,
                        "buy_thr": buy_thr, "contract": CONTRACT,
