@@ -10,7 +10,7 @@
     "buy_pct": 0.3,
     "sell_pct": 0.3,
     "hold": 3,
-    "tiers": 3,
+    "tiers": 2,
     "per": 700.0,
     "lad": "mid",
     "margin_usd": 4734.0,
@@ -34,8 +34,8 @@
     "src": "MNQZ26.CME 16:00ET",
     "buy_thr": 29825.75,
     "contract": "MNQZ26",
-    "total_q": 3,
-    "want": 3,
+    "total_q": 2,
+    "want": 2,
     "afford": 3
   }
 }
