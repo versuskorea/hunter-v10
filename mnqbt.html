@@ -75,6 +75,14 @@ tr:last-child td{border-bottom:none}
 .bar{display:inline-block;height:7px;border-radius:3px;background:var(--accent);vertical-align:middle}
 .note{background:#0a0a14;border-radius:8px;padding:9px 11px;font-size:10px;color:var(--dim);line-height:1.6;margin-top:10px}
 .preset-wrap{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.qr-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.qbtn{flex:1;min-width:52px;padding:7px 4px;border-radius:8px;border:1px solid var(--border);
+      background:#16161f;color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
+.qbtn:active{background:var(--accent);color:#fff}
+.evt-sum{cursor:pointer;list-style:none;padding:8px 10px;border-radius:8px;
+         background:#16161f;border:1px solid var(--border);font-size:12px;
+         font-weight:700;color:var(--dim);margin-bottom:8px}
+.evt-sum::-webkit-details-marker{display:none}
 .pbtn{background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:9px 8px;cursor:pointer;text-align:left;color:var(--text);font-family:'DM Sans',sans-serif}
 .pbtn:active{background:#252535}
 .pbtn .n{font-size:12px;font-weight:800;display:block}
@@ -87,14 +95,26 @@ tr:last-child td{border-bottom:none}
 <body>
   <div class="top">
     <a href="/mnq.html" class="back">← MNQ</a>
-    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v27</span>
+    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v28</span>
     <span class="status" id="status">대기</span>
   </div>
   <div class="asof" id="asof">시세 불러오는 중…</div>
 
   <div class="panel">
     <div class="pt">⚡ 스트레스 테스트 · 사건별</div>
-    <div id="presets" class="preset-wrap"></div>
+    <div class="qr-wrap">
+      <button class="qbtn" onclick="setYears(1)">1년</button>
+      <button class="qbtn" onclick="setYears(2)">2년</button>
+      <button class="qbtn" onclick="setYears(3)">3년</button>
+      <button class="qbtn" onclick="setYears(5)">5년</button>
+      <button class="qbtn" onclick="setYears(7)">7년</button>
+      <button class="qbtn" onclick="setYears(10)">10년</button>
+      <button class="qbtn" onclick="setYears(0)">전체</button>
+    </div>
+    <details>
+      <summary class="evt-sum">📅 주요 시장 사건으로 보기</summary>
+      <div id="presets" class="preset-wrap"></div>
+    </details>
     <div class="note" style="margin-top:8px">
       사건 직전에 시작했다면 살아남았을까? 클릭하면 그 기간으로 설정된다.<br><b style="color:var(--gold)">※ 2015년 이전은 데이터를 "QQQ 환산"으로 바꿔야 나온다</b>
     </div>
@@ -248,6 +268,23 @@ function renderPresets(){
     + `<button class="pbtn all" onclick="applyPreset(-1)"><span class="n">전체 기간</span>
        <span class="r">데이터 처음부터 끝까지</span></button>`;
 }
+window.setYears=y=>{
+  if(!BARS.length) return;
+  const last=BARS[BARS.length-1].date;
+  let start;
+  if(y<=0){ start=BARS[0].date; }
+  else{
+    const d=new Date(last+'T00:00:00Z');
+    d.setUTCFullYear(d.getUTCFullYear()-y);
+    start=d.toISOString().slice(0,10);
+    if(start<BARS[0].date) start=BARS[0].date;
+  }
+  document.getElementById('d1').value=start;
+  document.getElementById('d2').value=last;
+  document.getElementById('run').click();
+  setTimeout(()=>document.getElementById('out').scrollIntoView({behavior:'smooth',block:'start'}),120);
+};
+
 window.applyPreset=i=>{
   if(i<0){
     if(BARS.length){
@@ -736,7 +773,7 @@ function render(R,P){
         </tbody></table>
       </div></div>`;
 
-  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v27</span></div><table><tbody>
+  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v28</span></div><table><tbody>
     <tr><td>증설 방식</td><td>${P.growMode==='unit'?`<b style='color:var(--accent)'>1계약씩 (사다리)</b>`:'티어당 +1 (균등)'}</td></tr>
     <tr><td>시작 구성</td><td>${P.growMode==='unit'?ladderFor(P.tiers*P.qty,P.tiers,P.ladOrder).join('·')+` = ${P.tiers*P.qty}계약`:`${P.qty}계약 × ${P.tiers}티어 = ${P.qty*P.tiers}계약`}</td></tr>
     <tr><td>증설 제한</td><td>${P.growMode==='unit'?`복리 ${R.limWant}회 · <b style="color:${R.limCap>R.limWant?'var(--gold)':'var(--dim)'}">자본 ${R.limCap}회</b>${R.limCap>R.limWant?' ← 자본이 상한, 복리값 무의미':''}`:'-'}</td></tr>
@@ -862,6 +899,26 @@ function render(R,P){
     const t1only=CY.filter(c=>c.maxTier===1);
     const t1tp=t1only.filter(c=>c.last==='익절'||c.last==='MA').length;
     const avgLen=(CY.reduce((a,c)=>a+c.exits.length,0)/NT).toFixed(1);
+    // ── 연속 손실 사이클 ──
+    let run=0, runPnl=0, maxRun=0, maxRunPnl=0, maxFrom='', maxTo='', curFrom='';
+    const runDist={};
+    for(const c of CY){
+      if(c.pnl<0){
+        if(run===0) curFrom=c.start;
+        run++; runPnl+=c.pnl;
+        if(run>maxRun || (run===maxRun && runPnl<maxRunPnl)){
+          maxRun=run; maxRunPnl=runPnl; maxFrom=curFrom; maxTo=c.end||c.start;
+        }
+      }else{
+        if(run>0) runDist[run]=(runDist[run]||0)+1;
+        run=0; runPnl=0;
+      }
+    }
+    if(run>0) runDist[run]=(runDist[run]||0)+1;
+    const lossCy=CY.filter(c=>c.pnl<0).length;
+    const runKeys=Object.keys(runDist).map(Number).sort((a,b)=>a-b);
+    const runRow=runKeys.map(k=>
+      `<tr><td style="color:var(--dim)">${k}연속</td><td><b>${runDist[k]}회</b></td></tr>`).join('');
     h+=`<div class="ct">사이클 분석 <span style="color:var(--dim);font-size:11px">
         첫 진입부터 전량 청산까지 — 총 ${NT}회</span></div>
       <div class="scroll"><table>
@@ -877,7 +934,15 @@ function render(R,P){
         <tr><td style="color:var(--dim)">포모 부스트 발동</td>
             <td><b>${fom.length}회</b> (${pc(fom.length)})${fom.length?` · 손익 <span class="${fom.reduce((a,c)=>a+c.pnl,0)>=0?'up':'down'}">${fmt(fom.reduce((a,c)=>a+c.pnl,0))}</span>`:''}</td></tr>
         <tr><td style="color:var(--dim)">사이클당 평균 청산 건수</td><td>${avgLen}건</td></tr>
-      </tbody></table>`;
+        <tr><td style="color:var(--dim)">손실 사이클</td>
+            <td><b>${lossCy}회</b> (${(lossCy/NT*100).toFixed(1)}%)</td></tr>
+        <tr><td style="color:var(--dim)">최장 연속 손실</td>
+            <td><b style="color:var(--red)">${maxRun}연속</b>
+                ${maxRun?` · 누적 <span class="down">${fmt(maxRunPnl)}</span>
+                <br><span style="font-size:10px;color:var(--dim)">${maxFrom} ~ ${maxTo}</span>`:''}</td></tr>
+      </tbody></table>
+      ${runRow?`<div class="ct" style="margin-top:10px">연속 손실 분포</div>
+      <table style="width:100%"><tbody>${runRow}</tbody></table>`:''}`;
   }
 
   // 매수 내역
