@@ -95,7 +95,7 @@ tr:last-child td{border-bottom:none}
 <body>
   <div class="top">
     <a href="/mnq.html" class="back">← MNQ</a>
-    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v28</span>
+    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v28.1</span>
     <span class="status" id="status">대기</span>
   </div>
   <div class="asof" id="asof">시세 불러오는 중…</div>
@@ -773,7 +773,7 @@ function render(R,P){
         </tbody></table>
       </div></div>`;
 
-  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v28</span></div><table><tbody>
+  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v28.1</span></div><table><tbody>
     <tr><td>증설 방식</td><td>${P.growMode==='unit'?`<b style='color:var(--accent)'>1계약씩 (사다리)</b>`:'티어당 +1 (균등)'}</td></tr>
     <tr><td>시작 구성</td><td>${P.growMode==='unit'?ladderFor(P.tiers*P.qty,P.tiers,P.ladOrder).join('·')+` = ${P.tiers*P.qty}계약`:`${P.qty}계약 × ${P.tiers}티어 = ${P.qty*P.tiers}계약`}</td></tr>
     <tr><td>증설 제한</td><td>${P.growMode==='unit'?`복리 ${R.limWant}회 · <b style="color:${R.limCap>R.limWant?'var(--gold)':'var(--dim)'}">자본 ${R.limCap}회</b>${R.limCap>R.limWant?' ← 자본이 상한, 복리값 무의미':''}`:'-'}</td></tr>
@@ -1061,8 +1061,9 @@ document.getElementById('dist').addEventListener('click',()=>{
 
 function runDistribution(){
   const P0=readParams();
-  const all=BARS.filter(b=>b.date<=P0.d2);
-  if(all.length<400){ alert('데이터가 부족합니다'); return; }
+  // 시작일~종료일 구간 안에서만 후보를 뽑는다
+  const all=BARS.filter(b=>b.date>=P0.d1 && b.date<=P0.d2);
+  if(all.length<400){ alert('구간이 짧습니다 (최소 400봉 필요) — 시작일을 앞으로 당기세요'); return; }
   // 시작일 후보: 전체 구간을 36등분 (마지막 1년은 제외)
   const endIdx=all.length-252;
   const N=36, res=[];
