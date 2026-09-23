@@ -18,10 +18,29 @@ const REF = 'main';
 export default async function handler(req, res) {
   // Vercel Cron은 x-vercel-cron 헤더를 붙여서 호출한다.
   const fromCron = !!req.headers['x-vercel-cron'];
-  const keyOk = process.env.CRON_KEY && req.query.key === process.env.CRON_KEY;
+
+  // 쿼리 파싱 — req.query 가 비는 런타임이 있어 URL 에서 직접도 읽는다
+  let qkey = (req.query && req.query.key) || '';
+  if (!qkey && req.url) {
+    try {
+      qkey = new URL(req.url, 'http://x').searchParams.get('key') || '';
+    } catch (e) { /* noop */ }
+  }
+  const want = (process.env.CRON_KEY || '').trim();
+  const keyOk = want && String(qkey).trim() === want;
 
   if (!fromCron && !keyOk) {
-    return res.status(401).json({ ok: false, error: 'unauthorized' });
+    return res.status(401).json({
+      ok: false,
+      error: 'unauthorized',
+      debug: {
+        gotKey: String(qkey).slice(0, 40),
+        gotLen: String(qkey).trim().length,
+        envSet: !!want,
+        envLen: want.length,
+        url: String(req.url || '').slice(0, 120),
+      },
+    });
   }
 
   const token = process.env.GH_TOKEN;
