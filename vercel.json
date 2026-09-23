@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/cron-mnq?key=apple6693", "schedule": "0 20 * * 1-5" },
+    { "path": "/api/cron-mnq?key=apple6693", "schedule": "1 20 * * 1-5" },
+    { "path": "/api/cron-mnq?key=apple6693", "schedule": "2 20 * * 1-5" },
+    { "path": "/api/cron-mnq?key=apple6693", "schedule": "3 20 * * 1-5" },
+    { "path": "/api/cron-mnq?key=apple6693", "schedule": "0 21 * * 1-5" },
+    { "path": "/api/cron-mnq?key=apple6693", "schedule": "1 21 * * 1-5" },
+    { "path": "/api/cron-mnq?key=apple6693", "schedule": "2 21 * * 1-5" },
+    { "path": "/api/cron-mnq?key=apple6693", "schedule": "3 21 * * 1-5" }
+  ]
+}
