@@ -389,6 +389,15 @@ function render(){
                      : ('최근2일 저가 −' + buyPct + '%'))
              + (stepNow === 0 && pos.length ? ' · 오늘 청산 후 재진입' : '')
              + ' · ' + ((_t1b ? px >= _thrB : px <= _thrB) ? '✅ 충족' : '대기') });
+      // 양방향: T1 자리에서는 반대쪽 기준도 함께 표시
+      if(ATK_BOTH && stepNow === 0 && isAtk){
+        var _alt = _t1b ? thr : atkThr;
+        var _alu = _t1b ? '이하 [방어]' : '이상 [공격]';
+        var _ahit = _t1b ? (px <= thr) : (px >= atkThr);
+        orders.push({ t:'매수', cls:'t-b', px:_alt, qty:_qtyB,
+          memo:'T1 · ' + (_t1b ? ('최근2일 저가 −' + buyPct + '%') : ('전일 +' + ATK_BUY + '%'))
+               + ' ' + _alu + ' · ' + (_ahit ? '✅ 충족' : '대기') });
+      }
     }
     for(i=0;i<sellRows.length;i++) orders.push(sellRows[i]);
 
@@ -436,6 +445,12 @@ function render(){
       rows += trow('t-b', '매수', 'T' + (stepNow + 1),
                    stepNow === 0 ? mtag(t1Atk) : '',
                    fmt(showThr) + ' ' + sign, buyHit);
+      if(ATK_BOTH && stepNow === 0 && isAtk){
+        var _av = t1Atk ? thr : atkThr;
+        var _as = t1Atk ? '이하' : '이상';
+        var _ah = t1Atk ? (px <= thr) : (px >= atkThr);
+        rows += trow('t-b', '매수', 'T1', mtag(!t1Atk), fmt(_av) + ' ' + _as, _ah);
+      }
     }
     for(i=0;i<pos.length;i++){
       var pp  = pos[i];
