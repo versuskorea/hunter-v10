@@ -929,6 +929,8 @@ def main():
             tag = {"BUY":"🟢 매수","SELL":"🟣 매도","MOC":"🟡 MOC"}[typ]
             lines.append(f"{tag} × {q}계약")
             lines.append(f"    <i>{memo}</i>")
+    elif PAUSE_BUY or PAUSE_ALL or roll_block:
+        lines.append("✋ <b>주문 없음</b> (중단 설정)")
     else:
         lines.append("✋ <b>조건 미충족 — 주문 없음</b>")
 
