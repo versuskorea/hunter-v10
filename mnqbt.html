@@ -95,7 +95,7 @@ tr:last-child td{border-bottom:none}
 <body>
   <div class="top">
     <a href="/mnq.html" class="back">← MNQ</a>
-    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v28.1</span>
+    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v29</span>
     <span class="status" id="status">대기</span>
   </div>
   <div class="asof" id="asof">시세 불러오는 중…</div>
@@ -417,6 +417,8 @@ function backtest(P){
   let qty = P.qty;                      // 균등 모드용
   let totalQ = P.tiers * P.qty;         // 사다리 모드용 총 계약수
   let peak=P.cap, mdd=0, wu=0, liq=0, skip=0, maxHeld=0, maxHeldMg=P.margin, wuEquity=P.cap, minRatio=1;
+  // 시장 노출 집계
+  let daysTotal=0, daysIn=0, qtyDaySum=0, notionalSum=0;
   let maxNeed=0, maxNeedAt=null, maxNeedQ=0, startNeed=0, wuAt=null, wuQty=0, wuMg=P.margin;
   let liqAt=null, bankrupt=null, stopped=null, liqQty=0;
   let limWant=0, limCap=0;
@@ -560,6 +562,8 @@ function backtest(P){
     const un=pos.reduce((a,x)=>a+(p-x.e)*MULT*x.q*FX,0);
     const heldQ=pos.reduce((a,x)=>a+x.q,0);
     if(heldQ>maxHeld){ maxHeld=heldQ; maxHeldMg=MG(i); }
+    daysTotal++;
+    if(heldQ>0){ daysIn++; qtyDaySum+=heldQ; notionalSum+=heldQ*p*MULT*FX; }
     let tot=equity+un;
     if(un<wu){ wu=un; wuEquity=tot; wuAt=dt[i]; wuQty=heldQ; wuMg=MG(i); }
     if(heldQ>0){ const rr=tot/(heldQ*MG(i)); if(rr<minRatio) minRatio=rr; }
@@ -611,11 +615,12 @@ function backtest(P){
   const wins=trades.filter(t=>t.pnl>0);
   return {final,profit:final-paid,   // 납입 총액 대비 순수익
     cagr:(years>0&&final>0)?(Math.pow(final/P.cap,1/years)-1)*100:(final<=0?-100:0),
-    mdd,wu,liq,skip,paid,trades,buys,cycles,yearly,monthly,ymdd,mmdd,mstart,years,qty,eqCurve,maxHeld,wuEquity,minRatio,maxNeed,maxNeedAt,maxNeedQ,startNeed,wuAt,wuQty,wuMg,maxHeldMg,mgRate,mgLink:P.mgLink,mgFirst:MG(P.ma),useRate,baseFirst:(P.mgLink?baseTotalAt(P.ma):P.tiers*P.qty),liqAt,bankrupt,stopped,liqQty,limWant,limCap,ref:REF,
+    mdd,wu,liq,skip,paid,trades,buys,cycles,yearly,monthly,ymdd,mmdd,mstart,years,qty,eqCurve,maxHeld,wuEquity,minRatio,maxNeed,maxNeedAt,maxNeedQ,startNeed,wuAt,wuQty,wuMg,maxHeldMg,daysTotal,daysIn,qtyDaySum,notionalSum,mgRate,mgLink:P.mgLink,mgFirst:MG(P.ma),useRate,baseFirst:(P.mgLink?baseTotalAt(P.ma):P.tiers*P.qty),liqAt,bankrupt,stopped,liqQty,limWant,limCap,ref:REF,
     wr:trades.length?wins.length/trades.length*100:0,
     d1:dt[P.ma],d2:dt[n-1],nq0:cl[P.ma],nq1:cl[n-1]};
 }
 
+function notionalSumAvg(R){ return R.daysTotal? R.notionalSum/R.daysTotal : 0; }
 function fmt(v){const a=Math.abs(v);
   if(a>=1e8) return (v/1e8).toFixed(2)+'억';
   return Math.round(v/1e4).toLocaleString()+'만';}
@@ -753,6 +758,12 @@ function render(R,P){
         <tr><td style="color:var(--dim)">연 환산 CAGR</td><td><b style="color:var(--accent)">${realCagr>=0?'+':''}${realCagr.toFixed(1)}%</b>${P.monthly>0?` <span style="font-size:10px;color:var(--dim)">· 적립 보정 ${irrApx>=0?'+':''}${irrApx.toFixed(0)}%</span>`:''}</td></tr>
         <tr><td style="color:var(--dim)">시작 규모 최악평가손</td><td class="down">${fmt(-wuIn)} ${wuIn>buf?'<span style="color:var(--gold);font-size:10px">← 여유 초과</span>':''}</td></tr>
         <tr><td colspan="2" style="padding-top:10px;border-top:1px solid var(--border)"></td></tr>
+        <tr><td style="color:var(--dim)">시장 노출</td>
+            <td><b style="color:var(--accent)">${R.daysTotal?(R.daysIn/R.daysTotal*100).toFixed(0):0}%</b>
+                <span style="font-size:11px;color:var(--dim)"> · ${(R.daysIn||0).toLocaleString()} / ${(R.daysTotal||0).toLocaleString()}거래일</span>
+                <br><span style="font-size:11px;color:var(--dim)">평균 보유 ${R.daysIn?(R.qtyDaySum/R.daysIn).toFixed(1):0}계약 (보유일 기준) ·
+                ${R.daysTotal?(R.qtyDaySum/R.daysTotal).toFixed(1):0}계약 (전체일 기준)</span>
+                <br><span style="font-size:11px;color:var(--dim)">평균 명목 ${R.daysTotal?fmt(notionalSumAvg(R)):'-'} · 쉬는 날 ${R.daysTotal?(100-R.daysIn/R.daysTotal*100).toFixed(0):0}%</span></td></tr>
         <tr><td style="color:var(--dim)">최대 동시보유</td><td>${R.maxHeld}계약 · 증거금 ${fmt(R.maxHeld*(R.maxHeldMg||P.margin))}</td></tr>
         <tr><td style="color:var(--dim)">최악 평가손</td><td class="down">${fmt(R.wu)}</td></tr>
         <tr><td style="color:var(--dim)">└ 발생 시점</td><td>${R.wuAt?new Date(R.wuAt).toISOString().slice(0,10):'-'} · <b>${R.wuQty}계약</b> 보유</td></tr>
@@ -773,7 +784,7 @@ function render(R,P){
         </tbody></table>
       </div></div>`;
 
-  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v28.1</span></div><table><tbody>
+  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v29</span></div><table><tbody>
     <tr><td>증설 방식</td><td>${P.growMode==='unit'?`<b style='color:var(--accent)'>1계약씩 (사다리)</b>`:'티어당 +1 (균등)'}</td></tr>
     <tr><td>시작 구성</td><td>${P.growMode==='unit'?ladderFor(P.tiers*P.qty,P.tiers,P.ladOrder).join('·')+` = ${P.tiers*P.qty}계약`:`${P.qty}계약 × ${P.tiers}티어 = ${P.qty*P.tiers}계약`}</td></tr>
     <tr><td>증설 제한</td><td>${P.growMode==='unit'?`복리 ${R.limWant}회 · <b style="color:${R.limCap>R.limWant?'var(--gold)':'var(--dim)'}">자본 ${R.limCap}회</b>${R.limCap>R.limWant?' ← 자본이 상한, 복리값 무의미':''}`:'-'}</td></tr>
