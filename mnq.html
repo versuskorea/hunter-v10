@@ -183,6 +183,21 @@ function closes1600(sym){
   });
 }
 
+/* MA·포모 판정용 장기 일봉 — 1분봉은 최근 5일뿐이라 일봉으로 보강 */
+function dailyCloses(sym, want){
+  var url = API + '/api/history?symbol=' + encodeURIComponent(sym)
+          + '&start=' + ymd(-(want*2 + 40)) + '&end=' + ymd(1)
+          + '&interval=1d&_=' + Date.now();
+  return fetch(url, {cache:'no-store'}).then(function(r){
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).then(function(d){
+    if(d.error || !d.bars || !d.bars.length) throw new Error(d.error || 'no 1d bars');
+    return d.bars.filter(function(b){ return b.close != null; })
+                 .map(function(b){ return {date:b.date, close:+b.close}; });
+  });
+}
+
 function loadBot(){
   return fetch(BOT_URL + '?_=' + Date.now(), {cache:'no-store'})
     .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
@@ -209,12 +224,30 @@ function render(){
   loadBot().then(function(BOT){
     var sym = (BOT && BOT.quote && BOT.quote.contract) || activeContract();
 
-    return closes1600(sym + '.CME')
-      .then(function(bars){ return {BOT:BOT, sym:sym, bars:bars, err:null}; })
-      .catch(function(e){ return {BOT:BOT, sym:sym, bars:null, err:e.message}; });
+    var want = 21;
+    return Promise.all([
+      closes1600(sym + '.CME').catch(function(e){ return {__err:e.message}; }),
+      dailyCloses(sym + '.CME', want).catch(function(){
+        return dailyCloses('%5ENDX', want).catch(function(){ return null; });
+      })
+    ]).then(function(r){
+      var b1 = r[0], dly = r[1];
+      if(b1 && b1.__err) return {BOT:BOT, sym:sym, bars:null, mabars:dly, err:b1.__err};
+      return {BOT:BOT, sym:sym, bars:b1, mabars:dly, err:null};
+    });
 
   }).then(function(ctx){
     var BOT = ctx.BOT, sym = ctx.sym, bars = ctx.bars;
+    // MA·포모용 시리즈 — 일봉이 기반, 최근 구간만 정확한 16:00 종가로 덮어쓴다
+    var mabars = ctx.mabars;
+    if(mabars && mabars.length && bars && bars.length){
+      mabars = mabars.slice();
+      var _k = Math.min(bars.length, mabars.length);
+      for(var _j = 0; _j < _k; _j++)
+        mabars[mabars.length - _k + _j] = bars[bars.length - _k + _j];
+    }else if(!mabars || !mabars.length){
+      mabars = bars;
+    }
     var BQ  = (BOT && BOT.quote) || null;
     var cfg = (BOT && BOT.cfg) || {};
     var buyPct  = cfg.buy_pct  != null ? cfg.buy_pct  : 0.3;
@@ -224,7 +257,9 @@ function render(){
 
     var px, p1, p2, thr, src, asof;
     // 봇이 저장한 설정을 읽는다 (없으면 기본값)
-    var ATK_ON    = cfg.atk_on    !== undefined ? !!cfg.atk_on   : true;
+    var ATK_MODE  = cfg.atk_mode  !== undefined ? +cfg.atk_mode : (cfg.atk_on === false ? 0 : 1);
+    var ATK_ON    = ATK_MODE > 0;
+    var ATK_BOTH  = ATK_MODE === 2;
     var ATK_BUY   = cfg.atk_buy   !== undefined ? +cfg.atk_buy   : 0.5;
     var ATK_SELL  = cfg.atk_sell  !== undefined ? +cfg.atk_sell  : 0.5;
     var sellPctOf = function(p){ return (p && p.m === 'atk') ? ATK_SELL : sellPct; };
@@ -256,10 +291,11 @@ function render(){
       thr = flr(Math.min(p1,p2) * (1 - buyPct/100));
       asof = bars[n-1].date;
       // 공격모드: p1이 MA20 위면 T1은 상승 돌파로 매수
-      if(ATK_ON && bars.length >= 21){
-        var base = sessionDone ? n-1 : n-2;
+      if(ATK_ON && mabars && mabars.length >= 21){
+        var mn = mabars.length;
+        var base = sessionDone ? mn-1 : mn-2;
         var sma = 0, cnt = 0;
-        for(var k = base-19; k <= base; k++){ if(bars[k]) { sma += bars[k].close; cnt++; } }
+        for(var k = base-19; k <= base; k++){ if(mabars[k]) { sma += mabars[k].close; cnt++; } }
         if(cnt === 20){
           sma /= 20;
           if(p1 > sma){
@@ -269,7 +305,7 @@ function render(){
             if(FOMO_DAYS > 0){
               var run = 0;
               for(var f = 0; f < FOMO_DAYS; f++){
-                if(bars[base-f] && bars[base-f-1] && bars[base-f].close > bars[base-f-1].close) run++;
+                if(mabars[base-f] && mabars[base-f-1] && mabars[base-f].close > mabars[base-f-1].close) run++;
                 else break;
               }
               fomoRun = run;
@@ -307,7 +343,7 @@ function render(){
     chgEl.textContent = (chg>0?'+':'') + chg.toFixed(2) + '%';
     chgEl.className = 's ' + (chg>0?'up':chg<0?'down':'');
     var pos = (BOT && BOT.positions && BOT.positions.length) ? BOT.positions : [];
-    var _t1atk = isAtk && pos.length === 0;
+    var _t1atk = isAtk && pos.length === 0;   // 상단 요약은 현재 보유 기준
     document.getElementById('cThr').textContent = fmt(_t1atk ? atkThr : thr);
     document.getElementById('cLow').textContent = _t1atk
       ? ('전일 ' + fmt(p1,0) + ' × +' + ATK_BUY + '% [공격]')
@@ -323,25 +359,38 @@ function render(){
     var today = ymd(0);
     var orders = [];
 
-    if(pos.length < tiers){
-      var _t1b  = isAtk && pos.length === 0;
-      var _thrB = _t1b ? atkThr : thr;
-      var _qtyB = lad[pos.length] || 1;
-      if(_t1b && fomoHot) _qtyB = Math.floor(_qtyB * FOMO_MULT);
-      orders.push({ t:'매수', cls:'t-b', px:_thrB, qty:_qtyB,
-        memo:'T' + (pos.length+1) + ' · '
-             + (_t1b ? ('전일 +' + ATK_BUY + '% [공격]' + (fomoHot ? ' 🔥×' + FOMO_MULT : ''))
-                     : ('최근2일 저가 −' + buyPct + '%'))
-             + ' · ' + ((_t1b ? px >= _thrB : px <= _thrB) ? '✅ 충족' : '대기') });
-    }
+    // ① 매도부터 — 오늘 나갈 수량을 먼저 센다
+    var sellRows = [], sellQty = 0;
     for(i=0;i<pos.length;i++){
       var p = pos[i];
       var dd = bizDays(p.date, today);
       var moc = dd >= hold;
-      orders.push({ t: moc?'MOC':'매도', cls: moc?'t-m':'t-s',
-        px: moc ? null : cel(p.entry*(1+sellPctOf(p)/100)), qty: p.qty || 1,
+      var sp  = moc ? null : cel(p.entry*(1+sellPctOf(p)/100));
+      var q   = p.qty || 1;
+      if(moc || px >= sp) sellQty += q;
+      sellRows.push({ t: moc?'MOC':'매도', cls: moc?'t-m':'t-s', px: sp, qty: q,
         memo: 'T' + (i+1) + ' · 진입 ' + fmt(p.entry) + ' · D+' + dd + (moc?' · 오늘 청산':'') });
     }
+
+    // ② 오늘 전량 청산되면 사이클이 끝나므로 같은 날 매수는 T1 자리로 본다
+    var stepNow = pos.length;
+    if(held > 0 && sellQty >= held) stepNow = 0;
+
+    if(stepNow < tiers){
+      var _t1b  = isAtk && stepNow === 0;
+      // 양방향: T1 자리에서 공격 미충족이면 같은 날 방어 조건으로 진입
+      if(_t1b && ATK_BOTH && px < atkThr && px <= thr) _t1b = false;
+      var _thrB = _t1b ? atkThr : thr;
+      var _qtyB = lad[stepNow] || 1;
+      if(_t1b && fomoHot) _qtyB = Math.floor(_qtyB * FOMO_MULT);
+      orders.push({ t:'매수', cls:'t-b', px:_thrB, qty:_qtyB,
+        memo:'T' + (stepNow+1) + ' · '
+             + (_t1b ? ('전일 +' + ATK_BUY + '% [공격]' + (fomoHot ? ' 🔥×' + FOMO_MULT : ''))
+                     : ('최근2일 저가 −' + buyPct + '%'))
+             + (stepNow === 0 && pos.length ? ' · 오늘 청산 후 재진입' : '')
+             + ' · ' + ((_t1b ? px >= _thrB : px <= _thrB) ? '✅ 충족' : '대기') });
+    }
+    for(i=0;i<sellRows.length;i++) orders.push(sellRows[i]);
 
     document.getElementById('ordCnt').textContent = orders.length + '건';
     if(orders.length){
@@ -363,11 +412,12 @@ function render(){
       document.getElementById('ordBody').innerHTML = '<div class="empty">주문 없음</div>';
     }
 
-    // T1 자리가 비어 있고 공격모드면 T1은 상승 돌파 조건
-    var t1Atk   = isAtk && pos.length === 0;
+    // T1 자리가 비어 있고(또는 오늘 전량 청산되고) 공격모드면 T1은 상승 돌파 조건
+    var t1Atk   = isAtk && stepNow === 0;
+    if(t1Atk && ATK_BOTH && px < atkThr && px <= thr) t1Atk = false;
     var showThr = t1Atk ? atkThr : thr;
     var sign    = t1Atk ? '이상' : '이하';
-    var canBuy  = pos.length < tiers;
+    var canBuy  = stepNow < tiers;
     var buyHit  = canBuy && (t1Atk ? (px >= atkThr) : (px <= thr));
 
     function mtag(isAtkPos){
@@ -383,8 +433,8 @@ function render(){
 
     var rows = '', mocQty = 0, sellHit = false;
     if(canBuy){
-      rows += trow('t-b', '매수', 'T' + (pos.length + 1),
-                   pos.length === 0 ? mtag(t1Atk) : '',
+      rows += trow('t-b', '매수', 'T' + (stepNow + 1),
+                   stepNow === 0 ? mtag(t1Atk) : '',
                    fmt(showThr) + ' ' + sign, buyHit);
     }
     for(i=0;i<pos.length;i++){
