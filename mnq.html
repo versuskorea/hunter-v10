@@ -82,7 +82,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 
 <div class="top">
   <a href="/index.html" class="back">←</a>
-  <h1>🎯 MNQ <span>주문</span></h1>
+  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3.1</span>
   <div class="status" id="st">로딩</div>
 </div>
 <div class="asof" id="asof">—</div>
@@ -394,8 +394,12 @@ function render(){
         var _alt = _t1b ? thr : atkThr;
         var _alu = _t1b ? '이하 [방어]' : '이상 [공격]';
         var _ahit = _t1b ? (px <= thr) : (px >= atkThr);
-        orders.push({ t:'매수', cls:'t-b', px:_alt, qty:_qtyB,
-          memo:'T1 · ' + (_t1b ? ('최근2일 저가 −' + buyPct + '%') : ('전일 +' + ATK_BUY + '%'))
+        // 포모 배수는 공격 진입에만 붙는다 — 방어 줄은 기본 수량
+        var _aq = _t1b ? (lad[0] || 1)
+                       : ((fomoHot ? Math.floor((lad[0] || 1) * FOMO_MULT) : (lad[0] || 1)));
+        orders.push({ t:'매수', cls:'t-b', px:_alt, qty:_aq,
+          memo:'T1 · ' + (_t1b ? ('최근2일 저가 −' + buyPct + '%')
+                                : ('전일 +' + ATK_BUY + '%' + (fomoHot ? ' 🔥×' + FOMO_MULT : '')))
                + ' ' + _alu + ' · ' + (_ahit ? '✅ 충족' : '대기') });
       }
     }
