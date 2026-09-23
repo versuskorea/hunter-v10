@@ -82,7 +82,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 
 <div class="top">
   <a href="/index.html" class="back">←</a>
-  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3.1</span>
+  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3.2</span>
   <div class="status" id="st">로딩</div>
 </div>
 <div class="asof" id="asof">—</div>
@@ -269,8 +269,12 @@ function render(){
 
     // 선물 세션 종료(17:00 ET = 한국 06:00) 이후면 당일 종가를 기준가 계산에 포함.
     // 그 전에는 오늘 쓸 기준가(직전 2일 기준)를 그대로 보여준다.
-    var etNow  = new Date(Date.now() - 4*3600000);   // EDT
-    var sessionDone = etNow.getUTCHours() >= 17 || etNow.getUTCHours() < 4;
+    var etNow   = new Date(Date.now() - 4*3600000);   // EDT
+    var etToday = etNow.toISOString().slice(0,10);
+    // 오늘(ET) 16:00 정산이 끝났을 때만 당일 종가를 확정값으로 쓴다.
+    // ET 자정을 넘기면 hour<4 가 되는데 그날 정산은 아직이므로 포함하지 않는다.
+    var sessionDone = (etNow.getUTCHours() >= 16)
+                      && bars && bars.length && bars[bars.length-1].date === etToday;
     var appNewer = bars && bars.length >= 3 && BQ && BQ.date
                    && bars[bars.length-1].date > BQ.date;
 
@@ -327,7 +331,11 @@ function render(){
 
     // 다음 판정일 = 다음 영업일 (한국 기준 미국장 마감 다음날 새벽)
     var nd = new Date(asof + 'T00:00:00Z');
-    do { nd.setUTCDate(nd.getUTCDate()+1); } while (nd.getUTCDay()===0 || nd.getUTCDay()===6);
+    if(sessionDone){   // 오늘 정산이 끝났으면 다음 영업일이 판정일
+      do { nd.setUTCDate(nd.getUTCDate()+1); } while (nd.getUTCDay()===0 || nd.getUTCDay()===6);
+    }else{             // 아직이면 오늘(asof)이 판정일
+      while (nd.getUTCDay()===0 || nd.getUTCDay()===6) nd.setUTCDate(nd.getUTCDate()+1);
+    }
     var wk = ['일','월','화','수','목','금','토'];
     var ndStr = (nd.getUTCMonth()+1) + '/' + nd.getUTCDate() + '(' + wk[nd.getUTCDay()] + ')';
     var kd = new Date(nd.getTime() + 86400000);   // 한국은 하루 뒤 새벽
