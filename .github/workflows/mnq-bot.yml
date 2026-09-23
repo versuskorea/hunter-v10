@@ -51,6 +51,7 @@ jobs:
           BUFFER:      ${{ vars.BUFFER || '30' }}
           LAD_ORDER:   ${{ vars.LAD_ORDER || 'mid' }}
           ATK_ON:      ${{ vars.ATK_ON || '1' }}
+          ATK_MODE:    ${{ vars.ATK_MODE || '1' }}   # 0=끄기 1=T1공격 2=T1양방향
           ATK_MA:      ${{ vars.ATK_MA || '20' }}
           ATK_BUY:     ${{ vars.ATK_BUY || '0.5' }}
           ATK_SELL:    ${{ vars.ATK_SELL || '0.5' }}
