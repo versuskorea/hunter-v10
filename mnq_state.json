@@ -19,9 +19,10 @@
     "paid": 3000.0,
     "icap": 3000.0,
     "atk_on": true,
+    "atk_mode": 2,
     "atk_ma": 20,
     "atk_buy": 0.5,
-    "atk_sell": 0.2,
+    "atk_sell": 0.5,
     "fomo_days": 4,
     "fomo_mult": 2.0
   },
