@@ -1,0 +1,100 @@
+name: MNQ Bot
+
+on:
+  schedule:
+    # 미국 정규장 마감(16:00 ET) 직후 실행 — 서머타임 대응으로 두 번 등록
+    # 16:00 ET 마감 직후 — 여러 번 걸어두고 먼저 도는 놈이 처리 (나머지는 중복 스킵)
+    # ① 마감 5분 전 시작 → 봇이 16:00:08 까지 대기했다가 즉시 판정·주문
+    - cron: '55 19 * * 1-5'   # 04:55 KST (EDT)
+    - cron: '57 19 * * 1-5'   # 04:57  (①이 지연될 때 대비)
+    # ② 마감 후 — ①이 실패했을 때만 처리 (성공했으면 중복 스킵)
+    - cron: '3 20 * * 1-5'    # 05:03
+    - cron: '10 20 * * 1-5'   # 05:10
+    - cron: '20 20 * * 1-5'   # 05:20
+    # 겨울(EST) — 한 시간 뒤
+    - cron: '55 20 * * 1-5'   # 05:55 KST
+    - cron: '3 21 * * 1-5'    # 06:03
+    - cron: '20 21 * * 1-5'   # 06:20
+  workflow_dispatch:        # 수동 실행 버튼
+    inputs:
+      force:
+        description: '장 마감 전·중복이어도 강제 실행 (테스트)'
+        type: boolean
+        default: false
+      quote_test:
+        description: '시세 진단만 (한투·야후 경로별 성공·실패만 확인, 주문 없음)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write           # 상태 파일 커밋용
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run bot
+        env:
+          MODE:        ${{ vars.MODE || 'PAPER' }}
+          QTY:         ${{ vars.QTY || '1' }}
+          TIERS:       ${{ vars.TIERS || '3' }}
+          HOLD_DAYS:   ${{ vars.HOLD_DAYS || '3' }}
+          BUY_PCT:     ${{ vars.BUY_PCT || '0.3' }}
+          SELL_PCT:    ${{ vars.SELL_PCT || '0.5' }}
+          MARGIN_USD:  ${{ vars.MARGIN_USD || '3138' }}
+          FX:          ${{ vars.FX || '1350' }}
+          TOTAL_PAID:  ${{ vars.TOTAL_PAID || '4500' }}
+          INITIAL_CAP: ${{ vars.INITIAL_CAP || '4500' }}
+          PER_CONTRACT: ${{ vars.PER_CONTRACT || '1000' }}
+          BUFFER:      ${{ vars.BUFFER || '30' }}
+          LAD_ORDER:   ${{ vars.LAD_ORDER || 'mid' }}
+          ATK_ON:      ${{ vars.ATK_ON || '1' }}
+          ATK_MODE:    ${{ vars.ATK_MODE || '1' }}   # 0=끄기 1=T1공격 2=T1양방향
+          ATK_MA:      ${{ vars.ATK_MA || '20' }}
+          ATK_BUY:     ${{ vars.ATK_BUY || '0.5' }}
+          ATK_SELL:    ${{ vars.ATK_SELL || '0.5' }}
+          FOMO_DAYS:   ${{ vars.FOMO_DAYS || '4' }}
+          FOMO_MULT:   ${{ vars.FOMO_MULT || '2.0' }}
+          HUNTER_API:  ${{ vars.HUNTER_API || 'https://hunter-v10.vercel.app' }}
+          CLOSE_1600:  ${{ vars.CLOSE_1600 || '1' }}
+          DATA_SYMBOL: ${{ vars.DATA_SYMBOL || '^NDX' }}
+          USE_CONTRACT_SYM: ${{ vars.USE_CONTRACT_SYM || '1' }}
+          USE_KIS_QUOTE: ${{ vars.USE_KIS_QUOTE || '1' }}
+          WAIT_CLOSE:   ${{ vars.WAIT_CLOSE || '1' }}
+          WAIT_MAX_SEC: ${{ vars.WAIT_MAX_SEC || '420' }}
+          MIN_GAP:      ${{ vars.MIN_GAP || '1' }}
+          ORDER_DEADLINE: ${{ vars.ORDER_DEADLINE || '5' }}
+          PAUSE_BUY:   ${{ vars.PAUSE_BUY || '0' }}
+          PAUSE_ALL:   ${{ vars.PAUSE_ALL || '0' }}
+          CLOSE_ALL:   ${{ vars.CLOSE_ALL || '0' }}
+          FORCE_RUN:   ${{ inputs.force && '1' || vars.FORCE_RUN || '0' }}
+          QUOTE_TEST:  ${{ inputs.quote_test && '1' || '0' }}
+          SYMBOL:      ${{ vars.SYMBOL || 'MNQ' }}
+          ROLL_STOP_DAYS: ${{ vars.ROLL_STOP_DAYS || '14' }}
+          QQQ_SCALE:   ${{ vars.QQQ_SCALE || '41.4' }}
+          NDX_SCALE:   ${{ vars.NDX_SCALE || '1.0' }}
+          STATE_FILE:  mnq_state.json
+          TG_TOKEN:    ${{ secrets.TG_TOKEN }}
+          TG_CHAT:     ${{ secrets.TG_CHAT }}
+          # LIVE 모드일 때만 필요
+          KIS_APP_KEY:      ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET:   ${{ secrets.KIS_APP_SECRET }}
+          KIS_ACCOUNT_NO:   ${{ secrets.KIS_ACCOUNT_NO }}
+          KIS_ACCOUNT_CODE: ${{ secrets.KIS_ACCOUNT_CODE }}
+        run: python mnq_bot.py
+
+      - name: Commit state
+        continue-on-error: true
+        run: |
+          git config user.name "mnq-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add -A mnq_state.json
+          git diff --staged --quiet && echo "변경 없음" && exit 0
+          git commit -m "state update"
+          git push
