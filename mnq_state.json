@@ -4,7 +4,7 @@
   "realized": 0.0,
   "step": 0,
   "equity": 30000000,
-  "last_date": "2026-09-23",
+  "last_date": "2026-09-24",
   "contract": null,
   "cfg": {
     "buy_pct": 0.3,
@@ -27,12 +27,12 @@
     "fomo_mult": 2.0
   },
   "quote": {
-    "px": 30769.75,
-    "p1": 31030.5,
-    "p2": 30783.25,
-    "date": "2026-09-23",
+    "px": 30756.75,
+    "p1": 30769.75,
+    "p2": 31030.5,
+    "date": "2026-09-24",
     "src": "MNQZ26.CME 16:00ET",
-    "buy_thr": 30690.75,
+    "buy_thr": 30677.25,
     "contract": "MNQZ26",
     "total_q": 2,
     "want": 2,
