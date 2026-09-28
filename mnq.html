@@ -10,6 +10,11 @@
 :root{--bg:#08080a;--card:#111118;--card2:#1a1a1f;--border:#222233;--accent:#3b82f6;
       --green:#22c55e;--red:#ef4444;--text:#f0f0f0;--dim:#666;--gold:#fbbf24;--purple:#a78bfa}
 *{margin:0;padding:0;box-sizing:border-box}
+.chartbox{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 12px 8px;margin:10px 0}
+.ch-head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;font-family:'JetBrains Mono',monospace}
+.ch-px{font-size:20px;font-weight:800}
+.ch-chg{font-size:12px;font-weight:700}
+.ch-t{margin-left:auto;font-size:10px;color:var(--dim)}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
      padding:12px;max-width:600px;margin:0 auto}
 .top{display:flex;align-items:center;gap:8px;padding:6px 0}
@@ -82,7 +87,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 
 <div class="top">
   <a href="/index.html" class="back">←</a>
-  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3.5</span>
+  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3.6</span>
   <div class="status" id="st">로딩</div>
 </div>
 <div class="asof" id="asof">—</div>
@@ -90,6 +95,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 <div id="todo" class="todo t-none">
   <div class="lb">오늘 할 일</div>
   <div class="big">불러오는 중…</div>
+</div>
+
+<div id="chartBox" class="chartbox" style="display:none">
+  <div class="ch-head"><span id="chPx" class="ch-px">—</span><span id="chChg" class="ch-chg">—</span><span id="chT" class="ch-t">—</span></div>
+  <div id="chart" style="position:relative;touch-action:none"></div>
 </div>
 
 <div class="cards">
@@ -168,6 +178,7 @@ function closes1600(sym){
     return r.json();
   }).then(function(d){
     if(d.error || !d.bars || !d.bars.length) throw new Error(d.error || 'no 1m bars');
+    window.RAW1M = d.bars;
     var byDay = {};
     for(var i=0;i<d.bars.length;i++){
       var b = d.bars[i];
@@ -223,6 +234,105 @@ function ladder(total, tiers){
   while(e > 0){ l[seq[k % tiers]]++; e--; k++; }
   return l;
 }
+
+/* ── 1일 선차트 (아이폰 주식 스타일) ── */
+var CH = null;
+function nextBiz(ymdStr){
+  var d = new Date(ymdStr + 'T12:00:00Z');
+  do { d.setUTCDate(d.getUTCDate()+1); } while(d.getUTCDay()===0 || d.getUTCDay()===6);
+  return d.toISOString().slice(0,10);
+}
+function sessionBars(){
+  var raw = window.RAW1M || [], out = {}, last = null;
+  for(var i=0;i<raw.length;i++){
+    var b = raw[i]; if(!b.etTime || b.close == null) continue;
+    var pr = b.etTime.split(':'), m = (+pr[0])*60 + (+pr[1]);
+    if(m >= 17*60 && m < 18*60) continue;                    // 정비 시간
+    var td = m >= 18*60 ? nextBiz(b.date) : b.date;
+    var t  = m >= 18*60 ? m - 18*60 : m + 6*60;               // 세션 시작(18:00 ET)부터 분
+    (out[td] = out[td] || []).push({t:t, px:+b.close, et:b.etTime});
+    if(!last || td > last) last = td;
+  }
+  if(!last) return null;
+  var arr = out[last].sort(function(a,b){ return a.t - b.t; });
+  return {date:last, bars:arr};
+}
+function kstLabel(t){                                         // 세션분 → 한국시각 (EDT +13h)
+  var etMin = (t + 18*60) % 1440, k = (etMin + 13*60) % 1440;
+  var h = Math.floor(k/60), mm = k % 60;
+  return (h<10?'0':'') + h + ':' + (mm<10?'0':'') + mm;
+}
+function drawChart(o){
+  var box = document.getElementById('chartBox'), el = document.getElementById('chart');
+  var S = sessionBars();
+  if(!S || S.bars.length < 2){ box.style.display = 'none'; return; }
+  box.style.display = '';
+  var W = 600, H = 210, L = 4, R = 86, T = 8, B = 22, END = 1380;
+  var bars = S.bars, base = o.prev || bars[0].px;
+  var lo = Math.min.apply(null, bars.map(function(b){return b.px;}).concat([base]));
+  var hi = Math.max.apply(null, bars.map(function(b){return b.px;}).concat([base]));
+  if(o.thr)    lo = Math.min(lo, o.thr);
+  if(o.atkThr) hi = Math.max(hi, o.atkThr);
+  var pad = (hi - lo) * 0.08 || 5; lo -= pad; hi += pad;
+  var X = function(t){ return L + (W-L-R) * t / END; };
+  var Y = function(v){ return T + (H-T-B) * (hi - v) / (hi - lo); };
+  var lastB = bars[bars.length-1], up = lastB.px >= base;
+  var col = up ? '#22c55e' : '#ef4444';
+  var pts = bars.map(function(b){ return X(b.t).toFixed(1) + ',' + Y(b.px).toFixed(1); }).join(' ');
+  var area = 'M' + X(bars[0].t).toFixed(1) + ',' + (H-B) + ' L' + pts.replace(/ /g,' L') + ' L' + X(lastB.t).toFixed(1) + ',' + (H-B) + ' Z';
+  var hline = function(v, c, lab, dash){
+    return '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v).toFixed(1)+'" y2="'+Y(v).toFixed(1)+'" stroke="'+c+'" stroke-width="1" stroke-dasharray="'+(dash||'4 4')+'" opacity=".8"/>'
+         + '<text x="'+(W-R+4)+'" y="'+(Y(v)+3).toFixed(1)+'" fill="'+c+'" font-size="9.5" font-family="JetBrains Mono">'+lab+'</text>';
+  };
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block">'
+    + '<defs><linearGradient id="chg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity=".35"/><stop offset="1" stop-color="'+col+'" stop-opacity="0"/></linearGradient></defs>';
+  [[0,'07시'],[360,'13시'],[930,'22:30'],[1320,'05시']].forEach(function(g){
+    svg += '<line x1="'+X(g[0])+'" x2="'+X(g[0])+'" y1="'+T+'" y2="'+(H-B)+'" stroke="#222233" stroke-width="1"/>'
+        +  '<text x="'+X(g[0])+'" y="'+(H-6)+'" fill="#666" font-size="10" text-anchor="'+(g[0]?'middle':'start')+'">'+g[1]+'</text>';
+  });
+  svg += hline(base, '#888', fmt(base), '2 3');
+  if(o.thr)    svg += hline(o.thr,    '#22c55e', '방어 ' + fmt(o.thr));
+  if(o.atkThr) svg += hline(o.atkThr, '#fbbf24', '공격 ' + fmt(o.atkThr));
+  svg += '<path d="'+area+'" fill="url(#chg)"/>'
+      +  '<polyline points="'+pts+'" fill="none" stroke="'+col+'" stroke-width="1.8" stroke-linejoin="round"/>'
+      +  '<circle cx="'+X(lastB.t).toFixed(1)+'" cy="'+Y(lastB.px).toFixed(1)+'" r="3.5" fill="'+col+'"/>'
+      +  '<g id="chCross" style="display:none"><line id="chCx" y1="'+T+'" y2="'+(H-B)+'" stroke="#aaa" stroke-width="1"/><circle id="chCd" r="4" fill="#fff"/></g>'
+      +  '</svg>';
+  el.innerHTML = svg;
+  CH = {bars:bars, base:base, X:X, Y:Y, W:W, last:lastB, date:S.date};
+  chHead(lastB, false);
+}
+function chHead(b, touching){
+  var d = b.px - CH.base, pc = d / CH.base * 100, c = d >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('chPx').textContent = fmt(b.px);
+  var cg = document.getElementById('chChg');
+  cg.textContent = (d>=0?'+':'') + d.toFixed(2) + ' (' + (d>=0?'+':'') + pc.toFixed(2) + '%)';
+  cg.style.color = c;
+  document.getElementById('chT').textContent = (touching ? '' : CH.date.slice(5) + ' 세션 · ')
+    + kstLabel(b.t) + ' KST' + (touching ? '' : ' · 야후 ~10분 지연');
+}
+(function(){
+  var el = document.getElementById('chart');
+  function pick(ev){
+    if(!CH) return;
+    var r = el.getBoundingClientRect(), cx = (ev.touches ? ev.touches[0].clientX : ev.clientX) - r.left;
+    var vx = cx / r.width * CH.W, best = CH.bars[0], bd = 1e9;
+    CH.bars.forEach(function(b){ var dd = Math.abs(CH.X(b.t) - vx); if(dd < bd){ bd = dd; best = b; } });
+    var g = document.getElementById('chCross'); if(!g) return;
+    g.style.display = '';
+    var x = CH.X(best.t), y = CH.Y(best.px);
+    document.getElementById('chCx').setAttribute('x1', x); document.getElementById('chCx').setAttribute('x2', x);
+    document.getElementById('chCd').setAttribute('cx', x); document.getElementById('chCd').setAttribute('cy', y);
+    chHead(best, true);
+    if(ev.cancelable) ev.preventDefault();
+  }
+  function end(){ if(!CH) return; var g = document.getElementById('chCross'); if(g) g.style.display = 'none'; chHead(CH.last, false); }
+  el.addEventListener('touchstart', pick, {passive:false});
+  el.addEventListener('touchmove',  pick, {passive:false});
+  el.addEventListener('touchend',   end);
+  el.addEventListener('mousemove',  pick);
+  el.addEventListener('mouseleave', end);
+})();
 
 function render(){
   var stEl = document.getElementById('st');
@@ -557,6 +667,10 @@ function render(){
       + '<div class="sub">' + (live ? '현재가 ' : '종가 ') + fmt(px) + ' · 보유 ' + pos.length + '/' + tiers + '티어 · ' + held + '계약'
       + (t1Atk && fomoHot ? ' · 🔥 포모 ' + fomoRun + '일연속 ×' + FOMO_MULT : '') + '</div>'
       + gauge;
+    try{
+      var _base = live ? p1 : (botRolled || sessionDone ? p2 : p1);
+      drawChart({prev:_base, thr: (live && canBuy) ? thr : null, atkThr: (live && canBuy && isAtk && stepNow === 0) ? atkThr : null});
+    }catch(e){ document.getElementById('chartBox').style.display = 'none'; }
 
     document.getElementById('posSrc').innerHTML = BOT
       ? '<span style="color:var(--green)">🤖 봇</span>' : '—';
