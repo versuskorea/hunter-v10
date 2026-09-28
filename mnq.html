@@ -82,7 +82,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 
 <div class="top">
   <a href="/index.html" class="back">←</a>
-  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3.4</span>
+  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3.5</span>
   <div class="status" id="st">로딩</div>
 </div>
 <div class="asof" id="asof">—</div>
@@ -523,13 +523,40 @@ function render(){
             : buyHit  ? 't-buy'
             : sellHit ? 't-sell' : 't-none';
 
+    // 지금 이 가격으로 끝나면? (장중 실시간일 때)
+    var live = !botRolled && !sessionDone;
+    var gauge = '';
+    if(live && canBuy){
+      var dPct = function(t){ return (t/px - 1)*100; };
+      var lines = [], verdict;
+      var atkOpen = isAtk && stepNow === 0;
+      if(atkOpen && px >= atkThr)      verdict = '<b style="color:var(--gold)">공격 매수' + (fomoHot ? ' 🔥 포모' : '') + '</b>';
+      else if(px <= thr)               verdict = '<b style="color:var(--green)">방어 매수 T' + (stepNow+1) + '</b>';
+      else                             verdict = '<b style="color:var(--dim)">매수 없음</b>';
+      if(atkOpen) lines.push('공격까지 ' + (px >= atkThr ? '✅' : '+' + dPct(atkThr).toFixed(2) + '% (' + (atkThr-px).toFixed(2) + 'pt)'));
+      lines.push('방어까지 ' + (px <= thr ? '✅' : dPct(thr).toFixed(2) + '% (' + (thr-px).toFixed(2) + 'pt)'));
+      var bar = '';
+      if(atkOpen && atkThr > thr){
+        var pos01 = Math.max(0, Math.min(1, (px - thr)/(atkThr - thr)));
+        bar = '<div style="position:relative;height:6px;border-radius:3px;margin:8px 0 2px;'
+            + 'background:linear-gradient(90deg,var(--green),#333 20%,#333 80%,var(--gold))">'
+            + '<div style="position:absolute;top:-4px;left:calc(' + (pos01*100).toFixed(1) + '% - 7px);width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #111"></div></div>'
+            + '<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--dim)"><span>방어 ' + fmt(thr) + '</span><span>공격 ' + fmt(atkThr) + '</span></div>';
+      }
+      gauge = '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">'
+            + '<div style="font-size:13px">지금 끝나면 → ' + verdict + '</div>'
+            + '<div style="font-size:11px;color:var(--dim);margin-top:4px">' + lines.join(' · ') + '</div>'
+            + bar + '</div>';
+    }
+
     var todo = document.getElementById('todo');
     todo.className = 'todo ' + cls;
     todo.innerHTML =
       '<div class="lb">' + (sessionDone ? ndStr + ' 미국장' : '오늘') + ' 할 일</div>'
       + (rows || '<div class="trow"><span class="tl">주문 없음</span></div>')
-      + '<div class="sub">종가 ' + fmt(px) + ' · 보유 ' + pos.length + '/' + tiers + '티어 · ' + held + '계약'
-      + (t1Atk && fomoHot ? ' · 🔥 포모 ' + fomoRun + '일연속 ×' + FOMO_MULT : '') + '</div>';
+      + '<div class="sub">' + (live ? '현재가 ' : '종가 ') + fmt(px) + ' · 보유 ' + pos.length + '/' + tiers + '티어 · ' + held + '계약'
+      + (t1Atk && fomoHot ? ' · 🔥 포모 ' + fomoRun + '일연속 ×' + FOMO_MULT : '') + '</div>'
+      + gauge;
 
     document.getElementById('posSrc').innerHTML = BOT
       ? '<span style="color:var(--green)">🤖 봇</span>' : '—';
