@@ -82,7 +82,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 
 <div class="top">
   <a href="/index.html" class="back">←</a>
-  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3.3</span>
+  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3.4</span>
   <div class="status" id="st">로딩</div>
 </div>
 <div class="asof" id="asof">—</div>
@@ -174,8 +174,14 @@ function closes1600(sym){
       if(!b.etTime || b.close == null) continue;
       var parts = b.etTime.split(':');
       var mins = (+parts[0])*60 + (+parts[1]);
-      if(mins >= 16*60) continue;   // 16:00 봉부터 제외 (15:59 봉이 마지막)
-      if(!byDay[b.date] || mins > byDay[b.date][0]) byDay[b.date] = [mins, +b.close];
+      var dkey = b.date, sk = mins;
+      if(mins >= 18*60){                 // 18:00 ET 이후 = 다음 거래일 세션 (일요일 저녁 포함)
+        var nd0 = new Date(b.date + 'T12:00:00Z');
+        do { nd0.setUTCDate(nd0.getUTCDate()+1); } while(nd0.getUTCDay()===0 || nd0.getUTCDay()===6);
+        dkey = nd0.toISOString().slice(0,10);
+        sk = mins - 24*60;               // 같은 날 정규 시간 봉보다 앞 순서
+      }else if(mins >= 16*60) continue;  // 16:00~18:00 제외 (15:59 봉이 마지막)
+      if(!byDay[dkey] || sk > byDay[dkey][0]) byDay[dkey] = [sk, +b.close];
     }
     var keys = Object.keys(byDay).sort();
     if(keys.length < 3) throw new Error('1분봉 부족 (' + keys.length + '일)');
@@ -241,10 +247,10 @@ function render(){
     // MA·포모용 시리즈 — 일봉이 기반, 최근 구간만 정확한 16:00 종가로 덮어쓴다
     var mabars = ctx.mabars;
     if(mabars && mabars.length && bars && bars.length){
-      mabars = mabars.slice();
-      var _k = Math.min(bars.length, mabars.length);
-      for(var _j = 0; _j < _k; _j++)
-        mabars[mabars.length - _k + _j] = bars[bars.length - _k + _j];
+      var _m = {};
+      mabars.forEach(function(b){ _m[b.date] = b; });
+      bars.forEach(function(b){ _m[b.date] = b; });          // 분봉 16:00 종가(및 실시간)가 우선
+      mabars = Object.keys(_m).sort().map(function(k){ return _m[k]; });
     }else if(!mabars || !mabars.length){
       mabars = bars;
     }
@@ -314,7 +320,15 @@ function render(){
         src = sym + '.CME 1분봉 · 다음 거래일 기준';
       }else{                           // 장중·마감 직후 → 오늘 쓸 기준가
         p1 = bars[n-2].close; p2 = bars[n-3].close;
-        src = sym + '.CME 1분봉';
+        src = sym + '.CME 1분봉 · 실시간';
+        // 봇이 확정한 종가(한투)가 있으면 기준가는 그 값으로
+        if(BQ && BQ.date === bars[n-2].date && BQ.px != null){
+          p1 = BQ.px; if(BQ.p1 != null) p2 = BQ.p1;
+          src = sym + ' 실시간 · 기준가 봇 종가';
+          for(var _q = mabars.length-1; _q >= 0; _q--){        // MA·포모에도 봇 종가 반영
+            if(mabars[_q].date === BQ.date){ mabars[_q] = {date:BQ.date, close:BQ.px}; break; }
+          }
+        }
       }
       thr = flr(Math.min(p1,p2) * (1 - buyPct/100));
       asof = bars[n-1].date;
