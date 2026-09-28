@@ -12,9 +12,9 @@
 *{margin:0;padding:0;box-sizing:border-box}
 .chartbox{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 12px 8px;margin:10px 0}
 .ch-head{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;font-family:'JetBrains Mono',monospace}
-.ch-px{font-size:20px;font-weight:800}
-.ch-chg{font-size:12px;font-weight:700}
-.ch-t{margin-left:auto;font-size:10px;color:var(--dim)}
+.ch-px{font-size:24px;font-weight:800}
+.ch-chg{font-size:14px;font-weight:700}
+.ch-t{margin-left:auto;font-size:11px;color:var(--dim)}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
      padding:12px;max-width:600px;margin:0 auto}
 .top{display:flex;align-items:center;gap:8px;padding:6px 0}
@@ -87,7 +87,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 
 <div class="top">
   <a href="/index.html" class="back">←</a>
-  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3.6</span>
+  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v3.7</span>
   <div class="status" id="st">로딩</div>
 </div>
 <div class="asof" id="asof">—</div>
@@ -267,7 +267,7 @@ function drawChart(o){
   var S = sessionBars();
   if(!S || S.bars.length < 2){ box.style.display = 'none'; return; }
   box.style.display = '';
-  var W = 600, H = 210, L = 4, R = 86, T = 8, B = 22, END = 1380;
+  var W = Math.max(280, Math.round(el.clientWidth || box.clientWidth - 24 || 340)), H = Math.round(W*0.55), L = 2, R = 2, T = 8, B = 20, END = 1380;
   var bars = S.bars, base = o.prev || bars[0].px;
   var lo = Math.min.apply(null, bars.map(function(b){return b.px;}).concat([base]));
   var hi = Math.max.apply(null, bars.map(function(b){return b.px;}).concat([base]));
@@ -280,26 +280,37 @@ function drawChart(o){
   var col = up ? '#22c55e' : '#ef4444';
   var pts = bars.map(function(b){ return X(b.t).toFixed(1) + ',' + Y(b.px).toFixed(1); }).join(' ');
   var area = 'M' + X(bars[0].t).toFixed(1) + ',' + (H-B) + ' L' + pts.replace(/ /g,' L') + ' L' + X(lastB.t).toFixed(1) + ',' + (H-B) + ' Z';
+  var tags = [];
   var hline = function(v, c, lab, dash){
-    return '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v).toFixed(1)+'" y2="'+Y(v).toFixed(1)+'" stroke="'+c+'" stroke-width="1" stroke-dasharray="'+(dash||'4 4')+'" opacity=".8"/>'
-         + '<text x="'+(W-R+4)+'" y="'+(Y(v)+3).toFixed(1)+'" fill="'+c+'" font-size="9.5" font-family="JetBrains Mono">'+lab+'</text>';
+    tags.push({y:Y(v), c:c, lab:lab});
+    return '<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(v).toFixed(1)+'" y2="'+Y(v).toFixed(1)+'" stroke="'+c+'" stroke-width="1.2" stroke-dasharray="'+(dash||'5 4')+'" opacity=".9"/>';
   };
-  var svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block">'
+  var tagSvg = function(){
+    tags.sort(function(a,b){ return a.y - b.y; });
+    for(var q=1;q<tags.length;q++) if(tags[q].y - tags[q-1].y < 18) tags[q].y = tags[q-1].y + 18;   // 겹침 방지
+    return tags.map(function(g){
+      var w = g.lab.replace(/[가-힣]/g,'').length * 7.3 + (g.lab.match(/[가-힣]/g)||[]).length * 12 + 12, x = W - R - w, y = Math.min(Math.max(g.y, T+9), H-B-9);
+      return '<rect x="'+x+'" y="'+(y-9)+'" width="'+w+'" height="18" rx="5" fill="#0b0b12" stroke="'+g.c+'" stroke-width="1"/>'
+           + '<text x="'+(x+w/2)+'" y="'+(y+4)+'" fill="'+g.c+'" font-size="12" font-weight="700" text-anchor="middle" font-family="JetBrains Mono,monospace">'+g.lab+'</text>';
+    }).join('');
+  };
+  var svg = '<svg viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" style="display:block;max-width:100%">'
     + '<defs><linearGradient id="chg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+col+'" stop-opacity=".35"/><stop offset="1" stop-color="'+col+'" stop-opacity="0"/></linearGradient></defs>';
   [[0,'07시'],[360,'13시'],[930,'22:30'],[1320,'05시']].forEach(function(g){
     svg += '<line x1="'+X(g[0])+'" x2="'+X(g[0])+'" y1="'+T+'" y2="'+(H-B)+'" stroke="#222233" stroke-width="1"/>'
-        +  '<text x="'+X(g[0])+'" y="'+(H-6)+'" fill="#666" font-size="10" text-anchor="'+(g[0]?'middle':'start')+'">'+g[1]+'</text>';
+        +  '<text x="'+X(g[0])+'" y="'+(H-5)+'" fill="#888" font-size="11" text-anchor="'+(g[0]===0?'start':(g[0]===1320?'end':'middle'))+'">'+g[1]+'</text>';
   });
-  svg += hline(base, '#888', fmt(base), '2 3');
+  svg += hline(base, '#9a9a9a', '전일 ' + fmt(base), '2 3');
   if(o.thr)    svg += hline(o.thr,    '#22c55e', '방어 ' + fmt(o.thr));
   if(o.atkThr) svg += hline(o.atkThr, '#fbbf24', '공격 ' + fmt(o.atkThr));
   svg += '<path d="'+area+'" fill="url(#chg)"/>'
       +  '<polyline points="'+pts+'" fill="none" stroke="'+col+'" stroke-width="1.8" stroke-linejoin="round"/>'
       +  '<circle cx="'+X(lastB.t).toFixed(1)+'" cy="'+Y(lastB.px).toFixed(1)+'" r="3.5" fill="'+col+'"/>'
+      +  tagSvg()
       +  '<g id="chCross" style="display:none"><line id="chCx" y1="'+T+'" y2="'+(H-B)+'" stroke="#aaa" stroke-width="1"/><circle id="chCd" r="4" fill="#fff"/></g>'
       +  '</svg>';
   el.innerHTML = svg;
-  CH = {bars:bars, base:base, X:X, Y:Y, W:W, last:lastB, date:S.date};
+  CH = {bars:bars, base:base, X:X, Y:Y, W:W, last:lastB, date:S.date, o:o};
   chHead(lastB, false);
 }
 function chHead(b, touching){
@@ -332,6 +343,7 @@ function chHead(b, touching){
   el.addEventListener('touchend',   end);
   el.addEventListener('mousemove',  pick);
   el.addEventListener('mouseleave', end);
+  var rt; window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(function(){ if(CH) drawChart(CH.o); }, 200); });
 })();
 
 function render(){
