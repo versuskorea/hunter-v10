@@ -5,42 +5,34 @@
 // 양쪽이 다 돌아도 봇 내부의 last_date 중복 체크가 나중 것을 스킵한다.
 //
 // 필요 환경변수 (Vercel → Settings → Environment Variables)
-//   GH_TOKEN  : GitHub Personal Access Token (workflow 권한)
-//   CRON_KEY  : 수동 호출용 비밀키 (선택)
+//   GH_TOKEN    : GitHub Personal Access Token (workflow 권한)
+//   CRON_SECRET : 크론 인증 비밀값. 설정해두면 Vercel Cron 이 호출할 때
+//                 Authorization: Bearer <CRON_SECRET> 헤더를 자동으로 붙인다.
 //
-// 수동 테스트: /api/cron-mnq?key=<CRON_KEY>
+// 수동 테스트: Vercel 대시보드 → Settings → Cron Jobs → Run
+//   (주소창에서 직접 부르면 401 이 정상)
 
 const OWNER = 'versuskorea';
 const REPO = 'hunter-v10';
 const WORKFLOW = 'mnq-bot.yml';
 const REF = 'main';
 
+// 길이가 달라도 시간 차이가 안 나게 비교
+function safeEq(a, b){
+  a = String(a || ''); b = String(b || '');
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < Math.max(a.length, b.length); i++)
+    diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  return diff === 0;
+}
+
 export default async function handler(req, res) {
-  // Vercel Cron은 x-vercel-cron 헤더를 붙여서 호출한다.
-  const fromCron = !!req.headers['x-vercel-cron'];
+  const secret = (process.env.CRON_SECRET || '').trim();
+  const auth = String(req.headers['authorization'] || '');
+  const fromCron = secret.length >= 16 && safeEq(auth, `Bearer ${secret}`);
 
-  // 쿼리 파싱 — req.query 가 비는 런타임이 있어 URL 에서 직접도 읽는다
-  let qkey = (req.query && req.query.key) || '';
-  if (!qkey && req.url) {
-    try {
-      qkey = new URL(req.url, 'http://x').searchParams.get('key') || '';
-    } catch (e) { /* noop */ }
-  }
-  const want = (process.env.CRON_KEY || '').trim();
-  const keyOk = want && String(qkey).trim() === want;
-
-  if (!fromCron && !keyOk) {
-    return res.status(401).json({
-      ok: false,
-      error: 'unauthorized',
-      debug: {
-        gotKey: String(qkey).slice(0, 40),
-        gotLen: String(qkey).trim().length,
-        envSet: !!want,
-        envLen: want.length,
-        url: String(req.url || '').slice(0, 120),
-      },
-    });
+  if (!fromCron) {
+    return res.status(401).json({ ok: false, error: 'unauthorized' });
   }
 
   const token = process.env.GH_TOKEN;
@@ -72,7 +64,7 @@ export default async function handler(req, res) {
         ok: true,
         triggered: WORKFLOW,
         at: new Date().toISOString(),
-        by: fromCron ? 'cron' : 'manual',
+        by: 'cron',
       });
     }
 
