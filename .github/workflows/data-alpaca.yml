@@ -1,0 +1,44 @@
+name: Data Alpaca
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: '심볼 (쉼표로 구분)'
+        default: 'SOXL,SOXX'
+      start:
+        description: '시작일'
+        default: '2016-01-01'
+
+permissions:
+  contents: write
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 1분봉 받기
+        env:
+          ALPACA_KEY:    ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          SYMBOLS: ${{ inputs.symbols }}
+          START:   ${{ inputs.start }}
+        run: python tools/alpaca_dl.py
+      - name: data 브랜치에 저장 (main은 안 건드림)
+        run: |
+          ls -la data
+          mv data /tmp/data
+          git config user.name "data-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git checkout --orphan data
+          git rm -rf --cached . > /dev/null
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp /tmp/data/* .
+          git add *.csv.gz
+          git commit -m "1분봉 데이터"
+          git push -f origin data
