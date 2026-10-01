@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MNQ 방어모드 자동매매   ·   v4.7  (2026-09-25)
+MNQ 방어모드 자동매매   ·   v5.0  (2026-09-25)
 
 버전 규칙: 정수=기능 변경 / 소수점=버그·표시 수정
+  v5.0  마감 전 사전수집 → 16:00:03 부터 최신 1페이지만 조회(3초 재시도), 04:57 cron
   v4.7  진단: 마감 전후(15:57~16:02 ET) 한투 봉 표시 — 봉 시각 표기(시작/끝) 확인용
   v4.6  분봉 페이지 한도 45(1분봉 3거래일 확보), 봉 시각 ET/KST 자동 판별, 주말 날짜 제거
   v4.5  종가 필드 last_price 대응 + 시간대 판별 로그
@@ -38,7 +39,7 @@ def _flag(name, default="0"):
     v = (os.getenv(name) or default).strip().lower()
     return v in ("1", "true", "yes", "y", "on")
 
-BOT_VER    = "v4.7"
+BOT_VER    = "v5.0"
 MODE       = os.getenv("MODE", "PAPER").strip().upper()
 QTY        = int(os.getenv("QTY", "1"))        # 티어당 계약수
 TIERS      = int(os.getenv("TIERS", "3"))      # 최대 티어
@@ -480,32 +481,29 @@ def kis_daily(symbol=None, days=30):
         raise RuntimeError(f"봉 부족 ({len(out)})")
     return out
 
-def kis_min_1600(symbol=None, days=5):
-    """한투 분봉에서 매일 16:00 ET 이전 마지막 종가 추출 (한국 05:00 기준)
-       tr_id=HHDFC55020400 · index_key 로 과거로 페이징한다.
-
-       1분봉 120개 = 2시간이라 3거래일을 모으려면 30페이지 이상 필요하다.
-       판정엔 오늘·전일·그제 3개만 있으면 되고, MA 는 ma_closes 가 일봉으로 보강한다.
-       봉 시각이 ET 인지 KST 인지 한투 응답만으로는 알 수 없어 현재 시각과 비교해 판별한다."""
-    sym = symbol or active_contract()
+def _kis_variants():
     _et = et_now()
     _kst = datetime.utcnow() + timedelta(hours=9)
-    VARIANTS = [
+    return [
         {"START_DATE_TIME": "", "CLOSE_DATE_TIME": ""},
         {"START_DATE_TIME": "", "CLOSE_DATE_TIME": _kst.strftime("%Y%m%d")},
         {"START_DATE_TIME": "", "CLOSE_DATE_TIME": _et.strftime("%Y%m%d")},
     ]
-    MAX_PAGES = int(float(os.getenv("KIS_MAX_PAGES", "45")))
+
+
+def _kis_fetch_raw(sym, max_pages, variants=None, stop_dates=5, quiet=False):
+    """한투 분봉 원시 수집 → ([(datetime, price)], 사용한 파라미터)"""
+    variants = variants or _kis_variants()
     _lasterr = ""
-    raw, page = [], 0
+    raw, page, used = [], 0, variants[0]
 
     def _is_bar(x):
         return isinstance(x, dict) and bool(x.get("data_date"))
 
-    for _vi, _vp in enumerate(VARIANTS):
-        raw, idx_key, qtp = [], "", "Q"
-        seen_dates = set()
-        for page in range(MAX_PAGES):
+    for _vi, _vp in enumerate(variants):
+        raw, idx_key, qtp, used = [], "", "Q", _vp
+        seen = set()
+        for page in range(max_pages):
             _p = {"SRS_CD": sym, "EXCH_CD": "CME",
                   "QRY_TP": qtp, "QRY_CNT": "120", "QRY_GAP": MIN_GAP,
                   "INDEX_KEY": idx_key}
@@ -516,8 +514,7 @@ def kis_min_1600(symbol=None, days=5):
             except Exception as e:
                 r = {"rt_cd": "1", "msg1": str(e)[:120]}
             if r.get("rt_cd") != "0":
-                _lasterr = r.get("msg1", "분봉 조회 실패")
-                break
+                _lasterr = r.get("msg1", "분봉 조회 실패"); break
             bars, meta = [], {}
             for _key in ("output2", "output1", "output"):
                 _o = r.get(_key)
@@ -526,8 +523,7 @@ def kis_min_1600(symbol=None, days=5):
                     if _is_bar(_x): bars.append(_x)
                     elif isinstance(_x, dict) and not meta: meta = _x
             if not bars:
-                _lasterr = _lasterr or "봉 없음"
-                break
+                _lasterr = _lasterr or "봉 없음"; break
             for x in bars:
                 d = str(x.get("data_date") or "")
                 t = str(x.get("data_time") or "").zfill(6)
@@ -542,67 +538,106 @@ def kis_min_1600(symbol=None, days=5):
                     continue
                 if px <= 0:
                     continue
-                # 100배로 오는 경우 보정
                 for div in (1, 100, 10000):
                     if 5000 < px/div < 200000:
                         px = px/div; break
-                raw.append((dt, px)); seen_dates.add(d[:8])
-            if page == 0:
-                _t = sorted(b[0] for b in raw)
-                log(f"분봉 p1 {len(bars)}행 · 범위 {_t[0]:%m-%d %H:%M} ~ {_t[-1]:%m-%d %H:%M}"
-                    f" · 지금 ET {_et:%m-%d %H:%M} / KST {_kst:%m-%d %H:%M}")
-            # 원시 날짜 5개면 3거래일 확보 (주말·시간대 보정 여유 포함)
-            if len(seen_dates) >= 5:
+                raw.append((dt, px)); seen.add(d[:8])
+            if len(seen) >= stop_dates:
                 break
             idx_key = str((meta or {}).get("index_key") or "")
             if not idx_key:
                 break
             qtp = "P"
             time.sleep(0.2)
-        if len(raw) >= 60:
-            if _vi: log(f"분봉 조합 {_vi+1}로 성공")
+        if raw:
+            if _vi and not quiet: log(f"분봉 조합 {_vi+1}로 성공")
             break
-        log(f"분봉 조합 {_vi+1} 실패({(_lasterr or '행 부족')[:60]}) · {len(raw)}봉 · 페이지 {page+1}")
+        if not quiet:
+            log(f"분봉 조합 {_vi+1} 실패({(_lasterr or '행 부족')[:60]}) · 페이지 {page+1}")
         time.sleep(0.4)
-
     if not raw:
         raise RuntimeError(f"분봉 없음 ({_lasterr or '응답 비어 있음'})")
+    return raw, used, page + 1
 
-    # ── 시간대 판별 ──
-    # 최신 봉이 현재 ET 와 KST 중 어느 쪽에 가까운지로 결정한다.
+
+def _kis_tz_offset(raw):
+    """봉 시각이 KST 면 ET 로 바꾸는 차이, ET 면 0. 최신 봉과 현재 시각을 비교해 판별."""
     latest = max(b[0] for b in raw)
-    now_et  = _et.replace(tzinfo=None)
-    now_kst = _kst
-    d_et  = abs((now_et  - latest).total_seconds())
-    d_kst = abs((now_kst - latest).total_seconds())
-    is_kst = d_kst < d_et
-    off = timedelta(hours=(13 if us_dst() else 14)) if is_kst else timedelta(0)
+    now_et = et_now().replace(tzinfo=None)
+    now_kst = datetime.utcnow() + timedelta(hours=9)
+    is_kst = abs((now_kst - latest).total_seconds()) < abs((now_et - latest).total_seconds())
     globals()["_KIS_TZ"] = "KST" if is_kst else "ET"
+    return timedelta(hours=(13 if us_dst() else 14)) if is_kst else timedelta(0)
 
-    by_day = {}
-    _near = {}                               # 진단: 마감 전후 봉 (15:57~16:02 ET)
+
+def _kis_build(raw, off, days):
+    """원시 봉 → 날짜별 15:59 ET 종가"""
+    by_day, near = {}, {}
     for dt, px in raw:
         et_dt = dt - off
         mins = et_dt.hour*60 + et_dt.minute
         if 15*60+57 <= mins <= 16*60+2:
-            _near.setdefault(et_dt.strftime("%Y-%m-%d"), {})[f"{et_dt:%H:%M}"] = px
-        if mins >= 16*60:                    # 16:00 ET 봉부터 제외
+            near.setdefault(et_dt.strftime("%Y-%m-%d"), {})[f"{et_dt:%H:%M}"] = px
+        if mins >= 16*60:
             continue
         key = et_dt.strftime("%Y-%m-%d")
         if key not in by_day or mins > by_day[key][0]:
             by_day[key] = (mins, px)
-    # 주말 날짜 제거 (일요일 저녁 세션이 토/일 날짜로 잡히는 경우)
     by_day = {k: v for k, v in by_day.items()
               if datetime.strptime(k, "%Y-%m-%d").weekday() < 5}
+    globals()["_KIS_NEAR"] = near
+    return by_day
 
-    globals()["_KIS_NEAR"] = _near
-    log(f"분봉 {len(raw)}봉 → {len(by_day)}일 · 시각={globals()['_KIS_TZ']} · 페이지 {page+1}")
+
+def kis_prefetch(sym):
+    """마감 전에 과거 봉을 미리 받아둔다 (전일·그제 종가는 이미 확정이라 미리 받아도 된다).
+       마감 직후엔 최신 1페이지만 받아 합치므로 판정이 수 초 안에 끝난다."""
+    t0 = time.time()
+    MAX_PAGES = int(float(os.getenv("KIS_MAX_PAGES", "45")))
+    raw, used, pages = _kis_fetch_raw(sym, MAX_PAGES)
+    off = _kis_tz_offset(raw)
+    globals()["_KIS_PREFETCH"] = {"sym": sym, "raw": raw, "variant": used, "off": off}
+    log(f"⚡ 사전수집 {len(raw)}봉 · {pages}페이지 · 시각={globals()['_KIS_TZ']} · {time.time()-t0:.1f}초")
+
+
+def kis_min_1600(symbol=None, days=5):
+    """한투 분봉에서 매일 16:00 ET 이전 마지막 종가 (tr_id=HHDFC55020400)
+
+       사전수집이 있으면 최신 1페이지만 받아 합친다. 15:59 봉이 아직 안 올라왔으면
+       3초 간격으로 다시 받는다 (최대 KIS_CLOSE_WAIT 초).
+       사전수집이 없으면 전체 페이지를 받는다 (1분봉 120개 = 2시간, 3거래일 ≈ 38페이지)."""
+    sym = symbol or active_contract()
+    pre = globals().get("_KIS_PREFETCH")
+    if pre and pre.get("sym") == sym and pre.get("raw"):
+        off = pre["off"]
+        wait_max = float(os.getenv("KIS_CLOSE_WAIT", "60"))
+        t0 = time.time(); tries = 0
+        while True:
+            tries += 1
+            fresh, _, _ = _kis_fetch_raw(sym, 1, variants=[pre["variant"]], quiet=True)
+            merged = {dt: px for dt, px in pre["raw"]}
+            merged.update({dt: px for dt, px in fresh})
+            raw = sorted(merged.items())
+            by_day = _kis_build(raw, off, days)
+            _today = et_now().strftime("%Y-%m-%d")
+            got = by_day.get(_today, (0, 0))[0] >= 15*60 + 59
+            if got or FORCE_RUN or (time.time() - t0) > wait_max:
+                break
+            time.sleep(3)
+        log(f"분봉 사전수집 + 최신 1페이지 · {tries}회 · {time.time()-t0:.1f}초 · 15:59봉 {'✅' if got else '❌'}")
+    else:
+        MAX_PAGES = int(float(os.getenv("KIS_MAX_PAGES", "45")))
+        raw, _, pages = _kis_fetch_raw(sym, MAX_PAGES)
+        off = _kis_tz_offset(raw)
+        by_day = _kis_build(raw, off, days)
+        log(f"분봉 {len(raw)}봉 → {len(by_day)}일 · 시각={globals().get('_KIS_TZ')} · 페이지 {pages}")
+
     if len(by_day) < 3:
-        raise RuntimeError(f"분봉 부족 ({len(by_day)}일, {len(raw)}봉)")
+        raise RuntimeError(f"분봉 부족 ({len(by_day)}일)")
     newest = max(by_day)
     globals()["_LAST_BAR_MIN"] = by_day[newest][0]
 
-    # ── 분봉 지연 보정 ──
+    # ── 분봉 지연 보정 (현재가 API) ──
     if LIVE_CLOSE and not FORCE_RUN:
         _e = et_now()
         _today = _e.strftime("%Y-%m-%d")
@@ -910,8 +945,17 @@ def main():
     if WAIT_CLOSE and not FORCE_RUN:
         _secs = (16*3600) - (_et.hour*3600 + _et.minute*60 + _et.second)
         if 0 < _secs <= WAIT_MAX_SEC:
-            log(f"16:00 ET 까지 {_secs}초 대기 (현재 {_et.strftime('%H:%M:%S')} ET)")
-            time.sleep(_secs + 8)          # 16:00 봉이 닫히도록 8초 여유
+            # 마감 전에 과거 봉을 미리 받아둔다 → 마감 직후엔 1페이지만 받으면 된다
+            if USE_KIS_QUOTE and KIS_KEY and KIS_SECRET and CLOSE_1600:
+                try:
+                    kis_prefetch(active_contract(st.get("contract"), bool(st.get("positions"))))
+                except Exception as e:
+                    log(f"⚠️ 사전수집 실패 — 마감 후 전체 수집: {str(e)[:120]}")
+                _et = et_now()
+                _secs = (16*3600) - (_et.hour*3600 + _et.minute*60 + _et.second)
+            log(f"16:00 ET 까지 {max(_secs,0)}초 대기 (현재 {_et.strftime('%H:%M:%S')} ET)")
+            if _secs > 0:
+                time.sleep(_secs + 3)      # 16:00:03 — 이후는 kis_min_1600 이 15:59봉을 재시도로 확인
             _et = et_now()
             log(f"대기 완료 — 현재 {_et.strftime('%H:%M:%S')} ET")
 
