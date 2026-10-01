@@ -9,7 +9,7 @@
   "crons": [
     {
       "path": "/api/cron-mnq",
-      "schedule": "0 20 * * 1-5"
+      "schedule": "57 19 * * 1-5"
     },
     {
       "path": "/api/cron-mnq",
@@ -17,15 +17,15 @@
     },
     {
       "path": "/api/cron-mnq",
-      "schedule": "2 20 * * 1-5"
+      "schedule": "8 20 * * 1-5"
     },
     {
       "path": "/api/cron-mnq",
-      "schedule": "3 20 * * 1-5"
+      "schedule": "12 20 * * 1-5"
     },
     {
       "path": "/api/cron-mnq",
-      "schedule": "0 21 * * 1-5"
+      "schedule": "57 20 * * 1-5"
     },
     {
       "path": "/api/cron-mnq",
@@ -33,11 +33,11 @@
     },
     {
       "path": "/api/cron-mnq",
-      "schedule": "2 21 * * 1-5"
+      "schedule": "8 21 * * 1-5"
     },
     {
       "path": "/api/cron-mnq",
-      "schedule": "3 21 * * 1-5"
+      "schedule": "12 21 * * 1-5"
     }
   ]
 }
