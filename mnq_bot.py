@@ -39,7 +39,7 @@ def _flag(name, default="0"):
     v = (os.getenv(name) or default).strip().lower()
     return v in ("1", "true", "yes", "y", "on")
 
-BOT_VER    = "v5.0"
+BOT_VER    = "v5.1"
 MODE       = os.getenv("MODE", "PAPER").strip().upper()
 QTY        = int(os.getenv("QTY", "1"))        # 티어당 계약수
 TIERS      = int(os.getenv("TIERS", "3"))      # 최대 티어
@@ -53,6 +53,8 @@ MARGIN_USD = float(os.getenv("MARGIN_USD", "3138"))   # 개시증거금 (달러)
 FX         = float(os.getenv("FX", "1350"))           # 환율
 # ── 자본 / 복리 ──
 TOTAL_PAID = float(os.getenv("TOTAL_PAID", "4500")) * 1e4   # 총 납입액 (만원) — 입금하면 갱신
+INTRA_FEED = float(os.getenv("INTRA_FEED", "0.2"))           # 웨이브(장중) 누적 실현손익 중 봇 자산에 반영할 비율
+INTRA_STATE_FILE = os.getenv("INTRA_STATE", "mnq_intra_state.json")
 INITIAL_CAP = float(os.getenv("INITIAL_CAP", "4500")) * 1e4 # 최초 자본 (복리 기준선, 고정)
 PER_CONTRACT = float(os.getenv("PER_CONTRACT", "1000")) * 1e4  # 수익 N만마다 총계약 +1
 BUFFER     = float(os.getenv("BUFFER", "30")) / 100   # 여유 버퍼
@@ -842,6 +844,30 @@ def ladder_for(total, tiers=None, order=None):
 def margin_krw():
     return MARGIN_USD * FX
 
+def intra_realized():
+    """웨이브 누적 실현손익(원). 저장소 최신본을 먼저 보고, 안 되면 로컬 파일"""
+    import subprocess
+    try:
+        subprocess.run(["git", "fetch", "-q", "origin"], timeout=20, capture_output=True)
+        r = subprocess.run(["git", "show", f"origin/HEAD:{INTRA_STATE_FILE}"], timeout=10, capture_output=True, text=True)
+        if r.returncode != 0:
+            r = subprocess.run(["git", "show", f"origin/main:{INTRA_STATE_FILE}"], timeout=10, capture_output=True, text=True)
+        if r.returncode == 0 and r.stdout.strip():
+            return float(json.loads(r.stdout).get("realized") or 0)
+    except Exception:
+        pass
+    try:
+        with open(INTRA_STATE_FILE, encoding="utf-8") as f:
+            return float(json.load(f).get("realized") or 0)
+    except Exception:
+        return 0.0
+
+_INTRA = {"v": None}
+def intra_feed():
+    if _INTRA["v"] is None:
+        _INTRA["v"] = intra_realized()
+    return INTRA_FEED * _INTRA["v"]
+
 def plan_contracts(equity, unrealized=0.0):
     """자산 기준 총 계약수 결정 (백테와 동일 로직)"""
     mg = margin_krw()
@@ -1072,7 +1098,7 @@ def main():
                                f"T{i+1} 진입 {x['entry']:,.2f} → 기준 {sp:,.2f} 충족"))
 
     # ── 자본 · 계약수 계산 (백테와 동일) ──
-    equity = st.get("equity", TOTAL_PAID)
+    equity = TOTAL_PAID + st.get("realized", 0.0) + intra_feed()   # 웨이브 누적 수익의 INTRA_FEED만큼 반영
     held   = sum(x["qty"] for x in pos)
     unreal = sum((px - x["entry"]) * MULT * x["qty"] * FX for x in pos)
     total_q, want_q, afford_q = plan_contracts(equity, unreal)
@@ -1169,6 +1195,8 @@ def main():
     # 현재 설정 한 줄 — Variables가 제대로 들어갔는지 매일 눈으로 확인
     lines.append(f"⚙️ 복리 {PER_CONTRACT/1e4:,.0f}만 · 기준선 {INITIAL_CAP/1e4:,.0f}만 · "
                  f"{BUY_PCT}/{SELL_PCT} · {HOLD_DAYS}일 · {TIERS}티어")
+    if _INTRA["v"]:
+        lines.append(f"🌊 웨이브 누적 {_INTRA['v']/1e4:+,.0f}만 · {INTRA_FEED*100:.0f}% 반영 {intra_feed()/1e4:+,.0f}만")
     if mc_pct is not None:
         icon = "🚨" if mc_pct < 4 else ("⚠️" if mc_pct < 7 else "🛡️")
         lines.append(f"{icon} 마진콜선 <b>-{mc_pct:.1f}%</b> · {held}계약 · "
@@ -1312,7 +1340,7 @@ def main():
         st["step"] = 0 if not pos else step + (1 if any(o[0]=="BUY" for o in orders) else 0)
         # ★ 복리의 핵심 — 실현손익을 반영해 자산을 갱신한다.
         #    이게 없으면 equity 가 TOTAL_PAID 에 고정돼 want 가 영원히 TIERS 다.
-        st["equity"] = TOTAL_PAID + st.get("realized", 0.0)
+        st["equity"] = TOTAL_PAID + st.get("realized", 0.0) + intra_feed()
         st["last_date"] = today
         st["contract"] = CONTRACT if pos else None
         st["cfg"] = {"buy_pct": BUY_PCT, "sell_pct": SELL_PCT, "hold": HOLD_DAYS,
@@ -1344,7 +1372,7 @@ def main():
                 pos.append({"entry": px, "date": today, "qty": q, "m": "atk" if use_atk else "def"})
         st["positions"] = pos
         st["step"] = 0 if not pos else step + (1 if any(o[0]=="BUY" for o in orders) else 0)
-        st["equity"] = TOTAL_PAID + st["realized"]
+        st["equity"] = TOTAL_PAID + st["realized"] + intra_feed()
         st["last_date"] = today
         st["contract"] = CONTRACT if pos else None
         st["cfg"] = {"buy_pct": BUY_PCT, "sell_pct": SELL_PCT, "hold": HOLD_DAYS,
