@@ -66,6 +66,7 @@ jobs:
           MARGIN_USD:  ${{ vars.MARGIN_USD || '4734' }}
           FX:          ${{ vars.FX || '1360' }}
           TOTAL_PAID:  ${{ vars.TOTAL_PAID || '3000' }}
+          INTRA_FEED:  ${{ vars.INTRA_FEED || '0.2' }}
           INITIAL_CAP: ${{ vars.INITIAL_CAP || '3000' }}
           PER_CONTRACT: ${{ vars.PER_CONTRACT || '700' }}
           BUFFER:      ${{ vars.BUFFER || '20' }}
