@@ -38,6 +38,38 @@
     {
       "path": "/api/cron-mnq",
       "schedule": "12 21 * * 1-5"
+    },
+    {
+      "path": "/api/cron-intra",
+      "schedule": "33 13 * * 1-5"
+    },
+    {
+      "path": "/api/cron-intra",
+      "schedule": "48 13 * * 1-5"
+    },
+    {
+      "path": "/api/cron-intra",
+      "schedule": "33 14 * * 1-5"
+    },
+    {
+      "path": "/api/cron-intra",
+      "schedule": "48 14 * * 1-5"
+    },
+    {
+      "path": "/api/cron-intra",
+      "schedule": "40 16 * * 1-5"
+    },
+    {
+      "path": "/api/cron-intra",
+      "schedule": "40 17 * * 1-5"
+    },
+    {
+      "path": "/api/cron-intra",
+      "schedule": "40 18 * * 1-5"
+    },
+    {
+      "path": "/api/cron-intra",
+      "schedule": "40 19 * * 1-5"
     }
   ]
 }
