@@ -39,7 +39,7 @@ def _flag(name, default="0"):
     v = (os.getenv(name) or default).strip().lower()
     return v in ("1", "true", "yes", "y", "on")
 
-BOT_VER    = "v5.2"
+BOT_VER    = "v5.4"
 MODE       = os.getenv("MODE", "PAPER").strip().upper()
 QTY        = int(os.getenv("QTY", "1"))        # 티어당 계약수
 TIERS      = int(os.getenv("TIERS", "3"))      # 최대 티어
@@ -129,6 +129,7 @@ FORCE_RUN = _flag("FORCE_RUN", "0")   # 장 마감 전/중복이어도 강제 �
 WAIT_CLOSE = _flag("WAIT_CLOSE", "1")           # 16:00 ET 마감까지 대기 후 즉시 판정
 WAIT_MAX_SEC = int(float(os.getenv("WAIT_MAX_SEC", "420")))   # 최대 대기(초)
 ORDER_DEADLINE = int(float(os.getenv("ORDER_DEADLINE", "5")))  # 16:00 이후 N분 넘으면 주문 취소
+LATE_STOP  = int(float(os.getenv("LATE_STOP", "90")))   # v5.4 16:00 이후 N분 지나 시작된 실행은 바로 종료
 MIN_GAP    = os.getenv("MIN_GAP", "1").strip() or "1"        # 한투 분봉 간격(분)
 LIVE_CLOSE = _flag("LIVE_CLOSE", "1")   # 분봉이 지연되면 한투 실시간 현재가로 당일 종가 대체
 QUOTE_TEST = _flag("QUOTE_TEST", "0")   # 시세 경로만 진단하고 종료 (주문·저장 없음)
@@ -990,6 +991,11 @@ def main():
     if INTRADAY and not FORCE_RUN:
         log(f"장 마감 전 ({_et.strftime('%H:%M')} ET) — 실행 스킵")
         return
+    # v5.4: 마감 후 한참 지나 뒤늦게 시작된 실행(GitHub 지연 예약 등)은 토큰 발급 전에 종료
+    _late0 = (_et.hour*60 + _et.minute) - 16*60
+    if not FORCE_RUN and _late0 > LATE_STOP:
+        log(f"마감 후 {_late0}분 경과 ({_et.strftime('%H:%M')} ET) — 늦은 실행 스킵 (토큰 발급 전 차단)")
+        return
     # cron이 2개(서머타임 대응)라 같은 날 두 번 돈다 — 시세 조회(토큰 발급) 전에 차단
     if not FORCE_RUN:
         _last = st.get("last_date")
@@ -1276,10 +1282,14 @@ def main():
     _now = et_now()
     _late = (_now.hour*60 + _now.minute) - 16*60
     if orders and not FORCE_RUN and _late > ORDER_DEADLINE:
-        lines.append(f"\n⛔ <b>주문 취소</b> — 16:{_late:02d} ET 경과 "
-                     f"(마감 {ORDER_DEADLINE}분 초과) · 종가 괴리로 스킵")
-        notify("\n".join(lines))
-        return
+        lines.append(f"\n⛔ <b>주문 취소</b> — {_now:%H:%M} ET "
+                     f"(마감 {ORDER_DEADLINE}분 초과) · 종가 괴리로 실제 주문 스킵")
+        # v5.3: 상쇄분은 주문이 필요 없으므로 늦어도 장부에는 반영한다 (같은 종가 익절·재진입 = 백테와 동일)
+        if not (net_q and MODE == "LIVE"):
+            notify("\n".join(lines))
+            return
+        lines.append(f"🔁 상쇄분 {net_q}계약은 주문 없이 장부만 반영 (종가 익절 → 같은 종가 재진입)")
+        plan = [(t, 0, mq, m_) for t, rq, mq, m_ in plan if mq]
 
     notify("\n".join(lines))
 
