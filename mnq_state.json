@@ -1,69 +1,69 @@
 {
- "positions": [
-  {
-   "entry": 31337.25,
-   "date": "2026-10-05",
-   "qty": 1,
-   "m": "atk"
-  }
- ],
- "history": [
-  {
-   "entry": 30565.5,
-   "date": "2026-09-28",
-   "qty": 1,
-   "m": "def",
-   "exit": 30690.75,
-   "exit_date": "2026-09-30",
-   "pnl_krw": 340680.0,
-   "reason": "SELL"
-  },
-  {
-   "entry": 31072.5,
-   "date": "2026-10-02",
-   "qty": 1,
-   "m": "atk",
-   "exit": 31337.25,
-   "exit_date": "2026-10-05",
-   "pnl_krw": 720120.0,
-   "reason": "SELL·상쇄(수동보정)"
-  }
- ],
- "realized": 1060800.0,
- "step": 1,
- "equity": 30340680.0,
- "last_date": "2026-10-05",
- "contract": "MNQZ26",
- "cfg": {
-  "buy_pct": 0.3,
-  "sell_pct": 0.3,
-  "hold": 3,
-  "tiers": 2,
-  "per": 600.0,
-  "lad": "mid",
-  "margin_usd": 4734.0,
-  "fx": 1360.0,
-  "buffer": 20.0,
-  "paid": 3000.0,
-  "icap": 3000.0,
-  "atk_on": true,
-  "atk_mode": 2,
-  "atk_ma": 20,
-  "atk_buy": 0.5,
-  "atk_sell": 0.5,
-  "fomo_days": 4,
-  "fomo_mult": 2.0
- },
- "quote": {
-  "px": 31072.5,
-  "p1": 30772.75,
-  "p2": 30690.75,
-  "date": "2026-10-02",
-  "src": "MNQZ26/한투 16:00ET",
-  "buy_thr": 30598.5,
+  "positions": [
+    {
+      "entry": 31337.25,
+      "date": "2026-10-05",
+      "qty": 1,
+      "m": "atk"
+    }
+  ],
+  "history": [
+    {
+      "entry": 30565.5,
+      "date": "2026-09-28",
+      "qty": 1,
+      "m": "def",
+      "exit": 30690.75,
+      "exit_date": "2026-09-30",
+      "pnl_krw": 340680.0,
+      "reason": "SELL"
+    },
+    {
+      "entry": 31072.5,
+      "date": "2026-10-02",
+      "qty": 1,
+      "m": "atk",
+      "exit": 31337.25,
+      "exit_date": "2026-10-05",
+      "pnl_krw": 720120.0,
+      "reason": "SELL·상쇄(수동보정)"
+    }
+  ],
+  "realized": 1060800.0,
+  "step": 1,
+  "equity": 41129956.0,
+  "last_date": "2026-10-06",
   "contract": "MNQZ26",
-  "total_q": 2,
-  "want": 2,
-  "afford": 3
- }
+  "cfg": {
+    "buy_pct": 0.5,
+    "sell_pct": 0.3,
+    "hold": 3,
+    "tiers": 2,
+    "per": 600.0,
+    "lad": "mid",
+    "margin_usd": 4734.0,
+    "fx": 1360.0,
+    "buffer": 20.0,
+    "paid": 4000.0,
+    "icap": 3000.0,
+    "atk_on": true,
+    "atk_mode": 2,
+    "atk_ma": 20,
+    "atk_buy": 0.5,
+    "atk_sell": 0.5,
+    "fomo_days": 4,
+    "fomo_mult": 2.0
+  },
+  "quote": {
+    "px": 31481.75,
+    "p1": 31337.25,
+    "p2": 31072.5,
+    "date": "2026-10-06",
+    "src": "MNQZ26/한투 16:00ET",
+    "buy_thr": 30917.0,
+    "contract": "MNQZ26",
+    "total_q": 3,
+    "want": 3,
+    "afford": 5
+  }
 }
