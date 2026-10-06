@@ -96,7 +96,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 
 <div class="top">
   <a href="/index.html" class="back">←</a>
-  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v4.2</span>
+  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v4.3</span>
   <div class="status" id="st">로딩</div>
 </div>
 <div class="asof" id="asof">—</div>
@@ -366,7 +366,7 @@ function chHead(b, touching){
 
 /* ── 실현손익 (봇 + 웨이브) ── */
 var INTRA_URL = 'https://raw.githubusercontent.com/versuskorea/hunter-v10/main/mnq_intra_state.json';
-function renderPnl(BOT){
+function renderPnl(BOT, UNR){
   var el = document.getElementById('pnlBody');
   fetch(INTRA_URL + '?_=' + Date.now(), {cache:'no-store'})
     .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
@@ -377,7 +377,16 @@ function renderPnl(BOT){
       var bR = (BOT && BOT.realized) ? +BOT.realized : 0;
       var wR = (W && W.realized) ? +W.realized : 0;
       var tR = bR + wR;
-      var head = '<div class="rz">'
+      var seed = (BOT && BOT.cfg && BOT.cfg.paid) ? +BOT.cfg.paid * 1e4 : 0;
+      var unr  = +UNR || 0;
+      var now  = seed + tR + unr;
+      var big  = function(v){ return v>=1e8 ? (v/1e8).toFixed(2)+'억' : Math.round(v/1e4).toLocaleString()+'만'; };
+      var asset = seed ? '<div style="display:flex;align-items:baseline;gap:10px;padding:12px 14px 10px;border-bottom:1px solid var(--border);font-family:\'JetBrains Mono\',monospace">'
+        + '<span style="font-size:11px;color:var(--dim)">현재 자산</span>'
+        + '<span style="font-size:24px;font-weight:800">' + big(now) + '</span>'
+        + '<span style="font-size:12px;font-weight:700;color:' + pc(now-seed) + '">' + won(now-seed) + ' · ' + ((now-seed)/seed*100>=0?'+':'') + ((now-seed)/seed*100).toFixed(2) + '%</span>'
+        + '<span style="margin-left:auto;font-size:10px;color:var(--dim);text-align:right">시드 ' + big(seed) + '<br>평가 ' + won(unr) + ' 포함</span></div>' : '';
+      var head = asset + '<div class="rz">'
         + '<div><div class="k">봇</div><div class="n" style="color:' + pc(bR) + '">' + won(bR) + '</div></div>'
         + '<div><div class="k">웨이브</div><div class="n" style="color:' + pc(wR) + '">' + (W ? won(wR) : '—') + '</div></div>'
         + '<div class="tot"><div class="k">합계</div><div class="n" style="color:' + pc(tR) + '">' + won(tR) + '</div></div>'
@@ -398,7 +407,8 @@ function renderPnl(BOT){
       });
       rows.sort(function(a,b){ return a.d < b.d ? 1 : a.d > b.d ? -1 : 0; });
       var body = '';
-      rows.slice(0, 10).forEach(function(r){
+      var ALL = !!window.__pnlAll;
+      rows.slice(0, ALL ? rows.length : 10).forEach(function(r){
         var pt = (r.who === 'w' && r.side === '숏') ? r.e - r.x : r.x - r.e;
         body += '<tr><td><div style="font-family:\'JetBrains Mono\',monospace;font-size:12px">' + r.d.slice(5) + '</div>'
           + '<span class="who ' + r.who + '">' + (r.who === 'b' ? '봇' : '웨이브') + '</span></td>'
@@ -410,6 +420,7 @@ function renderPnl(BOT){
       el.innerHTML = head + (body
         ? '<table class="tbl"><thead><tr><th>청산일</th><th>구분</th><th style="text-align:right">진입→청산</th><th style="text-align:right">손익</th></tr></thead><tbody>' + body + '</tbody></table>'
         : '<div class="empty">아직 청산된 거래가 없어요</div>')
+        + (rows.length > 10 ? '<div style="padding:8px 14px"><button onclick="window.__pnlAll=!window.__pnlAll;render()" style="width:100%;padding:9px;border-radius:9px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-weight:700;font-size:12px">' + (ALL ? '최근 10건만 보기' : '전체 ' + rows.length + '건 보기') + '</button></div>' : '')
         + '<div class="note">봇은 16:00 종가, 웨이브는 판단 시각 가격으로 기록 · 실제 체결가·수수료와 차이는 한투 계좌에서 확인</div>';
     });
 }
@@ -799,7 +810,7 @@ function render(){
       document.getElementById('posBody').innerHTML = '<div class="empty">보유 없음</div>';
     }
 
-    renderPnl(BOT);
+    renderPnl(BOT, (typeof totKrw === "number") ? totKrw : 0);
 
     if(BOT && BOT.cfg){
       document.getElementById('cfgBody').innerHTML =
