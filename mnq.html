@@ -81,13 +81,22 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 .c .v{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:800;margin-top:3px}
 .c .s{font-size:10px;margin-top:2px;color:var(--dim)}
 .up{color:var(--green)}.down{color:var(--red)}
+.rz{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.rz div{background:var(--card);padding:10px 12px}
+.rz .k{font-size:10px;color:var(--dim);font-weight:700}
+.rz .n{font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:800;margin-top:3px}
+.rz .tot .n{font-size:19px}
+.who{font-size:10px;font-weight:800;padding:2px 6px;border-radius:5px}
+.who.b{color:#4ade80;background:rgba(34,197,94,.16)}
+.who.w{color:#7dd3fc;background:rgba(56,189,248,.16)}
+
 </style>
 </head>
 <body>
 
 <div class="top">
   <a href="/index.html" class="back">←</a>
-  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v4.1</span>
+  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v4.2</span>
   <div class="status" id="st">로딩</div>
 </div>
 <div class="asof" id="asof">—</div>
@@ -117,6 +126,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 <div class="box">
   <div class="bhead">보유 포지션 <span class="r" id="posSrc">—</span></div>
   <div id="posBody"><div class="empty">—</div></div>
+</div>
+
+<div class="box">
+  <div class="bhead">실현손익 <span class="r">판단가 기준</span></div>
+  <div id="pnlBody"><div class="empty">불러오는 중…</div></div>
 </div>
 
 <div class="box">
@@ -348,6 +362,57 @@ function chHead(b, touching){
   el.addEventListener('mouseleave', end);
   var rt; window.addEventListener('resize', function(){ clearTimeout(rt); rt = setTimeout(function(){ if(CH) drawChart(CH.o); }, 200); });
 })();
+
+
+/* ── 실현손익 (봇 + 웨이브) ── */
+var INTRA_URL = 'https://raw.githubusercontent.com/versuskorea/hunter-v10/main/mnq_intra_state.json';
+function renderPnl(BOT){
+  var el = document.getElementById('pnlBody');
+  fetch(INTRA_URL + '?_=' + Date.now(), {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error(r.status); return r.json(); })
+    .catch(function(){ return null; })
+    .then(function(W){
+      var won = function(v){ var a = Math.abs(v); return (v<0?'−':'+') + (a>=1e8 ? (a/1e8).toFixed(2)+'억' : Math.round(a/1e4).toLocaleString()+'만'); };
+      var pc  = function(v){ return v>0 ? 'var(--green)' : v<0 ? 'var(--red)' : 'var(--dim)'; };
+      var bR = (BOT && BOT.realized) ? +BOT.realized : 0;
+      var wR = (W && W.realized) ? +W.realized : 0;
+      var tR = bR + wR;
+      var head = '<div class="rz">'
+        + '<div><div class="k">봇</div><div class="n" style="color:' + pc(bR) + '">' + won(bR) + '</div></div>'
+        + '<div><div class="k">웨이브</div><div class="n" style="color:' + pc(wR) + '">' + (W ? won(wR) : '—') + '</div></div>'
+        + '<div class="tot"><div class="k">합계</div><div class="n" style="color:' + pc(tR) + '">' + won(tR) + '</div></div>'
+        + '</div>';
+      // 최근 거래 — 봇 history + 웨이브 trades 를 청산일 기준으로 합친다
+      var rows = [];
+      ((BOT && BOT.history) || []).forEach(function(h){
+        rows.push({d: h.exit_date || h.date, who:'b',
+          side: (h.m === 'atk' ? '공격' : '방어') + (String(h.reason||'').indexOf('상쇄') >= 0 ? ' · 상쇄' : ''),
+          e: +h.entry, x: +h.exit, q: +(h.qty||1), pnl: +(h.pnl_krw||0),
+          sub: (h.date || '').slice(5) + ' → ' + (h.exit_date || '').slice(5)});
+      });
+      ((W && W.trades) || []).forEach(function(t){
+        rows.push({d: t.d, who:'w', side: (+t.side > 0 ? '롱' : '숏'),
+          e: +t.e, x: +t.x, q: +(t.q||1), pnl: +(t.pnl||0),
+          sub: (function(){ var o = String(t.out || ''), hm = (o.match(/^\d\d:\d\d/) || [''])[0];
+                 return (t.in || '') + ' → ' + hm + ' ET' + (o.indexOf('종가') >= 0 ? ' 종가' : ' 이탈'); })()});
+      });
+      rows.sort(function(a,b){ return a.d < b.d ? 1 : a.d > b.d ? -1 : 0; });
+      var body = '';
+      rows.slice(0, 10).forEach(function(r){
+        var pt = (r.who === 'w' && r.side === '숏') ? r.e - r.x : r.x - r.e;
+        body += '<tr><td><div style="font-family:\'JetBrains Mono\',monospace;font-size:12px">' + r.d.slice(5) + '</div>'
+          + '<span class="who ' + r.who + '">' + (r.who === 'b' ? '봇' : '웨이브') + '</span></td>'
+          + '<td style="font-size:12px">' + r.side + '<div style="font-size:10px;color:var(--dim)">' + r.sub + '</div></td>'
+          + '<td class="px">' + fmt(r.e) + '<div style="font-size:10px;color:var(--dim)">→ ' + fmt(r.x) + '</div></td>'
+          + '<td class="px" style="color:' + pc(r.pnl) + '">' + won(r.pnl)
+          + '<div style="font-size:10px">' + (pt>=0?'+':'') + pt.toFixed(2) + 'pt' + (r.q > 1 ? ' ×' + r.q : '') + '</div></td></tr>';
+      });
+      el.innerHTML = head + (body
+        ? '<table class="tbl"><thead><tr><th>청산일</th><th>구분</th><th style="text-align:right">진입→청산</th><th style="text-align:right">손익</th></tr></thead><tbody>' + body + '</tbody></table>'
+        : '<div class="empty">아직 청산된 거래가 없어요</div>')
+        + '<div class="note">봇은 16:00 종가, 웨이브는 판단 시각 가격으로 기록 · 실제 체결가·수수료와 차이는 한투 계좌에서 확인</div>';
+    });
+}
 
 function render(){
   var stEl = document.getElementById('st');
@@ -733,6 +798,8 @@ function render(){
     }else{
       document.getElementById('posBody').innerHTML = '<div class="empty">보유 없음</div>';
     }
+
+    renderPnl(BOT);
 
     if(BOT && BOT.cfg){
       document.getElementById('cfgBody').innerHTML =
