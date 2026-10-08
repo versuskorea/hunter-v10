@@ -95,7 +95,7 @@ tr:last-child td{border-bottom:none}
 <body>
   <div class="top">
     <a href="/mnq.html" class="back">← MNQ</a>
-    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v32.3</span>
+    <h1>📊 <span>백테</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v33.0</span>
     <span class="status" id="status">대기</span>
   </div>
   <div class="asof" id="asof">시세 불러오는 중…</div>
@@ -130,6 +130,7 @@ tr:last-child td{border-bottom:none}
       <div><label>자본 <span id="capMode" style="color:var(--green);font-size:9px">자동</span></label><input id="cap" type="number" value="3000"></div>
       <div><label style="color:var(--accent);font-weight:800">▶ 계약/티어</label><input id="qty" type="number" value="1" style="border-color:var(--accent)"></div>
       <div><label>월 납입 (만원)</label><input id="monthly" type="number" value="0" placeholder="0"></div>
+      <div><label style="color:var(--accent);font-weight:800">레버리지 배수 <span style="color:var(--dim);font-size:9px">0=복리 방식</span></label><input id="lev" type="number" step="0.5" value="6.5" style="border-color:var(--accent)"></div>
       <div><label id='perLbl'>복리 (수익 N만마다 +1계약)</label><input id="per" type="number" value="1000" placeholder="0=고정"></div>
       <div><label>복리 기준선 <span style="color:var(--dim);font-size:9px">비우면 자본</span></label><input id="icap" type="number" placeholder="자본과 동일"></div>
       <div><label>기준선 상승 % <span style="color:var(--dim);font-size:9px">납입액 중 제외 비율</span></label><input id="icapUp" type="number" value="0" min="0" max="100"></div>
@@ -533,13 +534,16 @@ function backtest(P){
     }
 
     // 복리 배수
-    if(P.per>0 && !pos.length){
+    if((P.per>0 || P.lev>0) && !pos.length){
       const gain = equity - ((P.icap!=null ? P.icap : P.cap) + icapAdd);   // 복리 기준선 (+ 납입 상승분)
       // 복리 기준 통일: P.per = "총 계약 1개 늘리는 데 필요한 수익"
       // 증거금 연동 시 문턱도 같은 비율로 — 시대별 증설 속도를 맞춘다
       const perNow = P.mgLink ? Math.max(P.per * (MG(i)/P.margin), 1) : P.per;
       const baseTotal = P.mgLink ? baseTotalAt(i) : P.tiers * P.qty;
-      const wantTotal = baseTotal + Math.max(Math.floor(gain/perNow), 0);
+      // v33: 레버리지 배수 > 0 이면 총 계약 = 자산 × 배수 ÷ 계약가치 (지수 수준과 무관하게 같은 위험)
+      const wantTotal = (P.lev > 0)
+        ? Math.max(baseTotal, Math.floor(equity * P.lev / (p * MULT * FX)))
+        : baseTotal + Math.max(Math.floor(gain/perNow), 0);
       if(P.growMode==='unit'){
         // 사다리: 총 계약수를 1개씩
         const perOne = MG(i) * (1 + P.buffer);
@@ -846,7 +850,7 @@ function render(R,P){
         </tbody></table>
       </div></div>`;
 
-  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v32.3</span></div><table><tbody>
+  h+=`<div class="panel"><div class="pt">사용된 설정 <span style="color:var(--green);font-weight:700">v33.0</span></div><table><tbody>
     <tr><td>증설 방식</td><td>${P.growMode==='unit'?`<b style='color:var(--accent)'>1계약씩 (사다리)</b>`:'티어당 +1 (균등)'}</td></tr>
     <tr><td>시작 구성</td><td>${P.growMode==='unit'?ladderFor(P.tiers*P.qty,P.tiers,P.ladOrder,P.ladW).join('·')+` = ${P.tiers*P.qty}계약`:`${P.qty}계약 × ${P.tiers}티어 = ${P.qty*P.tiers}계약`}</td></tr>
     <tr><td>증설 제한</td><td>${P.growMode==='unit'?`복리 ${R.limWant}회 · <b style="color:${R.limCap>R.limWant?'var(--gold)':'var(--dim)'}">자본 ${R.limCap}회</b>${R.limCap>R.limWant?' ← 자본이 상한, 복리값 무의미':''}`:'-'}</td></tr>
@@ -1246,7 +1250,7 @@ function renderDistribution(res, P){
 
 // 설정값 브라우저 저장
 const BTSET=['cap','icap','qty','per','buy','sell','ma','hold','tiers','monthly',
-             'marginUsd','fx','buffer','slip','growMode','ladOrder','src','ladW','fomoMode','maCut','maCutLen','fomoMult','fomoDays',
+             'marginUsd','fx','buffer','slip','lev','growMode','ladOrder','src','ladW','fomoMode','maCut','maCutLen','fomoMult','fomoDays',
              'b_buy','b_sell','b_hold','b_tiers','b_per','b_cap'];
 BTSET.forEach(k=>{
   const el=document.getElementById(k); if(!el) return;
@@ -1300,6 +1304,7 @@ function readParams(){
     icap:(document.getElementById('icap').value.trim()==='')?null:(+document.getElementById('icap').value)*1e4,
     qty:+document.getElementById('qty').value||1,
     per:(+document.getElementById('per').value||0)*1e4,
+    lev:+((document.getElementById('lev')||{}).value)||0,
     buy:+document.getElementById('buy').value||0.3,
     sell:+document.getElementById('sell').value||0.3,
     ma:Math.max(+document.getElementById('ma').value||3,2),
@@ -1455,7 +1460,7 @@ document.getElementById('cap').addEventListener('input',()=>{
   updateFormula(); autoRun();
 });
 document.getElementById('cap').addEventListener('dblclick',()=>{ capManual=false; syncCap(); autoRun(); });
-['bmode','smode','buy','sell','ma','cap2','hold','per','icap','minAdd','slip','growMode','liqOn','maintRatio','ladOrder','monthly','atkOn','atkMa','atkBuy','atkSell','fomoDays','fomoMult','ladW','fomoMode','maCut','maCutLen'].forEach(id=>{
+['bmode','smode','buy','sell','ma','cap2','hold','per','lev','icap','minAdd','slip','growMode','liqOn','maintRatio','ladOrder','monthly','atkOn','atkMa','atkBuy','atkSell','fomoDays','fomoMult','ladW','fomoMode','maCut','maCutLen'].forEach(id=>{
   const el=document.getElementById(id); if(!el) return;
   const fn=()=>{ updateFormula(); autoRun(); };
   el.addEventListener('input',fn); el.addEventListener('change',fn);
