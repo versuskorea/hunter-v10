@@ -70,6 +70,7 @@ jobs:
           INITIAL_CAP: ${{ vars.INITIAL_CAP || '3000' }}
           PER_CONTRACT: ${{ vars.PER_CONTRACT || '700' }}
           BUFFER:      ${{ vars.BUFFER || '20' }}
+          SIZE_LEV:    ${{ vars.SIZE_LEV || '6.5' }}      # 레버리지 배수 (0=예전 복리 방식)
           # ── 시세 ──
           HUNTER_API:  ${{ vars.HUNTER_API || 'https://hunter-v10.vercel.app' }}
           CLOSE_1600:  ${{ vars.CLOSE_1600 || '1' }}
