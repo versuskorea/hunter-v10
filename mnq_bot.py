@@ -39,7 +39,7 @@ def _flag(name, default="0"):
     v = (os.getenv(name) or default).strip().lower()
     return v in ("1", "true", "yes", "y", "on")
 
-BOT_VER    = "v5.4"
+BOT_VER    = "v5.5"
 MODE       = os.getenv("MODE", "PAPER").strip().upper()
 QTY        = int(os.getenv("QTY", "1"))        # 티어당 계약수
 TIERS      = int(os.getenv("TIERS", "3"))      # 최대 티어
@@ -59,6 +59,9 @@ INTRA_STATE_FILE = os.getenv("INTRA_STATE", "mnq_intra_state.json")
 INITIAL_CAP = float(os.getenv("INITIAL_CAP", "4500")) * 1e4 # 최초 자본 (복리 기준선, 고정)
 PER_CONTRACT = float(os.getenv("PER_CONTRACT", "1000")) * 1e4  # 수익 N만마다 총계약 +1
 BUFFER     = float(os.getenv("BUFFER", "30")) / 100   # 여유 버퍼
+# v5.5: 레버리지 기준 계약수. >0 이면 총 계약 = 자산 × SIZE_LEV ÷ (가격 × $2 × 환율)
+#       (지수가 오를수록 1계약이 커져 레버리지가 저절로 올라가던 문제 해결) · 0 이면 예전 복리 방식
+SIZE_LEV   = float(os.getenv("SIZE_LEV", "6.5"))
 LAD_ORDER  = os.getenv("LAD_ORDER", "mid")            # mid / back / front
 # ── 공격모드 (T1 자리에만 적용) ──
 #   ATK_MODE  0=끄기(항상 방어)  1=T1만 공격  2=T1 양방향(공격 우선, 미충족이면 방어도)
@@ -870,12 +873,15 @@ def intra_feed():
         _INTRA["v"] = intra_realized()
     return INTRA_FEED * _INTRA["v"]
 
-def plan_contracts(equity, unrealized=0.0):
+def plan_contracts(equity, unrealized=0.0, px=None):
     """자산 기준 총 계약수 결정 (백테와 동일 로직)"""
     mg = margin_krw()
     per_one = mg * (1 + BUFFER)
-    gain = equity - INITIAL_CAP        # 납입금도 굴린다 (앱과 동일)
-    want = TIERS + max(int(gain // PER_CONTRACT), 0) if PER_CONTRACT > 0 else TIERS
+    if SIZE_LEV > 0 and px:
+        want = max(TIERS, int(equity * SIZE_LEV // (px * MULT * FX)))   # 레버리지 고정
+    else:
+        gain = equity - INITIAL_CAP        # 납입금도 굴린다 (앱과 동일)
+        want = TIERS + max(int(gain // PER_CONTRACT), 0) if PER_CONTRACT > 0 else TIERS
     afford = int((equity + unrealized) // per_one)
     return max(TIERS, min(want, afford)), want, afford
 
@@ -1108,7 +1114,7 @@ def main():
     equity = TOTAL_PAID + st.get("realized", 0.0) + intra_feed()   # 웨이브 누적 수익의 INTRA_FEED만큼 반영
     held   = sum(x["qty"] for x in pos)
     unreal = sum((px - x["entry"]) * MULT * x["qty"] * FX for x in pos)
-    total_q, want_q, afford_q = plan_contracts(equity, unreal)
+    total_q, want_q, afford_q = plan_contracts(equity, unreal, px)
     lad = ladder_for(total_q)
     # 사이클 내 매수 횟수(step) — 포지션이 완전히 비면 0으로 리셋
     step = st.get("step", len(pos))
@@ -1200,8 +1206,9 @@ def main():
     lines.append(f"자산 <b>{equity/1e4:,.0f}만</b> · 구성 {'·'.join(map(str,lad))} ({total_q}계약)"
                  + (f" · 여유 {room}계" if room < 99 else ""))
     # 현재 설정 한 줄 — Variables가 제대로 들어갔는지 매일 눈으로 확인
-    lines.append(f"⚙️ 복리 {PER_CONTRACT/1e4:,.0f}만 · 기준선 {INITIAL_CAP/1e4:,.0f}만 · "
-                 f"{BUY_PCT}/{SELL_PCT} · {HOLD_DAYS}일 · {TIERS}티어")
+    lines.append((f"⚙️ 레버리지 {SIZE_LEV:g}배 (1계약 {px*MULT*FX/1e4:,.0f}만) · " if SIZE_LEV > 0 else
+                  f"⚙️ 복리 {PER_CONTRACT/1e4:,.0f}만 · 기준선 {INITIAL_CAP/1e4:,.0f}만 · ")
+                 + f"{BUY_PCT}/{SELL_PCT} · {HOLD_DAYS}일 · {TIERS}티어")
     if _INTRA["v"]:
         lines.append(f"🌊 웨이브 누적 {_INTRA['v']/1e4:+,.0f}만 · {INTRA_FEED*100:.0f}% 반영 {intra_feed()/1e4:+,.0f}만")
     if mc_pct is not None:
@@ -1389,7 +1396,7 @@ def main():
         st["last_date"] = today
         st["contract"] = CONTRACT if pos else None
         st["cfg"] = {"buy_pct": BUY_PCT, "sell_pct": SELL_PCT, "hold": HOLD_DAYS,
-                     "tiers": TIERS, "per": PER_CONTRACT/1e4, "lad": LAD_ORDER,
+                     "tiers": TIERS, "per": PER_CONTRACT/1e4, "lev": SIZE_LEV, "lad": LAD_ORDER,
                      "margin_usd": MARGIN_USD, "fx": FX, "buffer": BUFFER*100,
                      "paid": TOTAL_PAID/1e4, "icap": INITIAL_CAP/1e4,
                      "atk_on": ATK_ON, "atk_mode": ATK_MODE, "atk_ma": ATK_MA, "atk_buy": ATK_BUY,
@@ -1421,7 +1428,7 @@ def main():
         st["last_date"] = today
         st["contract"] = CONTRACT if pos else None
         st["cfg"] = {"buy_pct": BUY_PCT, "sell_pct": SELL_PCT, "hold": HOLD_DAYS,
-                     "tiers": TIERS, "per": PER_CONTRACT/1e4, "lad": LAD_ORDER,
+                     "tiers": TIERS, "per": PER_CONTRACT/1e4, "lev": SIZE_LEV, "lad": LAD_ORDER,
                      "margin_usd": MARGIN_USD, "fx": FX, "buffer": BUFFER*100,
                      "paid": TOTAL_PAID/1e4, "icap": INITIAL_CAP/1e4,
                      "atk_on": ATK_ON, "atk_mode": ATK_MODE, "atk_ma": ATK_MA, "atk_buy": ATK_BUY,
