@@ -99,7 +99,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;
 
 <div class="top">
   <a href="/index.html" class="back">←</a>
-  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v4.7</span>
+  <h1>🎯 MNQ <span>주문</span></h1><span style="font-size:10px;color:var(--green);font-family:monospace;font-weight:800">v4.9</span>
   <div class="status" id="st">로딩</div>
 </div>
 <div class="asof" id="asof">—</div>
@@ -500,7 +500,7 @@ function renderBand(BOT, bars){
       }
       // ── SVG 차트: x = 시각(ET 09:30~16:00), y = 가격 ──
       var W0 = 360, H0 = 230, L = 52, R = 8, T = 12, B = 26;
-      var ys = []; pts.forEach(function(p){ ys.push(p.ub, p.lb); }); ys.push(pc, op); if(cur) ys.push(cur); path1.forEach(function(q){ ys.push(q[1]); });
+      var ys = []; pts.forEach(function(p){ ys.push(p.ub, p.lb); }); ys.push(pc, op); if(cur) ys.push(cur); path1.forEach(function(q){ ys.push(q[1]); }); ((W && W.trades) || []).forEach(function(t){ if(!after && t.d === etStr){ ys.push(+t.e, +t.x); } }); if(!after && W.day === etStr && +W.pos) ys.push(+W.entry);
       var y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys), pad = (y1 - y0) * 0.08 || 10; y0 -= pad; y1 += pad;
       var X = function(m){ return L + (m - 570) / 390 * (W0 - L - R); };
       var Y = function(v){ return T + (y1 - v) / (y1 - y0) * (H0 - T - B); };
@@ -550,7 +550,28 @@ function renderBand(BOT, bars){
         path1.forEach(function(q, k){ dd += (k ? 'L' : 'M') + X(q[0]).toFixed(1) + ',' + Y(q[1]).toFixed(1); });
         g += '<path d="' + dd + '" fill="none" stroke="#e5e7eb" stroke-width="1.2" opacity=".85"/>';
       }
-      // 웨이브 진입가
+      // 오늘 웨이브 거래: 진입 ▲(롱)/▼(숏), 청산 ✕
+      var tm = function(t){ var m = String(t||'').match(/^(\d\d):(\d\d)/); return m ? (+m[1])*60 + (+m[2]) : null; };
+      var mark = function(em, px, side, kind){
+        if(em == null || !(px > 0)) return '';
+        var x = X(Math.min(Math.max(em, 570), 960)), y = Y(px), c = side > 0 ? '#22c55e' : '#f97316';
+        if(kind === 'in'){
+          var d = side > 0 ? 'M' + x + ',' + (y-7) + 'L' + (x-6) + ',' + (y+4) + 'L' + (x+6) + ',' + (y+4) + 'Z'
+                           : 'M' + x + ',' + (y+7) + 'L' + (x-6) + ',' + (y-4) + 'L' + (x+6) + ',' + (y-4) + 'Z';
+          return '<path d="' + d + '" fill="' + c + '" stroke="#0b1220" stroke-width="1"/>';
+        }
+        return '<path d="M' + (x-5) + ',' + (y-5) + 'L' + (x+5) + ',' + (y+5) + 'M' + (x+5) + ',' + (y-5) + 'L' + (x-5) + ',' + (y+5) + '" stroke="#facc15" stroke-width="2.2"/>';
+      };
+      if(!after){
+        ((W && W.trades) || []).forEach(function(t){
+          if(t.d !== etStr) return;
+          g += mark(tm(t.in), +t.e, +t.side, 'in');
+          var om = /종가/.test(String(t.out||'')) ? 959.5 : tm(t.out);
+          g += mark(om, +t.x, +t.side, 'out');
+        });
+        if(W.day === etStr && +W.pos) g += mark(tm(W.entry_t), +W.entry, +W.pos, 'in');
+      }
+      // 웨이브 진입가 (보유 중)
       if(!after && W.day === etStr && +W.pos)
         g += '<line x1="' + L + '" x2="' + (W0-R) + '" y1="' + Y(+W.entry) + '" y2="' + Y(+W.entry) + '" stroke="#facc15" stroke-width="1.2"/>'
           +  '<text x="' + (L+4) + '" y="' + (Y(+W.entry)-3) + '" font-size="9" fill="#facc15">진입 ' + fmt(+W.entry) + '</text>';
@@ -588,7 +609,7 @@ function renderBand(BOT, bars){
       el.innerHTML = posLine
         + '<div style="padding:8px 14px 2px;font-size:11px;color:var(--dim)">' + session + ' · 전일 종가 ' + fmt(pc) + ' (' + prevDate.slice(5) + ' ' + pcSrc + ')</div>'
         + '<div style="padding:4px 6px 2px">' + svg + '</div>' + info
-        + '<div class="note">빨강 위 밴드 · 파랑 아래 밴드 · 흰 선 오늘 가격 · 초록 현재가(야후 ~10분 지연) · 진입은 VWAP 조건도 맞아야 함</div>';
+        + '<div class="note">빨강 위 밴드 · 파랑 아래 밴드 · 흰 선 오늘 가격 · ▲▼ 웨이브 진입 · ✕ 청산 · 초록 현재가(야후 ~10분 지연) · 진입은 VWAP 조건도 맞아야 함</div>';
     });
 }
 
@@ -983,8 +1004,11 @@ function render(){
     if(BOT && BOT.cfg){
       document.getElementById('cfgBody').innerHTML =
         '<table class="tbl"><tbody>'
-        + '<tr><td style="color:var(--dim);font-size:11px">복리</td><td class="px">' + fmt(cfg.per,0) + '만</td>'
-        + '<td style="color:var(--dim);font-size:11px">기준선</td><td class="px">' + fmt(cfg.icap,0) + '만</td></tr>'
+        + ((+cfg.lev > 0)
+            ? '<tr><td style="color:var(--dim);font-size:11px">레버리지</td><td class="px">' + (+cfg.lev) + '배</td>'
+              + '<td style="color:var(--dim);font-size:11px">1계약</td><td class="px">' + fmt(px*2*(+cfg.fx||1360)/1e4,0) + '만</td></tr>'
+            : '<tr><td style="color:var(--dim);font-size:11px">복리</td><td class="px">' + fmt(cfg.per,0) + '만</td>'
+              + '<td style="color:var(--dim);font-size:11px">기준선</td><td class="px">' + fmt(cfg.icap,0) + '만</td></tr>')
         + '<tr><td style="color:var(--dim);font-size:11px">매수/매도</td><td class="px">' + buyPct + '/' + sellPct + '%' + (ATK_ON ? ' <span style="color:var(--dim);font-size:10px">공격 ' + ATK_SELL + '%</span>' : '') + '</td>'
         + '<td style="color:var(--dim);font-size:11px">보유일</td><td class="px">' + hold + '일</td></tr>'
         + '<tr><td style="color:var(--dim);font-size:11px">총납입</td><td class="px">' + fmt(cfg.paid,0) + '만</td>'
