@@ -1,10 +1,16 @@
 {
   "positions": [
     {
-      "entry": 31337.25,
-      "date": "2026-10-05",
+      "entry": 30975.25,
+      "date": "2026-10-08",
       "qty": 1,
-      "m": "atk"
+      "m": "def"
+    },
+    {
+      "entry": 30975.25,
+      "date": "2026-10-08",
+      "qty": 1,
+      "m": "def"
     }
   ],
   "history": [
@@ -27,19 +33,30 @@
       "exit_date": "2026-10-05",
       "pnl_krw": 720120.0,
       "reason": "SELL·상쇄(수동보정)"
+    },
+    {
+      "entry": 31337.25,
+      "date": "2026-10-05",
+      "qty": 1,
+      "m": "atk",
+      "exit": 30975.25,
+      "exit_date": "2026-10-08",
+      "pnl_krw": -984640.0,
+      "reason": "MOC·상쇄"
     }
   ],
-  "realized": 1060800.0,
+  "realized": 76160.0,
   "step": 1,
-  "equity": 41129956.0,
-  "last_date": "2026-10-07",
+  "equity": 40186932.0,
+  "last_date": "2026-10-08",
   "contract": "MNQZ26",
   "cfg": {
     "buy_pct": 0.5,
     "sell_pct": 0.3,
     "hold": 3,
     "tiers": 2,
-    "per": 600.0,
+    "per": 1000.0,
+    "lev": 0.0,
     "lad": "mid",
     "margin_usd": 4734.0,
     "fx": 1360.0,
@@ -55,15 +72,15 @@
     "fomo_mult": 2.0
   },
   "quote": {
-    "px": 31395.75,
-    "p1": 31481.75,
-    "p2": 31337.25,
-    "date": "2026-10-07",
+    "px": 30975.25,
+    "p1": 31395.75,
+    "p2": 31481.75,
+    "date": "2026-10-08",
     "src": "MNQZ26/한투 16:00ET",
-    "buy_thr": 31180.5,
+    "buy_thr": 31238.75,
     "contract": "MNQZ26",
-    "total_q": 4,
-    "want": 4,
+    "total_q": 3,
+    "want": 3,
     "afford": 5
   }
 }
