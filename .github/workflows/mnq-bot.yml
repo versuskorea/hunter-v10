@@ -1,0 +1,123 @@
+name: MNQ Bot
+
+on:
+  schedule:
+    # 미국 정규장 마감(16:00 ET) 직후에만 실행한다.
+    # 마감 전에 돌면 종가가 없어 "장 마감 전 스킵"으로 끝나므로 전부 마감 이후로 둔다.
+    # 먼저 도는 실행이 처리하고 나머지는 중복 스킵된다.
+    # ── 서머타임 (EDT, 한국 05:00 마감) ──
+    - cron: '57 19 * * 1-5'   # 04:57 KST — 사전수집 후 16:00:03 까지 대기, 마감 즉시 판정
+    - cron: '1 20 * * 1-5'    # 05:01 KST
+    - cron: '8 20 * * 1-5'    # 05:08  (한투·야후 분봉 지연 대비)
+    - cron: '12 20 * * 1-5'   # 05:12
+    # ── 겨울 (EST, 한국 06:00 마감) ──
+    - cron: '57 20 * * 1-5'   # 05:57 KST
+    - cron: '1 21 * * 1-5'    # 06:01 KST
+    - cron: '8 21 * * 1-5'    # 06:08
+    - cron: '12 21 * * 1-5'   # 06:12
+  workflow_dispatch:        # 수동 실행 버튼
+    inputs:
+      force:
+        description: '장 마감 전·중복이어도 강제 실행 (테스트)'
+        type: boolean
+        default: false
+      quote_test:
+        description: '시세 진단만 — 한투·야후 경로별 성공/실패 확인 (주문·저장 없음)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write           # 상태 파일 커밋용
+
+# 같은 시각에 여러 번 깨워도 한 번에 하나씩만 실행 (중복 주문 방지)
+concurrency:
+  group: mnq-bot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run bot
+        env:
+          # ── 전략 ──
+          MODE:        ${{ vars.MODE || 'PAPER' }}
+          QTY:         ${{ vars.QTY || '1' }}
+          TIERS:       ${{ vars.TIERS || '2' }}
+          HOLD_DAYS:   ${{ vars.HOLD_DAYS || '3' }}
+          BUY_PCT:     ${{ vars.BUY_PCT || '0.3' }}
+          SELL_PCT:    ${{ vars.SELL_PCT || '0.3' }}
+          LAD_ORDER:   ${{ vars.LAD_ORDER || 'mid' }}
+          # ── 공격모드 (0=끄기 1=T1공격 2=T1양방향) ──
+          ATK_ON:      ${{ vars.ATK_ON || '1' }}
+          ATK_MODE:    ${{ vars.ATK_MODE || '2' }}
+          ATK_MA:      ${{ vars.ATK_MA || '20' }}
+          ATK_BUY:     ${{ vars.ATK_BUY || '0.5' }}
+          ATK_SELL:    ${{ vars.ATK_SELL || '0.5' }}
+          FOMO_DAYS:   ${{ vars.FOMO_DAYS || '4' }}
+          FOMO_MULT:   ${{ vars.FOMO_MULT || '2.0' }}
+          # ── 자본 · 증거금 ──
+          MARGIN_USD:  ${{ vars.MARGIN_USD || '4734' }}
+          FX:          ${{ vars.FX || '1360' }}
+          TOTAL_PAID:  ${{ vars.TOTAL_PAID || '3000' }}
+          INTRA_FEED:  ${{ vars.INTRA_FEED || '0.2' }}
+          INITIAL_CAP: ${{ vars.INITIAL_CAP || '3000' }}
+          PER_CONTRACT: ${{ vars.PER_CONTRACT || '700' }}
+          BUFFER:      ${{ vars.BUFFER || '20' }}
+          SIZE_LEV:    ${{ vars.SIZE_LEV || '6.5' }}      # 레버리지 배수 (0=예전 복리 방식)
+          # ── 시세 ──
+          HUNTER_API:  ${{ vars.HUNTER_API || 'https://hunter-v10.vercel.app' }}
+          CLOSE_1600:  ${{ vars.CLOSE_1600 || '1' }}
+          DATA_SYMBOL: ${{ vars.DATA_SYMBOL || '^NDX' }}
+          USE_CONTRACT_SYM: ${{ vars.USE_CONTRACT_SYM || '1' }}
+          USE_KIS_QUOTE: ${{ vars.USE_KIS_QUOTE || '1' }}
+          LIVE_CLOSE:   ${{ vars.LIVE_CLOSE || '1' }}
+          MIN_GAP:      ${{ vars.MIN_GAP || '1' }}
+          QQQ_SCALE:   ${{ vars.QQQ_SCALE || '41.4' }}
+          NDX_SCALE:   ${{ vars.NDX_SCALE || '1.0' }}
+          # ── 실행 타이밍 ──
+          WAIT_CLOSE:   ${{ vars.WAIT_CLOSE || '1' }}
+          WAIT_MAX_SEC: ${{ vars.WAIT_MAX_SEC || '420' }}
+          ORDER_DEADLINE: ${{ vars.ORDER_DEADLINE || '15' }}
+          # ── 운용 스위치 ──
+          PAUSE_BUY:   ${{ vars.PAUSE_BUY || '0' }}
+          PAUSE_ALL:   ${{ vars.PAUSE_ALL || '0' }}
+          CLOSE_ALL:   ${{ vars.CLOSE_ALL || '0' }}
+          FORCE_RUN:   ${{ inputs.force && '1' || vars.FORCE_RUN || '0' }}
+          QUOTE_TEST:  ${{ inputs.quote_test && '1' || '0' }}
+          # ── 종목 ──
+          SYMBOL:      ${{ vars.SYMBOL || 'MNQ' }}
+          ROLL_STOP_DAYS: ${{ vars.ROLL_STOP_DAYS || '14' }}
+          STATE_FILE:  mnq_state.json
+          # ── 비밀값 ──
+          TG_TOKEN:    ${{ secrets.TG_TOKEN }}
+          TG_CHAT:     ${{ secrets.TG_CHAT }}
+          KIS_APP_KEY:      ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET:   ${{ secrets.KIS_APP_SECRET }}
+          KIS_ACCOUNT_NO:   ${{ secrets.KIS_ACCOUNT_NO }}
+          KIS_ACCOUNT_CODE: ${{ secrets.KIS_ACCOUNT_CODE }}
+        run: python mnq_bot.py
+
+      - name: Commit state
+        if: ${{ !inputs.quote_test }}
+        continue-on-error: true
+        run: |
+          git config user.name "mnq-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add -A mnq_state.json
+          # v5.6 봇이 웨이브 잔여를 대리청산했으면 웨이브 상태도 함께 저장
+          git diff --quiet -- mnq_intra_state.json 2>/dev/null || git add mnq_intra_state.json
+          git diff --staged --quiet && echo "변경 없음" && exit 0
+          git commit -m "state update"
+          # 웨이브(장중 봇)가 그사이 자기 상태를 푸시했을 수 있어 → 받아서 합친 뒤 푸시
+          for i in 1 2 3 4; do
+            git pull --rebase -X theirs && git push && exit 0   # 충돌 시 봇 쪽 기록 우선
+            sleep 3
+          done
+          echo "::error::상태 푸시 실패"; exit 1
