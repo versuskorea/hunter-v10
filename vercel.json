@@ -70,6 +70,54 @@
     {
       "path": "/api/cron-intra",
       "schedule": "40 19 * * 1-5"
+    },
+    {
+      "path": "/api/cron-sniper-morning",
+      "schedule": "15 22 * * 1-5"
+    },
+    {
+      "path": "/api/cron-sniper-plan-if-needed",
+      "schedule": "43 0 * * 2-6"
+    },
+    {
+      "path": "/api/cron-sniper-plan-if-needed",
+      "schedule": "43 3 * * 2-6"
+    },
+    {
+      "path": "/api/cron-sniper-place",
+      "schedule": "7 10 * * 1-5"
+    },
+    {
+      "path": "/api/cron-sniper-place",
+      "schedule": "37 10 * * 1-5"
+    },
+    {
+      "path": "/api/cron-sniper-place",
+      "schedule": "17 12 * * 1-5"
+    },
+    {
+      "path": "/api/cron-sniper-place",
+      "schedule": "47 13 * * 1-5"
+    },
+    {
+      "path": "/api/cron-sniper-place",
+      "schedule": "47 14 * * 1-5"
+    },
+    {
+      "path": "/api/cron-sniper-wave",
+      "schedule": "50 13 * * 1-5"
+    },
+    {
+      "path": "/api/cron-sniper-wave",
+      "schedule": "0 17 * * 1-5"
+    },
+    {
+      "path": "/api/cron-sniper-wave",
+      "schedule": "50 14 * * 1-5"
+    },
+    {
+      "path": "/api/cron-sniper-wave",
+      "schedule": "0 18 * * 1-5"
     }
   ]
 }
