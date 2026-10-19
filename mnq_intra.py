@@ -1,5 +1,5 @@
 """
-MNQ 장중 봇 (노이즈 돌파 + VWAP 스탑) — i1.0
+MNQ 장중 봇 (노이즈 돌파 + VWAP 스탑) — i1.2
 
 규칙 (백테와 동일)
   · 기준 위 = max(오늘 09:30 시가, 전일 16:00 종가), 기준 아래 = min(...)
@@ -16,12 +16,14 @@ MNQ 장중 봇 (노이즈 돌파 + VWAP 스탑) — i1.0
 자산   = TOTAL_PAID + 봇 실현손익 + 장중 실현손익
 
 INTRA_MODE : OFF / PAPER(가상 체결, 알림만) / LIVE
+INTRA_SKIP : 전일 NQ 종가 등락이 −이 값 이하면 그날 웨이브를 쉼 (기본 0.025 = −2.5%, 0=끔)
+             (2008~2026 백테: 폭락 다음 날은 장중 레인지는 2배인데 추세일이 적어 손절이 반복됨)
 """
 import os, sys, json, time, subprocess, urllib.parse
 from datetime import datetime, timedelta, timezone
 import mnq_bot as B
 
-VER        = "i1.1"   # i1.1 계좌 순보유(숏 −) 기준으로 잔여 판단
+VER        = "i1.2"   # i1.2 전일 −2.5% 이하 다음 날 쉬기(INTRA_SKIP) · i1.1 계좌 순보유(숏 −) 기준으로 잔여 판단
 IMODE      = (os.getenv("INTRA_MODE") or "PAPER").strip().upper()
 LEV        = float(os.getenv("INTRA_LEV", "3.3"))
 IMAX       = int(float(os.getenv("INTRA_MAX", "2")))
@@ -29,6 +31,7 @@ LB         = int(float(os.getenv("INTRA_LB", "14")))
 USE_VWAP   = B._flag("INTRA_VWAP", "1")
 STATE      = os.getenv("INTRA_STATE", "mnq_intra_state.json")
 BOT_STATE  = os.getenv("STATE_FILE", "mnq_state.json")
+SKIP_DROP  = float(os.getenv("INTRA_SKIP", "0.025") or 0)   # 0=끔
 SKIP_DAYS  = {x.strip() for x in os.getenv("INTRA_SKIP_DAYS", "2026-11-27,2026-12-24").split(",") if x.strip()}
 TEST       = B._flag("INTRA_TEST", "0")         # 1이면 연결 점검만 하고 종료
 BUDGET_MIN = float(os.getenv("INTRA_BUDGET_MIN", "345"))   # 한 번 실행에서 쓸 최대 시간(분)
@@ -239,6 +242,29 @@ def contracts(st, bst, px):
     room = int(eq // mg) - held
     return max(0, min(n, room, IMAX)), eq, held, room
 
+def crash_skip(st, bst, today):
+    """전일 NQ 등락이 −SKIP_DROP 이하면 (사유 문자열, 등락) — 아니면 (None, 등락).
+       봇이 16:00 ET에 저장한 종가(px)와 그 전날 종가(p1)를 쓴다. 없으면 장중 기록(15:30)으로 대신."""
+    if SKIP_DROP <= 0:
+        return None, None
+    r, src = None, ""
+    q = bst.get("quote") or {}
+    try:
+        if q.get("date") and q["date"] < today and q.get("px") and q.get("p1"):
+            r = float(q["px"]) / float(q["p1"]) - 1
+            src = f"{q['date']} 종가 {float(q['px']):,.2f}"
+        else:
+            ds = sorted(d for d in (st.get("hist") or {}) if d < today)[-2:]
+            if len(ds) == 2:
+                r = st["hist"][ds[1]]["c"][-1] / st["hist"][ds[0]]["c"][-1] - 1
+                src = f"{ds[1]} 15:30 기준"
+    except Exception as e:
+        log(f"쉬기 판정 실패 — 정상 진행: {str(e)[:80]}")
+        return None, None
+    if r is not None and r <= -SKIP_DROP + 1e-12:
+        return f"전일 NQ {r*100:+.2f}% (기준 −{SKIP_DROP*100:g}%) · {src}", r
+    return None, r
+
 def pnl_krw(pos, qty, e, x):
     return (x - e) * pos * qty * B.MULT * B.FX
 
@@ -322,6 +348,9 @@ def self_test(st, bst, sym, today):
         out.append(f"✅ 한투 현재가: {B.kis_now_price(sym):,.2f}")
     except Exception as e:
         out.append(f"⚠️ 한투 현재가: {str(e)[:100]}")
+    why, r = crash_skip(st, bst, today)
+    out.append(f"{'😴' if why else '✅'} 폭락 다음 날 쉬기 (INTRA_SKIP −{SKIP_DROP*100:g}%): "
+               + (f"오늘 쉼 — {why}" if why else ("오늘 정상" + (f" (전일 {r*100:+.2f}%)" if r is not None else ""))))
     n, eq, held, room = contracts(st, bst, float((bst.get('quote') or {}).get('px') or 30000))
     out.append(f"ℹ️ 자산 {eq/1e4:,.0f}만 · 봇 {held}계약 · 여유 {room} → 장중 {n}계약")
     msg = "\n".join(out); log(msg); notify(msg)
@@ -349,6 +378,16 @@ def main():
         log("청산 시각 이후 — 종료"); return
     if st.get("day") != today:
         st.update(day=today, done=[], pos=0, qty=0, entry=None, entry_t=None, op=None)
+
+    # i1.2 폭락 다음 날 쉬기
+    why, _r = crash_skip(st, bst, today)
+    if why:
+        log(f"오늘 쉼 — {why}")
+        if st.get("skip_noted") != today:
+            st["skip_noted"] = today
+            notify(f"😴 웨이브 쉼 [{IMODE}] {today}\n{why}\n폭락 다음 날은 돌파가 잘 안 통해서 하루 쉽니다 ({VER})")
+            save(st, "intra: crash skip")
+        return
 
     # 밴드
     try:
