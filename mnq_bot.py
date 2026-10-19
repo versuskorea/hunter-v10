@@ -4,6 +4,8 @@
 MNQ 방어모드 자동매매   ·   v5.0  (2026-09-25)
 
 버전 규칙: 정수=기능 변경 / 소수점=버그·표시 수정
+  v5.7  고점 가드: 전일 종가가 DD_LB(126)일 최고 종가 대비 −DD_CUT(20%) 이하면
+        총 계약을 DD_MULT(0.5)배로 (최소 TIERS) — 백테 eng36 ddX 와 동일. DD_CUT=0 이면 끔
   v5.6  잔고 수량 필드 fm_ustl_qty 수정 + 매수/매도 구분(순보유, 숏은 −)
         16:00 판정 시 웨이브 잔여 포지션이 계좌에 남아 있으면 봇이 먼저 청산
         계좌가 순숏이면 봇 주문 중단 + 경고
@@ -43,7 +45,7 @@ def _flag(name, default="0"):
     v = (os.getenv(name) or default).strip().lower()
     return v in ("1", "true", "yes", "y", "on")
 
-BOT_VER    = "v5.6"
+BOT_VER    = "v5.7"
 MODE       = os.getenv("MODE", "PAPER").strip().upper()
 QTY        = int(os.getenv("QTY", "1"))        # 티어당 계약수
 TIERS      = int(os.getenv("TIERS", "3"))      # 최대 티어
@@ -79,6 +81,10 @@ ATK_SELL   = float(os.getenv("ATK_SELL", "0.5"))
 # ── 포모 부스트: N일 연속 상승 뒤 공격 진입이면 계약 배수 ──
 FOMO_DAYS  = int(os.getenv("FOMO_DAYS", "4"))      # 0=끔, 4=4일 연속 상승
 FOMO_MULT  = float(os.getenv("FOMO_MULT", "2.0"))  # 배수
+# ── v5.7 고점 가드: 고점 대비 깊게 빠진 구간에서는 계약을 줄인다 ──
+DD_CUT     = float(os.getenv("DD_CUT", "0.20") or 0)   # 0=끔, 0.20=126일 고점 대비 −20% 이하
+DD_MULT    = float(os.getenv("DD_MULT", "0.5"))         # 그때 총 계약 배수
+DD_LB      = int(float(os.getenv("DD_LB", "126")))      # 고점 기간(거래일)
 
 STATE_FILE = os.getenv("STATE_FILE", "mnq_state.json")
 TG_TOKEN   = os.getenv("TG_TOKEN", "")
@@ -1139,6 +1145,20 @@ def main():
     # MA·포모 판정은 장기 종가가 필요 — 1분봉 기반이면 일봉으로 보강
     _want = max(ATK_MA, FOMO_DAYS + 1) if ATK_ON else FOMO_DAYS + 1
     mac = ma_closes(CONTRACT, closes, _want)
+    # v5.7 고점 가드 — 백테와 같이 "전일 종가 vs 전일까지 DD_LB일 최고 종가"
+    dd_on, dd_pct, dd_hi = False, None, None
+    if DD_CUT > 0:
+        try:
+            ddc = ma_closes(CONTRACT, closes, DD_LB + 1)
+            win = ddc[-(DD_LB + 1):-1]
+            if len(win) >= min(DD_LB, 60):
+                dd_hi = max(win)
+                dd_pct = win[-1] / dd_hi - 1
+                dd_on = dd_pct <= -DD_CUT + 1e-12
+            else:
+                log(f"⚠️ 고점 가드: 일봉 {len(win)}개뿐 — 판정 생략")
+        except Exception as e:
+            log(f"⚠️ 고점 가드 계산 실패: {str(e)[:80]}")
     # 추세 판정 (전일 종가 > MA)
     is_atk = False
     sma = None
@@ -1216,6 +1236,9 @@ def main():
     held   = sum(x["qty"] for x in pos)
     unreal = sum((px - x["entry"]) * MULT * x["qty"] * FX for x in pos)
     total_q, want_q, afford_q = plan_contracts(equity, unreal, px)
+    total_q0 = total_q
+    if dd_on:
+        total_q = max(TIERS, int(total_q * DD_MULT + 0.5))
     lad = ladder_for(total_q)
     # 사이클 내 매수 횟수(step) — 포지션이 완전히 비면 0으로 리셋
     step = st.get("step", len(pos))
@@ -1310,6 +1333,12 @@ def main():
     lines.append((f"⚙️ 레버리지 {SIZE_LEV:g}배 (1계약 {px*MULT*FX/1e4:,.0f}만) · " if SIZE_LEV > 0 else
                   f"⚙️ 복리 {PER_CONTRACT/1e4:,.0f}만 · 기준선 {INITIAL_CAP/1e4:,.0f}만 · ")
                  + f"{BUY_PCT}/{SELL_PCT} · {HOLD_DAYS}일 · {TIERS}티어")
+    if DD_CUT > 0 and dd_pct is not None:
+        if dd_on:
+            lines.append(f"🧯 <b>고점 가드 발동</b> — {DD_LB}일 고점 {dd_hi:,.0f} 대비 {dd_pct*100:+.1f}% "
+                         f"(기준 −{DD_CUT*100:g}%) → 계약 ×{DD_MULT:g} ({total_q0}→{total_q})")
+        else:
+            lines.append(f"🧯 고점 대비 {dd_pct*100:+.1f}% (가드 −{DD_CUT*100:g}%에서 계약 ×{DD_MULT:g})")
     if _INTRA["v"]:
         lines.append(f"🌊 웨이브 누적 {_INTRA['v']/1e4:+,.0f}만 · {INTRA_FEED*100:.0f}% 반영 {intra_feed()/1e4:+,.0f}만")
     if mc_pct is not None:
@@ -1503,7 +1532,9 @@ def main():
                      "margin_usd": MARGIN_USD, "fx": FX, "buffer": BUFFER*100,
                      "paid": TOTAL_PAID/1e4, "icap": INITIAL_CAP/1e4,
                      "atk_on": ATK_ON, "atk_mode": ATK_MODE, "atk_ma": ATK_MA, "atk_buy": ATK_BUY,
-                     "atk_sell": ATK_SELL, "fomo_days": FOMO_DAYS, "fomo_mult": FOMO_MULT}
+                     "atk_sell": ATK_SELL, "fomo_days": FOMO_DAYS, "fomo_mult": FOMO_MULT,
+                     "dd_cut": DD_CUT, "dd_mult": DD_MULT, "dd_lb": DD_LB, "dd_on": dd_on,
+                     "dd_pct": None if dd_pct is None else round(dd_pct*100, 2)}
         st["quote"] = {"px": px, "p1": p1, "p2": p2, "date": today, "src": src,
                        "buy_thr": buy_thr, "contract": CONTRACT,
                        "total_q": total_q, "want": want_q, "afford": afford_q}
@@ -1535,7 +1566,9 @@ def main():
                      "margin_usd": MARGIN_USD, "fx": FX, "buffer": BUFFER*100,
                      "paid": TOTAL_PAID/1e4, "icap": INITIAL_CAP/1e4,
                      "atk_on": ATK_ON, "atk_mode": ATK_MODE, "atk_ma": ATK_MA, "atk_buy": ATK_BUY,
-                     "atk_sell": ATK_SELL, "fomo_days": FOMO_DAYS, "fomo_mult": FOMO_MULT}
+                     "atk_sell": ATK_SELL, "fomo_days": FOMO_DAYS, "fomo_mult": FOMO_MULT,
+                     "dd_cut": DD_CUT, "dd_mult": DD_MULT, "dd_lb": DD_LB, "dd_on": dd_on,
+                     "dd_pct": None if dd_pct is None else round(dd_pct*100, 2)}
         st["quote"] = {"px": px, "p1": p1, "p2": p2, "date": today, "src": src,
                        "buy_thr": buy_thr, "contract": CONTRACT,
                        "total_q": total_q, "want": want_q, "afford": afford_q}
