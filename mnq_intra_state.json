@@ -1,11 +1,12 @@
 {
- "pos": 0,
- "qty": 0,
- "entry": null,
- "entry_t": null,
+ "pos": 1,
+ "qty": 2,
+ "entry": 29876.25,
+ "entry_t": "10:30",
  "day": "2026-10-20",
  "done": [
-  "10:00"
+  "10:00",
+  "10:30"
  ],
  "realized": 3763800.0,
  "trades": [
