@@ -85,7 +85,7 @@
   "realized": 739840.0,
   "step": 0,
   "equity": 42004436.0,
-  "last_date": "2026-10-27",
+  "last_date": "2026-10-28",
   "contract": null,
   "cfg": {
     "buy_pct": 0.5,
@@ -111,15 +111,15 @@
     "dd_mult": 0.5,
     "dd_lb": 126,
     "dd_on": false,
-    "dd_pct": -6.49
+    "dd_pct": -5.31
   },
   "quote": {
-    "px": 29813.0,
-    "p1": 29439.5,
-    "p2": 29122.75,
-    "date": "2026-10-27",
+    "px": 29990.75,
+    "p1": 29813.0,
+    "p2": 29439.5,
+    "date": "2026-10-28",
     "src": "MNQZ26/한투 16:00ET",
-    "buy_thr": 28977.0,
+    "buy_thr": 29292.25,
     "contract": "MNQZ26",
     "total_q": 3,
     "want": 3,
