@@ -118,6 +118,15 @@
     {
       "path": "/api/cron-sniper-wave",
       "schedule": "0 18 * * 1-5"
+    },
+    {
+      "path": "/api/cron-manual",
+      "schedule": "* * * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/cron-manual.js": {
+      "maxDuration": 50
+    }
+  }
 }
