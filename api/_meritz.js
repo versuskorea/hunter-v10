@@ -135,9 +135,10 @@ export async function candles(tok, sym, sec) {
       const hh = Number(b.id.slice(8, 10)), mm = Number(b.id.slice(10, 12));
       const key = `${b.id.slice(0, 8)}${String(hh).padStart(2, '0')}${String(mm - (mm % 3)).padStart(2, '0')}00`;
       const last = out[out.length - 1];
-      if (last && last.id === key) { last.h = Math.max(last.h, b.h); last.l = Math.min(last.l, b.l); last.c = b.c; }
-      else out.push({ id: key, o: b.o, h: b.h, l: b.l, c: b.c });
+      if (last && last.id === key) { last.h = Math.max(last.h, b.h); last.l = Math.min(last.l, b.l); last.c = b.c; last.n++; }
+      else out.push({ id: key, o: b.o, h: b.h, l: b.l, c: b.c, n: 1 });
     }
+    if (out.length && out[out.length - 1].n < 3) out.pop(); // 아직 안 끝난 3분봉은 버린다
     return out;
   }
   const ex = SYMBOL_EXCH[sym] || 'AX';
