@@ -127,6 +127,19 @@ export async function holdings(tok) {
 
 // 분봉: 완성된 봉만, 오래된 것 → 최신 {id, o, h, l, c}. 첫 행(진행 중인 봉)은 버린다
 export async function candles(tok, sym, sec) {
+  // 3분봉: 메리츠가 3분 단위를 주지 않을 수 있어 1분봉을 3개씩 묶어 만든다 (정각 기준 :00 :03 :06 …)
+  if (Number(sec) === 180) {
+    const one = await candles(tok, sym, 60);
+    const out = [];
+    for (const b of one) {
+      const hh = Number(b.id.slice(8, 10)), mm = Number(b.id.slice(10, 12));
+      const key = `${b.id.slice(0, 8)}${String(hh).padStart(2, '0')}${String(mm - (mm % 3)).padStart(2, '0')}00`;
+      const last = out[out.length - 1];
+      if (last && last.id === key) { last.h = Math.max(last.h, b.h); last.l = Math.min(last.l, b.l); last.c = b.c; }
+      else out.push({ id: key, o: b.o, h: b.h, l: b.l, c: b.c });
+    }
+    return out;
+  }
   const ex = SYMBOL_EXCH[sym] || 'AX';
   const d = await call(tok, 'GET', '/market/v1/overseas/candles/minutes', {
     query: { mrkt_div_code: 'OV', mrkt_cls_code: ex, iscd: sym, dely_rltm_cls_code: process.env.MERITZ_REALTIME || '0', hour_cls_code: String(sec) },
