@@ -41,7 +41,7 @@ for sym in SYMS:
         for b in d.get("bars") or []:
             t = datetime.fromisoformat(b["t"].replace("Z", "+00:00")).astimezone(ET)
             m = t.hour * 60 + t.minute
-            if 570 <= m < 960:                       # 정규장만
+            if 240 <= m < 1200:                       # 정규장만
                 out.write(f"{t:%Y-%m-%d %H:%M},{b['o']},{b['h']},{b['l']},{b['c']},{b['v']}\n")
                 n += 1; last = f"{t:%Y-%m-%d}"
         pages += 1
