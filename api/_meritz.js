@@ -125,10 +125,47 @@ export async function holdings(tok) {
   return out;
 }
 
+// 야후 1분봉(최근 5일, 프리·애프터 포함)을 mins 분봉으로 묶는다. id = 한국시간 YYYYMMDDHHMM00
+// 메리츠 분봉은 한 번에 수십 개만 줘서 RSI 에 필요한 100봉이 안 모인다 → 3분봉은 야후로 만든다
+const KST_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+function kstId(ms) {
+  const o = {}; for (const p of KST_FMT.formatToParts(new Date(ms))) o[p.type] = p.value;
+  return `${o.year}${o.month}${o.day}${String(Number(o.hour) % 24).padStart(2, '0')}${o.minute}`;
+}
+export async function yahooBars(sym, mins, nowMs = Date.now()) {
+  const UA = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36' };
+  let j = null, last = '';
+  for (const host of ['query1', 'query2']) {
+    try {
+      const r = await fetch(`https://${host}.finance.yahoo.com/v8/finance/chart/${sym}?interval=1m&range=5d&includePrePost=true`, { headers: UA });
+      if (r.status === 200) { j = await r.json(); break; }
+      last = `HTTP${r.status}`;
+    } catch (e) { last = e.message; }
+  }
+  const res = j && j.chart && j.chart.result && j.chart.result[0];
+  if (!res || !res.timestamp) throw new Error(`야후 분봉 없음 ${sym} ${last}`);
+  const q = res.indicators.quote[0];
+  const step = mins * 60;
+  const out = [];
+  for (let i = 0; i < res.timestamp.length; i++) {
+    const t = res.timestamp[i], c = q.close[i];
+    if (!(c > 0)) continue;
+    const t0 = t - (t % step);                       // 묶음 시작(초). 정규장 09:30 ET 은 3분 단위로 나눠떨어진다
+    if ((t0 + step) * 1000 > nowMs) break;           // 아직 안 끝난 봉은 버린다
+    const id = kstId(t0 * 1000) + '00';
+    const lastBar = out[out.length - 1];
+    const h = q.high[i] > 0 ? q.high[i] : c, l = q.low[i] > 0 ? q.low[i] : c, o = q.open[i] > 0 ? q.open[i] : c;
+    if (lastBar && lastBar.id === id) { lastBar.h = Math.max(lastBar.h, h); lastBar.l = Math.min(lastBar.l, l); lastBar.c = c; }
+    else out.push({ id, o, h, l, c });
+  }
+  return out;
+}
+
 // 분봉: 완성된 봉만, 오래된 것 → 최신 {id, o, h, l, c}. 첫 행(진행 중인 봉)은 버린다
 export async function candles(tok, sym, sec) {
-  // 3분봉: 메리츠가 3분 단위를 주지 않을 수 있어 1분봉을 3개씩 묶어 만든다 (정각 기준 :00 :03 :06 …)
+  // 3분봉: 야후 1분봉(5일치)으로 만든다. 야후가 안 되면 메리츠 1분봉을 3개씩 묶는다 (봉 수가 적어 판단 보류될 수 있음)
   if (Number(sec) === 180) {
+    try { const y = await yahooBars(sym, 3); if (y.length >= 100) return y; } catch { /* 메리츠로 */ }
     const one = await candles(tok, sym, 60);
     const out = [];
     for (const b of one) {
