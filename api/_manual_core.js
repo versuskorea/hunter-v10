@@ -202,6 +202,7 @@ export function trailStop(r, peak) {
 // ctx: { px, clk, slip, sig, trend, peakSig }
 export function decide(r, st, ctx) {
   const { px, clk, slip } = ctx;
+  const stopSlip = ctx.stopSlip ?? 2 * slip; // 손절·트레일·만기·이어서 매도 지정가 여유폭 (바로 체결되게)
   const held = (st.bought || 0) - (st.sold || 0);
   const exp = r.exp || st.expDate || null;
   const closing = clk.session === 'regular' && clk.et.min >= 15 * 60 + 45;
@@ -240,18 +241,18 @@ export function decide(r, st, ctx) {
   }
   if (st.st === 'hold') {
     if (held <= 0) return { act: 'DONE' };
-    if (st.exiting) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - 2 * slip)), why: `${st.exiting} (이어서)` };
+    if (st.exiting) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - stopSlip)), why: `${st.exiting} (이어서)` };
     if (exp && (expPassed || (expToday && closing))) {
       if (expToday && clk.session === 'regular' && clk.et.min < 15 * 60 + 50) return { act: 'SELL', qty: held, kind: 'MOC', px: 0, why: `만기 ${exp} MOC` };
-      return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - 2 * slip)), why: `만기 ${exp} 지남` };
+      return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - stopSlip)), why: `만기 ${exp} 지남` };
     }
     const tp = st.tpPx ?? (r.tp && r.tp.k === 'abs' ? r.tp.v : null);
     const sl = st.slPx ?? (r.sl && r.sl.k === 'abs' ? r.sl.v : null);
     if (tp && px >= tp) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - slip)), why: `익절 ${px} ≥ ${tp}` };
-    if (sl && px <= sl) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - 2 * slip)), why: `손절 ${px} ≤ ${sl}` };
+    if (sl && px <= sl) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - stopSlip)), why: `손절 ${px} ≤ ${sl}` };
     const pk = Math.max(st.peak || px, px);
     const tr = trailStop(r, pk);
-    if (tr && px <= tr) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - 2 * slip)), why: `트레일링 ${px} ≤ ${tr} (고점 ${pk})` };
+    if (tr && px <= tr) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - stopSlip)), why: `트레일링 ${px} ≤ ${tr} (고점 ${pk})` };
     const ps = ctx.peakSig;
     if (r.peak && ps && ps.fire && ps.id !== st.lastPeak) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - slip)), why: `익절 ${r.peak.sec / 60}분 RSI 봉우리 ${ps.max.toFixed(1)} → ${ps.rsi.toFixed(1)}`, peakId: ps.id };
     return { act: 'NONE' };
