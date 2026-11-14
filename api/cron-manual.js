@@ -5,6 +5,7 @@
 //   MANUAL_MODE       OFF | PAPER | LIVE   (없으면 PAPER = 모의, 주문 안 냄)
 //   MANUAL_CASH_FLOOR 매수 후에도 남겨둘 달러 (스나이퍼 몫 보호). 없으면 0
 //   MANUAL_SLIP       지정가 여유폭 (기본 0.005 = 0.5%)
+//   MANUAL_STOP_SLIP  손절·트레일·만기 매도 지정가를 현재가보다 얼마나 낮게 (기본 0.02 = 2%, 바로 체결용)
 //   MANUAL_WAIT_MIN   지정가 미체결 시 취소까지 분 (기본 2)
 //   MANUAL_SESSIONS   돌릴 구간 (기본 day,pre,regular,after)
 //   MANUAL_STATE      봇이 쓰는 상태 (건드리지 않기)
@@ -45,6 +46,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
   const tag = paper ? '[모의] ' : '';
   const clk = clock(now);
   const slip = num(vars.MANUAL_SLIP, 0.005);
+  const stopSlip = num(vars.MANUAL_STOP_SLIP, 0.02);
   const waitMs = num(vars.MANUAL_WAIT_MIN, 2) * 60000;
   const floor = num(vars.MANUAL_CASH_FLOOR, 0);
   const sessions = String(vars.MANUAL_SESSIONS || 'day,pre,regular,after').split(',').map(s => s.trim());
@@ -206,7 +208,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
         if (r.eod) st.expDate = eodDate();
         if (lvText(st)) say.push(`${tag}🎯 ${r.sym} ${r.qty}주 감시 시작 (기준 ${fmt(avg)}) ${lvText(st)}`);
       }
-      const ctx = { px, clk, slip };
+      const ctx = { px, clk, slip, stopSlip };
       if (st.st === 'wait') {
         try {
           if (r.pit && (!r.rth || clk.session === 'regular')) {
