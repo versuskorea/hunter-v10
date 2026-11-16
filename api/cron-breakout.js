@@ -9,7 +9,6 @@
 //   BO_SLIP        매수·시가매도 지정가 여유폭 (기본 0.005)
 //   BO_STOP_SLIP   밤사이 손절 지정가 여유폭 (기본 0.01)
 //   BO_WAIT_MIN    지정가 미체결 시 취소까지 분 (기본 1)
-//   BO_ACCOUNT     알림 앞에 붙는 계좌 이름 (기본 '계좌2 돌파')
 //   BO_STATE       봇 상태 (건드리지 않기) · BO_TOKEN 메리츠 토큰 캐시 (암호화)
 import crypto from 'node:crypto';
 import * as M from './_meritz.js';
@@ -70,7 +69,8 @@ async function yahoo(sym, interval, range, prepost = false) {
 }
 
 // ── 한 번 실행 ─────────────────────────────────────────
-export async function runOnce({ vars, broker, now = new Date(), notify = tg, saveVar, mkt = { yahoo } }) {
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+export async function runOnce({ vars, broker, now = new Date(), notify = tg, saveVar, mkt = { yahoo, sleep } }) {
   const clk = clock(now), et = clk.et, ses = clk.session;
   const mode = String(vars.BO_MODE || 'PAPER').toUpperCase();
   const slip = num(vars.BO_SLIP, 0.005), stopSlip = num(vars.BO_STOP_SLIP, 0.01);
@@ -140,7 +140,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
       if (S.pos && S.pos.date !== et.date && qty > 0) { want = 0; why = '다음 날 시가 매도'; }
       // 4-2) 돌파 매수
       const pl = S.plan;
-      if (pl && pl.date === et.date && pl.status === 'wait' && !S.pos && et.min >= 9 * 60 + 31 && et.min < 15 * 60 + 58) {
+      if (pl && pl.date === et.date && pl.status === 'wait' && !S.pos && et.min >= 9 * 60 + 30 && et.min < 15 * 60 + 58) {
         if (!(pl.level > 0)) {
           const bars = await mkt.yahoo(SYM, '1m', '1d', true);
           const today = bars.filter(b => b.date === et.date);
@@ -155,7 +155,16 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
         if (pl.status === 'wait' && pl.level > 0) {
           const bars = (await mkt.yahoo(SYM, '1m', '1d', false)).filter(b => b.date === et.date && b.min >= 570);
           const hi = Math.max(...bars.map(b => b.h), 0);
-          const px = await broker.price(SYM, 'regular');
+          let px = await broker.price(SYM, 'regular');
+          // 장 시작 6분(23:30~23:36 KST)은 공격 돌파의 3분의 1이 몰리는 구간 → 4초마다 확인 (1분 실행 안에서 최대 40초)
+          if (!(hi >= pl.level || px >= pl.level) && et.min < 9 * 60 + 36) {
+            const t0 = Date.now();
+            while (Date.now() - t0 < 40000) {
+              await (mkt.sleep || sleep)(4000);
+              px = await broker.price(SYM, 'regular');
+              if (px >= pl.level) { log.push(`빠른 확인으로 돌파 ${px}`); break; }
+            }
+          }
           if (hi >= pl.level || px >= pl.level) {
             const eq = cash + qty * px;
             const q = Math.floor((pl.w * eq) / (px * (1 + slip)));
