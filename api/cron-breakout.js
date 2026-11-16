@@ -9,6 +9,7 @@
 //   BO_SLIP        매수·시가매도 지정가 여유폭 (기본 0.005)
 //   BO_STOP_SLIP   밤사이 손절 지정가 여유폭 (기본 0.01)
 //   BO_WAIT_MIN    지정가 미체결 시 취소까지 분 (기본 1)
+//   BO_ACCOUNT     알림 앞에 붙는 계좌 이름 (기본 '계좌2 돌파')
 //   BO_STATE       봇 상태 (건드리지 않기) · BO_TOKEN 메리츠 토큰 캐시 (암호화)
 import crypto from 'node:crypto';
 import * as M from './_meritz.js';
@@ -74,7 +75,8 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
   const mode = String(vars.BO_MODE || 'PAPER').toUpperCase();
   const slip = num(vars.BO_SLIP, 0.005), stopSlip = num(vars.BO_STOP_SLIP, 0.01);
   const waitMs = num(vars.BO_WAIT_MIN, 1) * 60000;
-  const tag = mode === 'LIVE' ? '🚀[돌파] ' : '🚀[돌파 PAPER] ';
+  const acct = String(vars.BO_ACCOUNT || '계좌2 돌파').trim();
+  const tag = mode === 'LIVE' ? `🚀[${acct}] ` : `🚀[${acct} PAPER] `;
   let S; try { S = JSON.parse(vars.BO_STATE || '{}'); } catch { S = {}; }
   const say = [], log = [];
   const save = () => saveVar('BO_STATE', JSON.stringify(S));
