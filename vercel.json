@@ -122,10 +122,17 @@
     {
       "path": "/api/cron-manual",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron-breakout",
+      "schedule": "* * * * *"
     }
   ],
   "functions": {
     "api/cron-manual.js": {
+      "maxDuration": 50
+    },
+    "api/cron-breakout.js": {
       "maxDuration": 50
     }
   }
