@@ -40,24 +40,38 @@ const num = (v, d) => (v === undefined || v === '' || isNaN(Number(v)) ? d : Num
 const fmt = n => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
 
 // ── 1분 시세 기록 → 분봉 ─────────────────────────────────
-const TICK_KEEP_MIN = 600;            // 10시간치 (3분봉 200개 · 5분봉 120개)
+const TICK_KEEP_MIN = 450;            // 7.5시간치 (3분봉 150개). 종목 2개여도 GitHub 변수 한도(48KB) 안
 const KST_ID = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
 function kstIdOf(ms) {
   const o = {}; for (const p of KST_ID.formatToParts(new Date(ms))) o[p.type] = p.value;
   return `${o.year}${o.month}${o.day}${String(Number(o.hour) % 24).padStart(2, '0')}${o.minute}00`;
 }
-// ticks: [[분(에폭/60000), 가격], ...] 오래된 → 최신. 진행 중인 봉은 버린다
+// ticks: 오래된 → 최신. [분, 가격] (매분 현재가) 또는 [분, 시, 고, 저, 종] (메리츠 실제 1분봉). 진행 중인 봉은 버린다
 export function tickBars(ticks, sec, nowMs) {
   const step = sec / 60, out = [];
   const nowB = Math.floor(nowMs / 60000 / step);
-  for (const [m, p] of ticks) {
+  for (const t of ticks) {
+    const m = t[0], o = t.length > 2 ? t[1] : t[1], h = t.length > 2 ? t[2] : t[1], l = t.length > 2 ? t[3] : t[1], c = t.length > 2 ? t[4] : t[1];
     const b = Math.floor(m / step);
     if (b >= nowB) break;
     const last = out[out.length - 1];
-    if (last && last.b === b) { last.h = Math.max(last.h, p); last.l = Math.min(last.l, p); last.c = p; }
-    else out.push({ b, id: kstIdOf(b * step * 60000), o: p, h: p, l: p, c: p });
+    if (last && last.b === b) { last.h = Math.max(last.h, h); last.l = Math.min(last.l, l); last.c = c; }
+    else out.push({ b, id: kstIdOf(b * step * 60000), o, h, l, c });
   }
   return out.map(({ b, ...x }) => x);
+}
+// 저장은 작게: 분은 기준값과의 차이, 가격은 소수 둘째 자리 → 종목 2개 7.5시간치가 30KB 안팎
+const r2 = x => Math.round(x * 100) / 100;
+export function packTicks(T) {
+  let b = Infinity; for (const a of Object.values(T)) if (a.length) b = Math.min(b, a[0][0]);
+  if (!isFinite(b)) return { v: 2, b: 0, S: {} };
+  const S = {}; for (const [k, a] of Object.entries(T)) S[k] = a.map(t => [t[0] - b, ...t.slice(1).map(r2)]);
+  return { v: 2, b, S };
+}
+export function unpackTicks(J) {
+  if (!J || J.v !== 2) return J && !J.v ? J : {};          // 옛 형식(그대로 배열)도 읽는다
+  const T = {}; for (const [k, a] of Object.entries(J.S || {})) T[k] = a.map(t => [t[0] + J.b, ...t.slice(1)]);
+  return T;
 }
 // 야후 분봉에서 30분 넘게 빈 곳(주간거래·주말)이 있으면 그 앞은 버린다 → 봉이 모자라면 판단 보류
 export function cutGaps(bars, sec) {
@@ -130,7 +144,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
   let hold = null;
   const getHold = async () => (hold ??= await broker.holdings());
   const candleCache = {}, dayCache = {};
-  let T = {}; try { T = JSON.parse(vars.MANUAL_TICKS || '{}'); } catch { T = {}; }
+  let T = {}; try { T = unpackTicks(JSON.parse(vars.MANUAL_TICKS || '{}')); } catch { T = {}; }
   let ticksDirty = false;
   // RTH 규칙: 야후 분봉 중 정규장 봉만 (백테스트와 같음)
   // 그 외: 직접 쌓은 1분 시세로 만든 분봉 → 100봉이 안 되면 야후 분봉(공백 앞은 버림)
@@ -236,8 +250,21 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
     const nowMin = Math.floor(now.getTime() / 60000);
     for (const sym of new Set(rules.filter(r => r.pit && !r.rth).map(r => r.sym))) {
       try {
-        const p = await getPx(sym);
         const arr = (T[sym] ||= []);
+        // ① 메리츠 실제 1분봉(완성된 봉)으로 시·고·저·종을 채운다 → 앱 차트와 같은 봉
+        try {
+          const one = await broker.candles(sym, 60);
+          const map = new Map(arr.map(x => [x[0], x]));
+          for (const b of one) {
+            const m = Math.floor(barTime(b.id).getTime() / 60000);
+            if (!(m >= nowMin - TICK_KEEP_MIN && m < nowMin) || !(b.c > 0)) continue;
+            const row = [m, b.o, b.h, b.l, b.c], old = map.get(m);
+            if (!old || old.length < 5 || old[4] !== b.c || old[2] !== b.h || old[3] !== b.l) { map.set(m, row); ticksDirty = true; }
+          }
+          arr.length = 0; arr.push(...[...map.values()].sort((a, b) => a[0] - b[0]));
+        } catch (e) { log.push(`${sym} 1분봉 실패(현재가로 대신) ${e.message}`); }
+        // ② 1분봉이 없는 분(주간거래 등)은 매분 현재가로 메운다
+        const p = await getPx(sym);
         if (p > 0 && (!arr.length || arr[arr.length - 1][0] < nowMin)) { arr.push([nowMin, p]); ticksDirty = true; }
         while (arr.length && arr[0][0] < nowMin - TICK_KEEP_MIN) { arr.shift(); ticksDirty = true; }
       } catch (e) { log.push(`${sym} 시세 기록 실패 ${e.message}`); }
@@ -333,7 +360,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
     catch (e) { say.push(`⚠️ EXTRA_SHARES 갱신 실패 (${cur}→${cur + extraDelta}) 직접 고쳐주세요: ${e.message}`); }
   }
 
-  if (ticksDirty) { try { await saveVar('MANUAL_TICKS', JSON.stringify(T)); } catch (e) { log.push(`시세 기록 저장 실패 ${e.message}`); } }
+  if (ticksDirty) { try { await saveVar('MANUAL_TICKS', JSON.stringify(packTicks(T))); } catch (e) { log.push(`시세 기록 저장 실패 ${e.message}`); } }
   S.lock = 0;
   S.last = `${clk.kst.date} ${clk.kst.hhmm} KST ${clk.session}`;
   await saveVar('MANUAL_STATE', JSON.stringify(S));
