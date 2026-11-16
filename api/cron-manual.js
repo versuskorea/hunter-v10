@@ -9,11 +9,14 @@
 //   MANUAL_WAIT_MIN   지정가 미체결 시 취소까지 분 (기본 2)
 //   MANUAL_SESSIONS   돌릴 구간 (기본 day,pre,regular,after)
 //   MANUAL_STATE      봇이 쓰는 상태 (건드리지 않기)
+//   MANUAL_TICKS      RSI 웅덩이용 1분 시세 기록 (봇이 씀, 건드리지 않기)
+//                     주간·프리·정규·애프터 메리츠 현재가를 1분마다 쌓아 끊김 없는 분봉을 만든다.
+//                     야후 분봉엔 주간거래가 없어 주말·주간 하락이 봉 하나로 뭉쳐 가짜 웅덩이가 생겼다 (11/16)
 // Vercel 환경변수: CRON_SECRET, GH_TOKEN(Variables 읽기·쓰기), MERITZ_APP_KEY, MERITZ_APP_SECRET, TG_TOKEN, TG_CHAT
 import crypto from 'node:crypto';
 import * as M from './_meritz.js';
 import * as V from './_ghvars.js';
-import { parseRules, clock, decide, pitSignal, trendOf, levels, nextWeekday, barTime } from './_manual_core.js';
+import { parseRules, clock, decide, pitSignal, trendOf, levels, nextWeekday, barTime, MIN_BARS } from './_manual_core.js';
 
 function safeEq(a, b) {
   a = String(a || ''); b = String(b || '');
@@ -35,6 +38,36 @@ async function tg(text) {
 
 const num = (v, d) => (v === undefined || v === '' || isNaN(Number(v)) ? d : Number(v));
 const fmt = n => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
+
+// ── 1분 시세 기록 → 분봉 ─────────────────────────────────
+const TICK_KEEP_MIN = 600;            // 10시간치 (3분봉 200개 · 5분봉 120개)
+const KST_ID = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+function kstIdOf(ms) {
+  const o = {}; for (const p of KST_ID.formatToParts(new Date(ms))) o[p.type] = p.value;
+  return `${o.year}${o.month}${o.day}${String(Number(o.hour) % 24).padStart(2, '0')}${o.minute}00`;
+}
+// ticks: [[분(에폭/60000), 가격], ...] 오래된 → 최신. 진행 중인 봉은 버린다
+export function tickBars(ticks, sec, nowMs) {
+  const step = sec / 60, out = [];
+  const nowB = Math.floor(nowMs / 60000 / step);
+  for (const [m, p] of ticks) {
+    const b = Math.floor(m / step);
+    if (b >= nowB) break;
+    const last = out[out.length - 1];
+    if (last && last.b === b) { last.h = Math.max(last.h, p); last.l = Math.min(last.l, p); last.c = p; }
+    else out.push({ b, id: kstIdOf(b * step * 60000), o: p, h: p, l: p, c: p });
+  }
+  return out.map(({ b, ...x }) => x);
+}
+// 야후 분봉에서 30분 넘게 빈 곳(주간거래·주말)이 있으면 그 앞은 버린다 → 봉이 모자라면 판단 보류
+export function cutGaps(bars, sec) {
+  let from = 0;
+  for (let i = 1; i < bars.length; i++) {
+    const gap = (barTime(bars[i].id) - barTime(bars[i - 1].id)) / 60000;
+    if (gap > Math.max(30, 3 * sec / 60)) from = i;
+  }
+  return bars.slice(from);
+}
 
 // 테스트에서 브로커·저장소를 갈아끼울 수 있게 분리
 export async function runOnce({ vars, broker, now = new Date(), notify = tg, saveVar }) {
@@ -97,7 +130,18 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
   let hold = null;
   const getHold = async () => (hold ??= await broker.holdings());
   const candleCache = {}, dayCache = {};
-  const getBars = async (sym, sec) => (candleCache[sym + sec] ??= await broker.candles(sym, sec));
+  let T = {}; try { T = JSON.parse(vars.MANUAL_TICKS || '{}'); } catch { T = {}; }
+  let ticksDirty = false;
+  // RTH 규칙: 야후 분봉 중 정규장 봉만 (백테스트와 같음)
+  // 그 외: 직접 쌓은 1분 시세로 만든 분봉 → 100봉이 안 되면 야후 분봉(공백 앞은 버림)
+  const getBars = async (sym, sec, rth) => {
+    const k = `${sym}:${sec}:${rth ? 'R' : 'A'}`;
+    if (candleCache[k]) return candleCache[k];
+    if (rth) return (candleCache[k] = (await broker.candles(sym, sec)).filter(b => clock(barTime(b.id)).session === 'regular'));
+    const tb = tickBars(T[sym] || [], sec, now.getTime());
+    if (tb.length >= MIN_BARS) return (candleCache[k] = tb);
+    return (candleCache[k] = cutGaps(await broker.candles(sym, sec), sec));
+  };
   const getDays = async sym => (dayCache[sym] ??= await broker.days(sym));
   const closing = clk.session === 'regular' && clk.et.min >= 15 * 60 + 45;
   const eodDate = () => (clk.session === 'after' || closing ? nextWeekday(clk.tradeDate) : clk.tradeDate);
@@ -188,6 +232,16 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
 
   // 3) 새 판단
   if (sessionOn) {
+    // 3-0) RSI 웅덩이 규칙 종목의 현재가를 1분마다 기록 (주간거래 포함, 끊김 없는 분봉용)
+    const nowMin = Math.floor(now.getTime() / 60000);
+    for (const sym of new Set(rules.filter(r => r.pit && !r.rth).map(r => r.sym))) {
+      try {
+        const p = await getPx(sym);
+        const arr = (T[sym] ||= []);
+        if (p > 0 && (!arr.length || arr[arr.length - 1][0] < nowMin)) { arr.push([nowMin, p]); ticksDirty = true; }
+        while (arr.length && arr[0][0] < nowMin - TICK_KEEP_MIN) { arr.shift(); ticksDirty = true; }
+      } catch (e) { log.push(`${sym} 시세 기록 실패 ${e.message}`); }
+    }
     for (const r of rules) {
       const st = S.rules[r.key] ??= r.side === 'SELL'
         ? { st: 'hold', bought: r.qty, sold: 0, rule: r }
@@ -212,8 +266,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
       if (st.st === 'wait') {
         try {
           if (r.pit && (!r.rth || clk.session === 'regular')) {
-            let bars = await getBars(r.sym, r.pit.sec);
-            if (r.rth) bars = bars.filter(b => clock(barTime(b.id)).session === 'regular'); // 백테스트처럼 정규장 봉만
+            const bars = await getBars(r.sym, r.pit.sec, r.rth);
             ctx.sig = pitSignal(bars, r.pit.depth);
             if (ctx.sig.short && S.warnBars !== clk.tradeDate) { S.warnBars = clk.tradeDate; say.push(`⚠️ ${r.sym} ${r.pit.sec / 60}분봉이 ${ctx.sig.n}개뿐이라 RSI 웅덩이 판단 보류 (100개 필요)`); }
           }
@@ -280,6 +333,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
     catch (e) { say.push(`⚠️ EXTRA_SHARES 갱신 실패 (${cur}→${cur + extraDelta}) 직접 고쳐주세요: ${e.message}`); }
   }
 
+  if (ticksDirty) { try { await saveVar('MANUAL_TICKS', JSON.stringify(T)); } catch (e) { log.push(`시세 기록 저장 실패 ${e.message}`); } }
   S.lock = 0;
   S.last = `${clk.kst.date} ${clk.kst.hhmm} KST ${clk.session}`;
   await saveVar('MANUAL_STATE', JSON.stringify(S));
