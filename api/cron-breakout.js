@@ -14,9 +14,9 @@ import crypto from 'node:crypto';
 import * as M from './_meritz.js';
 import * as V from './_ghvars.js';
 import { clock, tick } from './_manual_core.js';
-import { plan as makePlan, arm, stopHit } from './_bo_core.js';
+import { plan as makePlan, arm, stopHit, sxPlan, PX, ddMult } from './_bo_core.js';
 
-const SYM = 'SOXL';
+const SYM = 'SOXL', SX = 'SOXS';
 const num = (v, d) => (v === undefined || v === '' || isNaN(Number(v)) ? d : Number(v));
 const fmt = (n, d = 2) => Number(n).toLocaleString('en-US', { maximumFractionDigits: d });
 const pct = x => `${x >= 0 ? '+' : ''}${(x * 100).toFixed(2)}%`;
@@ -87,16 +87,20 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
   if (S.lock && now.getTime() - S.lock < 50000) return { log: ['잠금 중'] };
   if (ses === 'closed') { S.last = `${clk.kst.date} ${clk.kst.hhmm} KST closed`; return { log: ['장 닫힘'] }; }
   S.lock = now.getTime(); await save();
+  let qty = 0, cash = 0, sq = 0, mult = 1;
 
   try {
     // 1) 계좌
-    let qty, cash;
     if (mode === 'LIVE') {
-      const hd = await broker.holdings(); qty = (hd[SYM] && hd[SYM].qty) || 0; cash = await broker.cash();
+      const hd = await broker.holdings(); qty = (hd[SYM] && hd[SYM].qty) || 0; sq = (hd[SX] && hd[SX].qty) || 0; cash = await broker.cash();
     } else {
       if (!S.paper) S.paper = { cash: num(vars.BO_PAPER_CASH, 100000), qty: 0, start: num(vars.BO_PAPER_CASH, 100000) };
-      qty = S.paper.qty; cash = S.paper.cash;
+      qty = S.paper.qty; sq = S.paper.sq || 0; cash = S.paper.cash;
     }
+    if (!S.sx) S.sx = {};
+    // 계좌 고점 (포지션 없을 때 현금 = 자산) → 고점 대비 −20% 아래면 새 매수 절반
+    if (qty === 0 && sq === 0 && !S.order && !S.sx.order) S.peakEq = Math.max(S.peakEq || 0, cash);
+    mult = ddMult(S.lastFlatEq = (qty === 0 && sq === 0 ? cash : (S.lastFlatEq || cash)), S.peakEq || cash);
     if (S.lastQty !== undefined && qty !== S.lastQty && mode === 'LIVE') {
       say.push(`${tag}✅ ${SYM} ${qty > S.lastQty ? '매수' : '매도'} 체결 ${Math.abs(qty - S.lastQty)}주 → 보유 ${qty}주`);
     }
@@ -156,18 +160,20 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
           const bars = (await mkt.yahoo(SYM, '1m', '1d', false)).filter(b => b.date === et.date && b.min >= 570);
           const hi = Math.max(...bars.map(b => b.h), 0);
           let px = await broker.price(SYM, 'regular');
-          // 장 시작 6분(23:30~23:36 KST)은 공격 돌파의 3분의 1이 몰리는 구간 → 4초마다 확인 (1분 실행 안에서 최대 40초)
+          // 장 시작 6분(23:30~23:36 KST)은 공격 돌파의 3분의 1이 몰리는 구간 → 2초마다 확인 (그 분의 45초까지, 함수 제한 50초 안)
           if (!(hi >= pl.level || px >= pl.level) && et.min < 9 * 60 + 36) {
-            const t0 = Date.now();
-            while (Date.now() - t0 < 40000) {
-              await (mkt.sleep || sleep)(4000);
+            const deadline = Math.floor(now.getTime() / 60000) * 60000 + 45000;
+            const t0 = Date.now(), until = t0 + Math.max(0, deadline - now.getTime());
+            while (Date.now() < until) {
+              await (mkt.sleep || sleep)(2000);
               px = await broker.price(SYM, 'regular');
               if (px >= pl.level) { log.push(`빠른 확인으로 돌파 ${px}`); break; }
             }
           }
           if (hi >= pl.level || px >= pl.level) {
             const eq = cash + qty * px;
-            const q = Math.floor((pl.w * eq) / (px * (1 + slip)));
+            const q = Math.floor((pl.w * mult * eq) / (px * (1 + slip)));
+            if (mult < 1) log.push('계좌 고점 −20% 아래 → 비중 절반');
             pl.status = 'entered';
             if (q > 0) {
               S.pos = { date: et.date, qty: q, entry: px, stop: pl.stop, mode: pl.mode, nq0: null, stopHit: false, cost: 0 };
@@ -195,6 +201,9 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
       }
       if (S.pos.stopHit) { want = 0; why = 'NQ 밤사이 손절'; sellSlip = stopSlip; }
     }
+
+    // 5-1) 다음 날 프리장 9:28(한국 23:28)에 미리 매도 — 장 시작 직후 출렁임 피하기. 안 팔린 건 9:30 이후 시가 매도로 이어짐
+    if (S.pos && qty > 0 && S.pos.date !== et.date && ses === 'pre' && et.min >= 9 * 60 + 28) { want = 0; why = '프리장 9:28 매도'; sellSlip = Math.min(sellSlip, 0.003); }
 
     // 6) 목표 수량으로 맞추기
     if (want !== null) S.want = want;
@@ -242,12 +251,106 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
       } else say.push(`${tag}🏁 ${SYM} 정리 끝 (${S.pos.date} 매수분)`);
       S.pos = null; S.want = null;
     }
+
+    // 8) SOXS 돌파 (남는 현금) ───────────────────────────
+    await soxsLeg();
   } catch (e) {
     const m = `${e.message}`.slice(0, 200);
     if (S.errMsg !== m) say.push(`${tag}❌ 오류: ${m}`);
     S.errMsg = m; log.push(m);
   }
   return finish();
+
+  async function soxsLeg() {
+    const X = S.sx;
+    if (mode === 'LIVE' && X.lastQty !== undefined && sq !== X.lastQty) say.push(`${tag}✅ ${SX} ${sq > X.lastQty ? '매수' : '매도'} 체결 ${Math.abs(sq - X.lastQty)}주 → 보유 ${sq}주`);
+    X.lastQty = sq;
+    if (!X.pos && sq > 0 && X.want == null) {
+      if (X.foreignWarn !== et.date) say.push(`${tag}⚠️ 계좌에 봇 기록 없는 ${SX} ${sq}주 → SOXS 매매 보류`);
+      X.foreignWarn = et.date; return;
+    }
+    if (X.order) {
+      if (now.getTime() - X.order.at < waitMs) return;
+      try {
+        const rows = await broker.ordersToday();
+        const row = rows.find(x => String(x.oder_no) === String(X.order.no) && String(x.oder_rctf_cncl_cls_code || '0') === '0');
+        const rest = row ? X.order.qty - Number(row.cntg_qty || 0) : 0;
+        if (row && rest > 0) await broker.cancel({ no: X.order.no, cls: X.order.cls, date: row.oder_date }, rest);
+      } catch (e) { log.push(`SOXS 취소 실패 ${e.message}`); }
+      X.order = null; return;
+    }
+    // 계획 (하루 한 번)
+    if ((ses === 'pre' || ses === 'regular') && (!X.plan || X.plan.date !== et.date)) {
+      const sd = (await mkt.yahoo(SYM, '1d', '3mo')).filter(b => b.date < et.date);
+      X.plan = { date: et.date, ...sxPlan(sd) };
+      X.plan.status = X.plan.active ? 'wait' : 'skip';
+      if (X.plan.active) say.push(`${tag}📋 SOXS 돌파 대기: 전일 SOXL ${pct(X.plan.prevret)} → 오늘 SOXS 가 시가 +6% 넘으면 남는 현금으로 매수`);
+    }
+    let want = X.want ?? null, why = '';
+    if (X.pos && sq > 0 && X.pos.date !== et.date && ses === 'pre' && et.min >= 9 * 60 + 28) { want = 0; why = '프리장 9:28 매도'; }
+    if (ses === 'regular') {
+      if (X.pos && X.pos.date !== et.date && sq > 0) { want = 0; why = '다음 날 시가 매도'; }
+      const p = X.plan;
+      if (p && p.date === et.date && p.status === 'wait' && !X.pos && et.min >= 9 * 60 + 31 && et.min < 15 * 60 + 58) {
+        if (!(p.level > 0)) {
+          const first = (await mkt.yahoo(SX, '1m', '1d', false)).find(b => b.date === et.date && b.min >= 570);
+          if (first) { p.open = first.o; p.level = first.o * (1 + PX.k); say.push(`${tag}🎯 SOXS 시가 ${fmt(p.open)} → 돌파가 ${fmt(p.level)}`); }
+        }
+        if (p.level > 0) {
+          const bars = (await mkt.yahoo(SX, '1m', '1d', false)).filter(b => b.date === et.date && b.min >= 570);
+          const hi = Math.max(...bars.map(b => b.h), 0);
+          const px = await broker.price(SX, 'regular');
+          if (hi >= p.level || px >= p.level) {
+            p.status = 'entered';
+            const q = Math.floor((cash * mult) / (px * (1 + slip)));
+            if (q > 0) { X.pos = { date: et.date, qty: q, cost: 0 }; want = q; why = `SOXS 돌파 (${fmt(p.level)})`; }
+            else say.push(`${tag}ℹ️ SOXS 돌파했지만 남는 현금 없음`);
+          }
+        }
+      }
+    }
+    if (want !== null) X.want = want;
+    if (X.want != null && X.want !== sq) {
+      const side = X.want > sq ? 'BUY' : 'SELL';
+      let q = Math.abs(X.want - sq);
+      let px;
+      if (ses === 'regular') px = await broker.price(SX, 'regular');
+      else if (ses === 'day') px = await broker.price(SX, 'day');
+      else if (ses === 'after') px = await broker.price(SX, 'after');
+      else { const b = await mkt.yahoo(SX, '1m', '1d', true); px = b.length ? b[b.length - 1].c : 0; }
+      if (!(px > 0)) throw new Error(`SOXS ${ses} 가격 없음`);
+      const lim = tick(side === 'BUY' ? px * (1 + slip) : px * (1 - slip));
+      if (side === 'BUY') {
+        const cashNow = mode === 'LIVE' ? cash : S.paper.cash;
+        q = Math.min(q, Math.floor(cashNow / lim));
+        const lv = X.plan && X.plan.level;
+        if (ses !== 'regular' || et.min >= 15 * 60 + 58 || (lv > 0 && px > lv * 1.03)) {
+          if (sq > 0) X.pos.qty = sq; else X.pos = null;
+          X.want = sq > 0 ? sq : null; q = 0;
+        }
+      }
+      if (q > 0) {
+        if (mode === 'LIVE') {
+          const o = await broker.order(side, SX, q, 'LIMIT', lim);
+          X.order = { no: o.no, cls: o.cls, side, qty: q, at: now.getTime() };
+          say.push(`${tag}📤 ${SX} ${side === 'BUY' ? '매수' : '매도'} ${q}주 지정가 ${fmt(lim)} (현재 ${fmt(px)}) · ${why || '이어서'} · #${o.no}`);
+        } else {
+          const fill = side === 'BUY' ? px * 1.001 : px * 0.999;
+          if (side === 'BUY') { S.paper.cash -= q * fill; S.paper.sq = (S.paper.sq || 0) + q; X.pos.cost = (X.pos.cost || 0) + q * fill; }
+          else { S.paper.cash += q * fill; S.paper.sq -= q; if (X.pos) X.pos.proceeds = (X.pos.proceeds || 0) + q * fill; }
+          sq = S.paper.sq; X.lastQty = sq;
+          say.push(`${tag}${side === 'BUY' ? '🟢 SOXS 매수' : '🔴 SOXS 매도'} ${q}주 @${fmt(fill)} (가상) · ${why}`);
+        }
+      }
+    }
+    if (X.pos && X.want === 0 && sq === 0 && !X.order) {
+      if (mode !== 'LIVE' && X.pos.cost) {
+        const pl = (X.pos.proceeds || 0) - X.pos.cost;
+        say.push(`${tag}🏁 SOXS 끝 손익 ${pl >= 0 ? '+' : ''}$${fmt(pl)} (${pct(pl / X.pos.cost)}) · 가상자산 $${fmt(S.paper.cash)}`);
+      } else say.push(`${tag}🏁 ${SX} 정리 끝`);
+      X.pos = null; X.want = null;
+    }
+  }
 
   async function finish() {
     S.lock = 0;
