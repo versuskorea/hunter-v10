@@ -8,6 +8,7 @@
 //   MANUAL_STOP_SLIP  손절·트레일·만기 매도 지정가를 현재가보다 얼마나 낮게 (기본 0.02 = 2%, 바로 체결용)
 //   MANUAL_WAIT_MIN   지정가 미체결 시 취소까지 분 (기본 2)
 //   MANUAL_SESSIONS   돌릴 구간 (기본 day,pre,regular,after)
+//   MANUAL_RSI        RSI 공식 WILDER (기본, 백테스트) | SMA (메리츠 앱 차트와 같음)
 //   MANUAL_STATE      봇이 쓰는 상태 (건드리지 않기)
 //   MANUAL_TICKS      RSI 웅덩이용 1분 시세 기록 (봇이 씀, 건드리지 않기)
 //                     주간·프리·정규·애프터 메리츠 현재가를 1분마다 쌓아 끊김 없는 분봉을 만든다.
@@ -16,7 +17,7 @@
 import crypto from 'node:crypto';
 import * as M from './_meritz.js';
 import * as V from './_ghvars.js';
-import { parseRules, clock, decide, pitSignal, trendOf, levels, nextWeekday, barTime, MIN_BARS } from './_manual_core.js';
+import { parseRules, clock, decide, pitSignal, trendOf, levels, nextWeekday, barTime, MIN_BARS, RSI_MODE } from './_manual_core.js';
 
 function safeEq(a, b) {
   a = String(a || ''); b = String(b || '');
@@ -97,6 +98,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
   const waitMs = num(vars.MANUAL_WAIT_MIN, 2) * 60000;
   const floor = num(vars.MANUAL_CASH_FLOOR, 0);
   const sessions = String(vars.MANUAL_SESSIONS || 'day,pre,regular,after').split(',').map(s => s.trim());
+  RSI_MODE.kind = String(vars.MANUAL_RSI || 'WILDER').trim().toUpperCase() === 'SMA' ? 'SMA' : 'WILDER';
   const year = Number(clk.et.date.slice(0, 4));
   const { rules, errors } = parseRules(vars.MANUAL, year);
 
