@@ -17,7 +17,7 @@
 import crypto from 'node:crypto';
 import * as M from './_meritz.js';
 import * as V from './_ghvars.js';
-import { parseRules, clock, decide, pitSignal, trendOf, levels, nextWeekday, barTime, MIN_BARS, RSI_MODE } from './_manual_core.js';
+import { parseRules, clock, decide, pitSignal, trendOf, levels, nextWeekday, barTime, MIN_BARS, RSI_MODE, peakSignal } from './_manual_core.js';
 
 function safeEq(a, b) {
   a = String(a || ''); b = String(b || '');
@@ -302,7 +302,13 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
           if (r.trend) ctx.trend = trendOf(await getDays(r.sym), clk.tradeDate);
         } catch (e) { log.push(`${r.sym} 봉 조회 실패 ${e.message}`); continue; }
       }
+      // PEAK: 들고 있을 때 과매수 봉우리 확인
+      if (st.st === 'hold' && r.peak && (!r.rth || clk.session === 'regular')) {
+        try { ctx.peakSig = peakSignal(await getBars(r.sym, r.peak.sec, r.rth), r.peak.height); }
+        catch (e) { log.push(`${r.sym} 봉 조회 실패 ${e.message}`); }
+      }
       const d = decide(r, st, ctx);
+      if (d.peakId) st.lastPeak = d.peakId;
       if (d.act === 'NONE' || d.act === 'WAIT_ORDER') continue;
       if (d.act === 'EXPIRE') { st.st = 'expired'; say.push(`⌛ ${r.sym} 매수 대기 만료: ${r.key}`); continue; }
       if (d.act === 'DONE') { st.st = 'done'; continue; }
