@@ -62,3 +62,19 @@ export function arm(pl, open, preLast) {
 
 // 밤사이 손절 여부
 export const stopHit = (nq0, nqNow, y) => nq0 > 0 && nqNow > 0 && nqNow <= nq0 * (1 - y);
+
+// ── SOXS 돌파 (남는 현금) ─────────────────────────────────
+// 전일 SOXL +2% 이상 (그리고 20일 상승이 +50% 이하) → 오늘 SOXS 가 시가 × 1.06 이상이면 남는 현금으로 매수, 다음 날 시가 매도
+// 백테스트 (3분봉 체결, 2016~2026.9): SOXL 돌파와 합치면 연 130% / MDD −22% (SOXL 돌파만 76% / −20%)
+export const PX = { up: 0.02, k: 0.06, maxRun20: 0.5 };
+export function sxPlan(soxl) {
+  const c = soxl.map(d => d.c), n = c.length;
+  if (n < 22) return { active: false, why: '데이터 부족' };
+  const prevret = c[n - 1] / c[n - 2] - 1, run20 = c[n - 1] / c[n - 21] - 1;
+  if (prevret < PX.up) return { active: false, prevret, run20, why: `전일 SOXL ${(prevret * 100).toFixed(1)}% < +2%` };
+  if (run20 > PX.maxRun20) return { active: false, prevret, run20, why: `20일 상승 +${(run20 * 100).toFixed(0)}% > +50% (폭주 상승장)` };
+  return { active: true, prevret, run20 };
+}
+// 계좌 안전장치: 계좌 고점 대비 −20% 아래면 새 매수 비중 절반
+export const DD = { cut: 0.2, mult: 0.5 };
+export const ddMult = (eq, peak) => (peak > 0 && eq / peak - 1 < -DD.cut ? DD.mult : 1);
