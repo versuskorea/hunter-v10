@@ -10,12 +10,15 @@
 //   NIGHT_STOP_SLIP  밤사이 손절 지정가 여유폭 (기본 0.01)
 //   NIGHT_WAIT_MIN   매도 지정가 미체결 시 취소까지 분 (기본 1)
 //   NIGHT_CASH_FLOOR 계좌에 남겨둘 달러 (기본 0)
+//   NIGHT_W_UP       NQ 20일선 위일 때 남는 현금 중 넣을 비율 (기본 1 = 100%)
+//   NIGHT_W_DN       NQ 20일선 아래일 때 비율 (기본 0.5 = 50%)
+//   NIGHT_CAP        계좌 자산 대비 최대 비율 (기본 0.7 = 70%)
 //   NIGHT_STATE      봇 상태 (건드리지 않기)
 import crypto from 'node:crypto';
 import * as M from './_meritz.js';
 import * as V from './_ghvars.js';
 import { clock, tick } from './_manual_core.js';
-import { nightPlan, nightFire, nightBudget, nightStop } from './_night_core.js';
+import { nightPlan, nightFire, nightStop } from './_night_core.js';
 
 const SYM = 'SOXL';
 const num = (v, d) => (v === undefined || v === '' || isNaN(Number(v)) ? d : Number(v));
@@ -76,6 +79,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
   const slip = num(vars.NIGHT_SLIP, 0.005), stopSlip = num(vars.NIGHT_STOP_SLIP, 0.01);
   const waitMs = num(vars.NIGHT_WAIT_MIN, 1) * 60000;
   const floor = num(vars.NIGHT_CASH_FLOOR, 0);
+  const wUp = num(vars.NIGHT_W_UP, 1), wDn = num(vars.NIGHT_W_DN, 0.5), cap = num(vars.NIGHT_CAP, 0.7);
   const live = mode === 'LIVE';
   const tag = live ? '🌙[계좌1 밤돌파] ' : '🌙[계좌1 밤돌파 PAPER] ';
   let S; try { S = JSON.parse(vars.NIGHT_STATE || '{}'); } catch { S = {}; }
@@ -154,8 +158,9 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
         const cash = Math.max(0, (await broker.cash()) - floor);
         const hd = await broker.holdings();
         const eq = cash + ((hd[SYM] && hd[SYM].qty) || 0) * px;
-        const q = Math.floor(nightBudget(cash, eq, pl.w) / (px * (1 + slip)));
-        const head = `${tag}🌙 밤 돌파 (${pl.fastUp ? 'NQ 20일선 위, 비중 100%' : 'NQ 20일선 아래, 비중 50%'}) 돌파가 ${fmt(f.level)} · 고가 ${fmt(high)} · 현재 ${fmt(px)}`;
+        const w = pl.fastUp ? wUp : wDn;
+        const q = Math.floor(Math.max(0, Math.min(cash, cap * eq) * w) / (px * (1 + slip)));
+        const head = `${tag}🌙 밤 돌파 (NQ 20일선 ${pl.fastUp ? '위' : '아래'}, 남는 현금의 ${Math.round(w * 100)}% · 자산 ${Math.round(cap * 100)}% 한도) 돌파가 ${fmt(f.level)} · 고가 ${fmt(high)} · 현재 ${fmt(px)}`;
         if (q <= 0) { say.push(`${head}\n   남는 현금 없음 ($${fmt(cash)}) → 쉼`); return finish(); }
         if (live) {
           const kind = moc ? 'MOC' : 'LIMIT', lim = moc ? 0 : tick(px * (1 + slip));
