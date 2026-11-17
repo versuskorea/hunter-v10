@@ -125,9 +125,19 @@ export { nextWeekday };
 export const tick = p => Math.round(p * 100) / 100;
 
 // ── 지표 ───────────────────────────────────────────────
+// RSI 공식: WILDER (기본, 백테스트와 같음) | SMA (메리츠 앱 차트와 같음 — 최근 14봉 상승폭 합 ÷ 전체 변동폭 합)
+export const RSI_MODE = { kind: 'WILDER' };
 export function rsi(closes, n = 14) {
   const out = new Array(closes.length).fill(null);
   if (closes.length <= n) return out;
+  if (RSI_MODE.kind === 'SMA') {
+    for (let i = n; i < closes.length; i++) {
+      let g = 0, l = 0;
+      for (let k = i - n + 1; k <= i; k++) { const d = closes[k] - closes[k - 1]; if (d > 0) g += d; else l -= d; }
+      out[i] = g + l === 0 ? 50 : 100 * g / (g + l);
+    }
+    return out;
+  }
   let g = 0, l = 0;
   for (let i = 1; i <= n; i++) { const d = closes[i] - closes[i - 1]; if (d > 0) g += d; else l -= d; }
   g /= n; l /= n;
