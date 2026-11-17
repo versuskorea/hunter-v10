@@ -126,6 +126,10 @@
     {
       "path": "/api/cron-breakout",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron-night",
+      "schedule": "* * * * *"
     }
   ],
   "functions": {
@@ -133,6 +137,9 @@
       "maxDuration": 50
     },
     "api/cron-breakout.js": {
+      "maxDuration": 50
+    },
+    "api/cron-night.js": {
       "maxDuration": 50
     }
   }
