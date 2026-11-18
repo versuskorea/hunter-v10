@@ -157,12 +157,17 @@ export const barTime = id => new Date(`${id.slice(0, 4)}-${id.slice(4, 6)}-${id.
 export function pitSignal(bars, depth = 20) {
   if (!bars || bars.length < MIN_BARS) return { fire: false, short: true, n: bars ? bars.length : 0 };
   const R = rsi(bars.map(b => b.c));
-  const i = bars.length - 1;
-  const rsiNow = R[i];
-  if (!(R[i] >= 30 && R[i - 1] !== null && R[i - 1] < 30)) return { fire: false, rsi: rsiNow };
-  let j = i - 1, mn = 100, low = Infinity;
-  while (j >= 0 && R[j] !== null && R[j] < 30) { mn = Math.min(mn, R[j]); low = Math.min(low, bars[j].l); j--; }
-  return { fire: mn < depth, id: bars[i].id, min: mn, low, rsi: rsiNow };
+  const last = bars.length - 1;
+  const rsiNow = R[last];
+  // 30 을 넘은 봉이 마지막 봉이거나 바로 앞 봉이면 신호 (봇이 한 번 못 돌아도 3분 더 잡는다). 앞 봉이면 지금도 30 위여야 함
+  for (let i = last; i >= Math.max(1, last - 1); i--) {
+    if (!(R[i] >= 30 && R[i - 1] !== null && R[i - 1] < 30)) continue;
+    if (i < last && !(rsiNow >= 30)) break;
+    let j = i - 1, mn = 100, low = Infinity;
+    while (j >= 0 && R[j] !== null && R[j] < 30) { mn = Math.min(mn, R[j]); low = Math.min(low, bars[j].l); j--; }
+    return { fire: mn < depth, id: bars[i].id, min: mn, low, rsi: rsiNow };
+  }
+  return { fire: false, rsi: rsiNow };
 }
 // 과매수 봉우리: 마지막 봉에서 RSI 가 70 아래로 꺾였고, 그 직전 70 위 구간의 최고 RSI 가 height 초과면 신호
 export function peakSignal(bars, height = 80) {
