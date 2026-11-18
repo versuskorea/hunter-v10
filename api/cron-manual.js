@@ -117,9 +117,14 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
   S.mode = mode;
 
   const keys = new Set(rules.map(r => r.key));
+  // 줄을 넣거나 지우면 텔레그램으로 확인
+  const seenBefore = new Set(S.seen || Object.keys(S.rules));
+  for (const r of rules) if (!seenBefore.has(r.key)) say.push(`📝 등록: ${r.key}\n   → ${r.side === 'SELL' ? '보유분 감시 시작' : r.pit ? `${r.pit.sec / 60}분 RSI ${r.pit.depth} 아래로 빠졌다가 30 위로 올라오면 매수` : '조건 대기'}`);
+  for (const k of seenBefore) if (!keys.has(k)) say.push(`🗑 삭제: ${k}`);
+  S.seen = [...keys];
   const open = Object.entries(S.rules).filter(([, st]) => st.ord);
   if (!rules.length && !open.length) {
-    if (Object.keys(S.rules).length) { S.rules = {}; await saveVar('MANUAL_STATE', JSON.stringify(S)); }
+    if (Object.keys(S.rules).length || say.length) { S.rules = {}; await saveVar('MANUAL_STATE', JSON.stringify(S)); }
     if (say.length) await notify(say.join('\n\n'));
     return { log: ['규칙 없음'] };
   }
@@ -282,7 +287,12 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
       }
       if (['done', 'error', 'expired'].includes(st.st) || st.ord) continue;
       let px;
-      try { px = await getPx(r.sym); } catch (e) { log.push(`${r.sym} 시세 실패 ${e.message}`); continue; }
+      try { px = await getPx(r.sym); st.pxFails = 0; } catch (e) {
+        log.push(`${r.sym} 시세 실패 ${e.message}`);
+        st.pxFails = (st.pxFails || 0) + 1;
+        if (st.pxFails === 3) say.push(`⚠️ ${r.sym} 시세 조회 3번 연속 실패: ${String(e.message).slice(0, 120)}`);
+        continue;
+      }
       // 이미 가진 주식(SELL) 의 퍼센트·R 라인은 평균단가 기준으로 한 번 계산
       if (r.side === 'SELL' && !st.lvSet) {
         const avg = paper ? px : ((await getHold())[r.sym] || {}).avg || px;
@@ -297,10 +307,16 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
           if (r.pit && (!r.rth || clk.session === 'regular')) {
             const bars = await getBars(r.sym, r.pit.sec, r.rth);
             ctx.sig = pitSignal(bars, r.pit.depth);
+            st.badRuns = 0;
             if (ctx.sig.short && S.warnBars !== clk.tradeDate) { S.warnBars = clk.tradeDate; say.push(`⚠️ ${r.sym} ${r.pit.sec / 60}분봉이 ${ctx.sig.n}개뿐이라 RSI 웅덩이 판단 보류 (100개 필요)`); }
           }
           if (r.trend) ctx.trend = trendOf(await getDays(r.sym), clk.tradeDate);
-        } catch (e) { log.push(`${r.sym} 봉 조회 실패 ${e.message}`); continue; }
+        } catch (e) {
+          log.push(`${r.sym} 봉 조회 실패 ${e.message}`);
+          st.badRuns = (st.badRuns || 0) + 1;
+          if (st.badRuns === 3) say.push(`⚠️ ${r.sym} 봉 조회 3번 연속 실패 → 웅덩이를 놓칠 수 있음: ${String(e.message).slice(0, 120)}`);
+          continue;
+        }
       }
       // PEAK: 들고 있을 때 과매수 봉우리 확인
       if (st.st === 'hold' && r.peak && (!r.rth || clk.session === 'regular')) {
