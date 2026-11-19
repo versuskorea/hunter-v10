@@ -9,6 +9,9 @@
 //   MANUAL_WAIT_MIN   지정가 미체결 시 취소까지 분 (기본 2)
 //   MANUAL_SESSIONS   돌릴 구간 (기본 day,pre,regular,after)
 //   MANUAL_RSI        RSI 공식 WILDER (기본, 백테스트) | SMA (메리츠 앱 차트와 같음)
+//   MANUAL_STOP_TIGHT 손절 지정가를 손절가보다 얼마나 낮게 (기본 0.002 = 0.2%)
+//   MANUAL_MIN_STOPW  웅덩이 손절폭(매수가→저점)이 이보다 좁으면 건너뜀 (기본 0.01 = 1%, 0 이면 끔)
+//   MANUAL_FAST_SEC   보유 중 손절가 확인 간격 초 (기본 2, 0 이면 1분마다만)
 //   MANUAL_STATE      봇이 쓰는 상태 (건드리지 않기)
 //   MANUAL_TICKS      RSI 웅덩이용 1분 시세 기록 (봇이 씀, 건드리지 않기)
 //                     주간·프리·정규·애프터 메리츠 현재가를 1분마다 쌓아 끊김 없는 분봉을 만든다.
@@ -17,7 +20,7 @@
 import crypto from 'node:crypto';
 import * as M from './_meritz.js';
 import * as V from './_ghvars.js';
-import { parseRules, clock, decide, pitSignal, trendOf, levels, nextWeekday, barTime, MIN_BARS, RSI_MODE, peakSignal } from './_manual_core.js';
+import { parseRules, clock, decide, pitSignal, trendOf, levels, nextWeekday, barTime, MIN_BARS, RSI_MODE, peakSignal, tick } from './_manual_core.js';
 
 function safeEq(a, b) {
   a = String(a || ''); b = String(b || '');
@@ -95,6 +98,9 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
   const clk = clock(now);
   const slip = num(vars.MANUAL_SLIP, 0.005);
   const stopSlip = num(vars.MANUAL_STOP_SLIP, 0.02);
+  const stopTight = num(vars.MANUAL_STOP_TIGHT, 0.002);   // 손절 지정가 = 손절가 −0.2%
+  const minStopW = num(vars.MANUAL_MIN_STOPW, 0.01);      // 웅덩이 손절폭이 이보다 좁으면 건너뜀 (0 이면 끔)
+  const fastSec = num(vars.MANUAL_FAST_SEC, 2);            // 보유 중 손절 확인 간격(초), 0 이면 끔
   const waitMs = num(vars.MANUAL_WAIT_MIN, 2) * 60000;
   const floor = num(vars.MANUAL_CASH_FLOOR, 0);
   const sessions = String(vars.MANUAL_SESSIONS || 'day,pre,regular,after').split(',').map(s => s.trim());
@@ -301,7 +307,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
         if (r.eod) st.expDate = eodDate();
         if (lvText(st)) say.push(`${tag}🎯 ${r.sym} ${r.qty}주 감시 시작 (기준 ${fmt(avg)}) ${lvText(st)}`);
       }
-      const ctx = { px, clk, slip, stopSlip };
+      const ctx = { px, clk, slip, stopSlip, stopTight, minStopW };
       if (st.st === 'wait') {
         try {
           if (r.pit && (!r.rth || clk.session === 'regular')) {
@@ -324,6 +330,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
         catch (e) { log.push(`${r.sym} 봉 조회 실패 ${e.message}`); }
       }
       const d = decide(r, st, ctx);
+      if (d.skipSig) { st.lastSig = d.skipSig; say.push(`⏭ ${r.sym} 웅덩이 건너뜀: ${d.why}`); }
       if (d.peakId) st.lastPeak = d.peakId;
       if (d.act === 'NONE' || d.act === 'WAIT_ORDER') continue;
       if (d.act === 'EXPIRE') { st.st = 'expired'; say.push(`⌛ ${r.sym} 매수 대기 만료: ${r.key}`); continue; }
@@ -374,6 +381,32 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
       st.st = side === 'BUY' ? 'buying' : 'selling';
       // 실주문은 바로 저장 (중간에 죽어도 같은 주문을 또 내지 않게)
       if (!paper) await saveVar('MANUAL_STATE', JSON.stringify(S));
+    }
+  }
+
+  // 3-9) 손절 빠른 확인: 손절가가 걸린 보유 규칙이 있으면 이번 실행 동안 몇 초마다 현재가를 보고, 손절가 아래면 바로 판다
+  if (!paper && sessionOn && fastSec > 0) {
+    const slOf = (r, st) => st.slPx ?? (r.sl && r.sl.k === 'abs' ? r.sl.v : null);
+    const watch = () => rules.filter(r => { const st = S.rules[r.key]; return st && st.st === 'hold' && !st.ord && slOf(r, st) && !(r.rth && clk.session !== 'regular'); });
+    const until = now.getTime() + 36000;
+    while (watch().length && Date.now() + fastSec * 1000 < until) {
+      await new Promise(res => setTimeout(res, fastSec * 1000));
+      for (const r of watch()) {
+        const st = S.rules[r.key], sl = slOf(r, st);
+        let p; try { p = await broker.price(r.sym, clk.session); } catch { continue; }
+        if (!(p > 0) || p > sl) continue;
+        const h = (await getHold())[r.sym];
+        const qty = Math.min((st.bought || 0) - (st.sold || 0), h ? h.sellable : 0);
+        if (qty <= 0) continue;
+        const lim = tick(Math.min(p, sl) * (1 - stopTight));
+        try {
+          const res = await broker.order('SELL', r.sym, qty, 'LIMIT', lim);
+          st.ord = { side: 'SELL', qty, kind: 'LIMIT', px: lim, why: `손절 ${p} ≤ ${sl} (${fastSec}초 확인)`, at: Date.now(), base: h ? h.qty : 0, counted: 0, want: (st.bought || 0) + qty, sigId: null, no: res.no, cls: res.cls, date: null };
+          st.exiting = '손절'; st.st = 'selling';
+          say.push(`📤 ${r.sym} 매도 ${qty}주 지정가 ${fmt(lim)}  현재 ${fmt(p)} · 손절 ${p} ≤ ${sl} (${fastSec}초 확인) · ${clk.session} · #${res.no}`);
+          await saveVar('MANUAL_STATE', JSON.stringify(S));
+        } catch (e) { say.push(`❌ ${r.sym} 손절 주문 실패 ${e.message}`); }
+      }
     }
   }
 
