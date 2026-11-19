@@ -245,6 +245,11 @@ export function decide(r, st, ctx) {
     }
     if (!ok) return { act: 'NONE' };
     const lim = op === '<=' ? Math.min(tick(px * (1 + slip)), tick(r.cond.px * (1 + slip))) : tick(px * (1 + slip));
+    // 웅덩이 저점 손절이 너무 가까우면(기본 1% 미만) 건너뜀 — 백테스트에서 가장 나쁜 그룹
+    if (op === 'PIT' && r.sl && r.sl.k === 'low' && ctx.minStopW) {
+      const lv2 = levels(r, px, ctx.sig && ctx.sig.low);
+      if (lv2.sl !== null && (px - lv2.sl) / px < ctx.minStopW) return { act: 'NONE', why: `손절폭 ${(((px - lv2.sl) / px) * 100).toFixed(2)}% < ${(ctx.minStopW * 100).toFixed(1)}% → 건너뜀 (웅덩이 저점 ${lv2.sl})`, skipSig: ctx.sig.id };
+    }
     let qty = r.qty - (st.bought || 0);
     if (r.risk) {
       const lv = levels(r, px, ctx.sig && ctx.sig.low);
@@ -256,7 +261,8 @@ export function decide(r, st, ctx) {
   }
   if (st.st === 'hold') {
     if (held <= 0) return { act: 'DONE' };
-    if (st.exiting) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - stopSlip)), why: `${st.exiting} (이어서)` };
+    const tight = ctx.stopTight ?? stopSlip; // 손절은 손절가 바로 아래 지정가 (급락 때 덜 밀리게)
+    if (st.exiting) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - (ctx.stopTight != null ? Math.max(tight, 0.005) : stopSlip))), why: `${st.exiting} (이어서)` };
     if (exp && (expPassed || (expToday && closing))) {
       if (expToday && clk.session === 'regular' && clk.et.min < 15 * 60 + 50) return { act: 'SELL', qty: held, kind: 'MOC', px: 0, why: `만기 ${exp} MOC` };
       return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - stopSlip)), why: `만기 ${exp} 지남` };
@@ -264,10 +270,10 @@ export function decide(r, st, ctx) {
     const tp = st.tpPx ?? (r.tp && r.tp.k === 'abs' ? r.tp.v : null);
     const sl = st.slPx ?? (r.sl && r.sl.k === 'abs' ? r.sl.v : null);
     if (tp && px >= tp) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - slip)), why: `익절 ${px} ≥ ${tp}` };
-    if (sl && px <= sl) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - stopSlip)), why: `손절 ${px} ≤ ${sl}` };
+    if (sl && px <= sl) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(Math.min(px, sl) * (1 - tight)), why: `손절 ${px} ≤ ${sl}` };
     const pk = Math.max(st.peak || px, px);
     const tr = trailStop(r, pk);
-    if (tr && px <= tr) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - stopSlip)), why: `트레일링 ${px} ≤ ${tr} (고점 ${pk})` };
+    if (tr && px <= tr) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(Math.min(px, tr) * (1 - tight)), why: `트레일링 ${px} ≤ ${tr} (고점 ${pk})` };
     const ps = ctx.peakSig;
     if (r.peak && ps && ps.fire && ps.id !== st.lastPeak) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - slip)), why: `익절 ${r.peak.sec / 60}분 RSI 봉우리 ${ps.max.toFixed(1)} → ${ps.rsi.toFixed(1)}`, peakId: ps.id };
     return { act: 'NONE' };
