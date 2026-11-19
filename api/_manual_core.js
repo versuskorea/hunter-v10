@@ -20,6 +20,7 @@
 //   EOD                           진입한 거래일 15:45 ET MOC 정리
 //   PEAK5M>80                     5분봉 RSI14 가 80 위로 올랐다가 70 아래로 다시 꺾인 봉에서 매도 (1M·15M·30M·60M 도, 숫자 생략 시 80)
 //   TRAIL=2% | TRAIL=1.5          트레일링 스탑: 감시·매수 뒤 최고가에서 2% / $1.5 내려오면 매도 (SL 과 같이 쓰면 더 높은 쪽)
+//   HALF=R0.5                     손절폭의 0.5배 오르면 절반 매도, 나머지는 손절을 본전으로 올리고 계속 (SL 필요)
 // 예) SOXL BUY 500 PIT15M<20 TREND=UP RTH SL=LOW TP=R1 EOD RISK=1500 REPEAT
 //     SOXS BUY 300 NOW TP=+3% SL=-2.5%
 //     SOXS SELL 1000 TP=60 SL=48      ← 이미 가진 주식 (퍼센트는 평균단가 기준)
@@ -40,7 +41,7 @@ export function parseRules(text, year) {
     if (!/^[A-Z]{1,6}$/.test(sym) || !['BUY', 'SELL'].includes(side) || !(qty > 0)) {
       errors.push(`형식 오류: ${line}`); continue;
     }
-    const r = { key: line, sym, side, qty, cond: null, tp: null, sl: null, exp: null, at: null, pit: null, trend: null, rth: false, repeat: false, eod: false, risk: null, trail: null, peak: null };
+    const r = { key: line, sym, side, qty, cond: null, tp: null, sl: null, exp: null, at: null, pit: null, trend: null, rth: false, repeat: false, eod: false, risk: null, trail: null, peak: null, half: null };
     let bad = false;
     for (let i = 3; i < t.length; i++) {
       const w = t[i].toUpperCase();
@@ -65,6 +66,7 @@ export function parseRules(text, year) {
       else if ((m = w.match(new RegExp(`^TP=${N}$`)))) r.tp = { k: 'abs', v: Number(m[1]) };
       else if ((m = w.match(new RegExp(`^TP=\\+${N}%$`)))) r.tp = { k: 'pct', v: Number(m[1]) };
       else if ((m = w.match(new RegExp(`^TP=R${N}$`)))) r.tp = { k: 'R', v: Number(m[1]) };
+      else if ((m = w.match(new RegExp(`^HALF=R${N}$`)))) r.half = Number(m[1]);
       else if ((m = w.match(new RegExp(`^SL=${N}$`)))) r.sl = { k: 'abs', v: Number(m[1]) };
       else if ((m = w.match(new RegExp(`^SL=-${N}%$`)))) r.sl = { k: 'pct', v: -Number(m[1]) };
       else if (w === 'SL=LOW') r.sl = { k: 'low' };
@@ -86,6 +88,8 @@ export function parseRules(text, year) {
     if (r.sl && r.sl.k === 'low' && !r.pit) err('SL=LOW 는 PIT 와 함께');
     if (r.tp && r.tp.k === 'R' && !r.sl) err('TP=R 은 SL 이 있어야');
     if (r.risk && !r.sl) err('RISK 는 SL 이 있어야');
+    if (r.half && !r.sl) err('HALF 는 SL 이 있어야');
+    if (r.half && !(r.half > 0 && r.half <= 5)) err('HALF 값이 이상함');
     if (side === 'SELL' && (r.pit || r.risk || r.repeat)) err('SELL 에는 PIT/RISK/REPEAT 못 씀');
     if (bad) continue;
     rules.push(r);
@@ -270,6 +274,7 @@ export function decide(r, st, ctx) {
     const tp = st.tpPx ?? (r.tp && r.tp.k === 'abs' ? r.tp.v : null);
     const sl = st.slPx ?? (r.sl && r.sl.k === 'abs' ? r.sl.v : null);
     if (tp && px >= tp) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - slip)), why: `익절 ${px} ≥ ${tp}` };
+    if (r.half && st.halfPx && !st.halfDone && px >= st.halfPx) return { act: 'SELL', qty: held >= 2 ? Math.floor(held / 2) : held, kind: 'LIMIT', px: tick(px * (1 - slip)), why: `절반 매도 +${r.half}R ${px} ≥ ${st.halfPx}`, half: true };
     if (sl && px <= sl) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(Math.min(px, sl) * (1 - tight)), why: `손절 ${px} ≤ ${sl}` };
     const pk = Math.max(st.peak || px, px);
     const tr = trailStop(r, pk);
