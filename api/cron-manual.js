@@ -172,7 +172,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
   const getDays = async sym => (dayCache[sym] ??= await broker.days(sym));
   const closing = clk.session === 'regular' && clk.et.min >= 15 * 60 + 45;
   const eodDate = () => (clk.session === 'after' || closing ? nextWeekday(clk.tradeDate) : clk.tradeDate);
-  const lvText = st => [st.tpPx ? `익절 ${fmt(st.tpPx)}` : '', st.slPx ? `손절 ${fmt(st.slPx)}` : '', st.expDate ? `정리 ${st.expDate} 종가` : ''].filter(Boolean).join(' / ');
+  const lvText = st => [st.tpPx ? `익절 ${fmt(st.tpPx)}` : '', st.halfPx && !st.halfDone ? `절반 ${fmt(st.halfPx)}` : '', st.slPx ? `손절 ${fmt(st.slPx)}` : '', st.expDate ? `정리 ${st.expDate} 종가` : ''].filter(Boolean).join(' / ');
 
   // 1) 걸려 있는 주문 확인 (규칙이 지워졌어도 주문은 끝까지 챙긴다)
   for (const [key, st] of Object.entries(S.rules)) {
@@ -223,6 +223,8 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
         const entry = st.cost / st.bought;
         const lv = levels(r, entry, st.pitLow);
         st.tpPx = lv.tp; st.slPx = lv.sl;
+        st.avg = entry;
+        if (r.half && st.slPx && st.slPx < entry && !st.halfDone) st.halfPx = tick(entry + r.half * (entry - st.slPx));
         if (r.eod && !st.expDate) st.expDate = eodDate();
         if (o.sigId) st.lastSig = o.sigId;
         say.push(`${tag}✅ ${r.sym} 매수 ${add}주 @${fmt(avg)}  (${o.why})${lvText(st) ? '\n   🎯 ' + lvText(st) : ''}`);
@@ -241,6 +243,12 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
         st.sold = (st.sold || 0) + add;
         st.proceeds = (st.proceeds || 0) + add * avg;
         if (r.sym === 'SOXL') extraDelta -= add;
+        if (o.half && !st.halfDone) {
+          st.halfDone = 1;
+          const be = tick((st.avg || avg) * 1.001);
+          if (!st.slPx || st.slPx < be) st.slPx = be;
+          say.push(`↗ ${r.sym} 절반 매도 → 나머지 손절을 본전 ${fmt(be)} 로 올림`);
+        }
         say.push(`${tag}✅ ${r.sym} 매도 ${add}주 @${fmt(avg)}  (${o.why})`);
       }
       st.ord = null;
@@ -304,6 +312,8 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
         const avg = paper ? px : ((await getHold())[r.sym] || {}).avg || px;
         const lv = levels(r, avg, null);
         st.tpPx = lv.tp; st.slPx = lv.sl; st.lvSet = 1;
+        st.avg = avg;
+        if (r.half && st.slPx && st.slPx < avg) st.halfPx = tick(avg + r.half * (avg - st.slPx));
         if (r.eod) st.expDate = eodDate();
         if (lvText(st)) say.push(`${tag}🎯 ${r.sym} ${r.qty}주 감시 시작 (기준 ${fmt(avg)}) ${lvText(st)}`);
       }
@@ -359,7 +369,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
       if (d.act === 'SELL' && paper && /익절|손절|만기/.test(d.why) && !st.exiting) st.exiting = d.why.replace(/ .*/, '');
 
       const side = d.act;
-      const ord = { side, qty, kind: d.kind, px: d.px, why: d.why, at: now.getTime(), base: h ? h.qty : 0, counted: 0, want: (st.bought || 0) + qty, sigId: d.sigId || null };
+      const ord = { side, qty, kind: d.kind, px: d.px, why: d.why, at: now.getTime(), base: h ? h.qty : 0, counted: 0, want: (st.bought || 0) + qty, sigId: d.sigId || null, half: !!d.half };
       if (side === 'BUY') { if (d.pitLow) st.pitLow = d.pitLow; st.day = clk.tradeDate; }
       if (paper) {
         ord.paper = 1; ord.no = 'P' + now.getTime(); ord.mkt = px;
