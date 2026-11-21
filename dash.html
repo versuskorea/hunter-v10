@@ -231,9 +231,16 @@ document.addEventListener('click', e => {
 // 누르는 동안 눌린 느낌 (스크롤하면 풀림), 뒤로 와도 풀림
 const linkCard = t => { const c = t.closest && t.closest('.card'); return c && c.querySelector('a[href^="chart.html"],a[href="mnq.html"]') ? c : null; };
 const unpress = () => document.querySelectorAll('.card.press').forEach(c => c.classList.remove('press'));
-document.addEventListener('touchstart', e => { const c = linkCard(e.target); if (c && !e.target.closest('a,button,summary,details')) c.classList.add('press'); }, { passive: true });
-document.addEventListener('touchmove', unpress, { passive: true });
-document.addEventListener('touchcancel', unpress, { passive: true });
+// 폰: 손 떼는 순간 직접 이동 (아이폰은 누를 때 모양이 바뀌면 click 을 안 보내는 경우가 있음)
+let tc = null, tx = 0, ty = 0;
+document.addEventListener('touchstart', e => { const c = linkCard(e.target); tc = (c && !e.target.closest('a,button,summary,details')) ? c : null; tx = e.touches[0].clientX; ty = e.touches[0].clientY; if (tc) tc.classList.add('press'); }, { passive: true });
+document.addEventListener('touchmove', e => { if (tc && Math.hypot(e.touches[0].clientX - tx, e.touches[0].clientY - ty) > 10) { tc = null; unpress(); } }, { passive: true });
+document.addEventListener('touchcancel', () => { tc = null; unpress(); }, { passive: true });
+document.addEventListener('touchend', e => {
+  if (!tc) return; const c = tc; tc = null;
+  const a = c.querySelector('a[href^="chart.html"],a[href="mnq.html"]'); if (!a) { unpress(); return; }
+  e.preventDefault(); setTimeout(() => { location.href = a.getAttribute('href'); }, 100);
+}, { passive: false });
 addEventListener('pageshow', unpress);
 // 당겨서 새로고침 — 맨 위에서 아래로 끌어내리면 다시 불러온다 (홈 화면 앱에서도 동작)
 (() => {
