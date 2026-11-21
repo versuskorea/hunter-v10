@@ -268,7 +268,7 @@ async function pitSave(msg) {
     const r = await fetch('/api/settings', { method: 'POST', headers: { 'x-pin': window.__pin || getPin(), 'content-type': 'application/json' }, body: JSON.stringify({ set: { MANUAL: LINES.join('\n') } }) });
     const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status);
     pmsg(msg + ' · 1분 안에 봇이 읽어요');
-  } catch (e) { pmsg('저장 실패: ' + (e.message || e), 1); }
+  } catch (e) { pmsg('저장 실패: ' + (e.message || e) + ' · 원래대로 다시 불러옴', 1); PIT_BUSY = false; load(); return; }
   PIT_BUSY = false;
 }
 function pitTog(i) { const l = LINES[i]; LINES[i] = l.startsWith('#') ? l.replace(/^#\s*/, '') : '# ' + l; pitSave(LINES[i].startsWith('#') ? '끔' : '켬'); }
