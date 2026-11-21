@@ -55,6 +55,9 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
 .ob button.on{border-color:var(--acc);color:#fff;background:#231c40}
 #nPrev{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#c9b8ff;margin-top:8px;word-break:break-all}
 #pmsg{font-size:12px;margin-top:6px;min-height:16px}
+.rt{padding:7px 0;border-bottom:1px dashed #1e2436}
+.rt .ob{margin-top:5px}.rt .ob button{min-width:52px}
+#rmsg{font-size:12px;margin-top:6px;min-height:16px}
 .wx{display:flex;align-items:center;gap:12px}
 .wx .ic{font-size:46px;line-height:1}
 .wx .nm{font-size:13px;color:var(--dim)}
@@ -94,6 +97,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
     <div id="totRows"></div>
   </div>
   <div class="card" id="feedCard" style="margin-bottom:12px"></div>
+  <div class="card" id="ratioCard" style="margin-bottom:12px"><h2>⚖️ 비중 조절</h2><div class="k" style="font-size:13px">불러오는 중…</div></div>
   <div class="grid" id="grid"></div>
   <div id="pitTools" style="display:none">
     <div class="nb">
@@ -341,7 +345,39 @@ function opts() {
 opts();
 function addLine() { const l = build(); if (LINES.includes(l)) { pmsg('같은 줄이 이미 있어요', 1); return; } LINES.push(l); pitSave('추가함'); }
 
+// ── ⚖️ 비중 조절 (누르면 바로 저장, 봇은 다음 실행부터 적용) ──
+const RAT = [
+  ['WAVE_CASH', '🌊 웨이브 비중', '스나이퍼가 쉬는 현금 중 웨이브에 쓸 비율', [['0', '끔'], ['0.3'], ['0.5'], ['1', '전부']], '0.3'],
+  ['WAVE_RES', '🌊 웨이브 예비금', '예비금 중 웨이브에 쓸 비율', [['0'], ['0.5'], ['1']], '1'],
+  ['WAVE_KEEP', '🌊 웨이브 수익 재투자', '웨이브로 번 돈을 다음 웨이브 금액에 계속 더함', [['1', '켬'], ['0', '끔']], '1'],
+  ['NIGHT_W_UP', '🌙 밤 돌파 · NQ 20일선 위', '남는 현금 중 넣을 비율', [['0', '끔'], ['0.5'], ['1', '전부']], '1'],
+  ['NIGHT_W_DN', '🌙 밤 돌파 · NQ 20일선 아래', '남는 현금 중 넣을 비율', [['0', '끔'], ['0.25'], ['0.5'], ['1', '전부']], '0.5'],
+  ['NIGHT_CAP', '🌙 밤 돌파 최대', '계좌 자산 대비 최대 비율', [['0.3'], ['0.5'], ['0.7'], ['1']], '0.7'],
+];
+let RV = null;
+function rmsg(t, err) { const m = $('#rmsg'); if (m) { m.textContent = t; m.className = err ? 'err' : 'ok'; } }
+function drawRatios() {
+  const el = $('#ratioCard'); if (!el || !RV) return;
+  el.innerHTML = `<h2>⚖️ 비중 조절 <a href="set.html" class="tag">설정 →</a></h2>` + RAT.map(([k, t, hint, opts, def]) => {
+    const cur = RV[k] == null || RV[k] === '' ? def : RV[k];
+    return `<div class="rt"><div style="font-size:13px">${t}</div><div class="sub">${hint}</div><div class="ob">${opts.map(([v, lab]) => `<button class="${Number(v) === Number(cur) ? 'on' : ''}" onclick="setRatio('${k}','${v}')">${lab || Math.round(Number(v) * 100) + '%'}</button>`).join('')}</div></div>`;
+  }).join('') + `<div id="rmsg"></div><div class="sub" style="margin-top:4px">5:5 계좌 비율은 계좌 이체로 맞춥니다 · 돌파(계좌2) 비중은 공격 50%·수비 100% 고정</div>`;
+}
+async function loadRatios() {
+  try { const r = await fetch('/api/settings', { headers: { 'x-pin': window.__pin || getPin() }, cache: 'no-store' }); const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status); RV = j.vars || {}; drawRatios(); }
+  catch (e) { const el = $('#ratioCard'); if (el) el.innerHTML = `<h2>⚖️ 비중 조절</h2><div class="err">${esc(e.message || e)}</div>`; }
+}
+async function setRatio(k, v) {
+  const old = RV[k]; RV[k] = v; drawRatios(); rmsg('저장 중…');
+  try {
+    const r = await fetch('/api/settings', { method: 'POST', headers: { 'x-pin': window.__pin || getPin(), 'content-type': 'application/json' }, body: JSON.stringify({ set: { [k]: v } }) });
+    const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status);
+    rmsg('저장됨 · 봇 다음 실행부터 적용');
+  } catch (e) { RV[k] = old; drawRatios(); rmsg('저장 실패: ' + (e.message || e), 1); }
+}
+
 load();
+loadRatios();
 setInterval(load, 60000);
 // 카드 아무 데나 누르면 그 카드의 차트(보드)로 이동 — 링크·버튼·펼치기는 원래대로
 document.addEventListener('click', e => {
