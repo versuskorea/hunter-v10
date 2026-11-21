@@ -14,6 +14,9 @@ const ALLOW = {
   NIGHT_MODE: v => { const x = String(v).toUpperCase(); if (!['OFF', 'PAPER', 'LIVE'].includes(x)) throw new Error('NIGHT_MODE 는 OFF/PAPER/LIVE'); return x; },
   NIGHT_W_UP: v => { const x = Number(v); if (!(x >= 0 && x <= 1)) throw new Error('0~1'); return String(x); },
   NIGHT_W_DN: v => { const x = Number(v); if (!(x >= 0 && x <= 1)) throw new Error('0~1'); return String(x); },
+  NIGHT_CAP: v => { const x = Number(v); if (!(x > 0 && x <= 1)) throw new Error('NIGHT_CAP 는 0~1'); return String(x); },
+  WAVE_RES: v => { const x = Number(v); if (!(x >= 0 && x <= 1)) throw new Error('WAVE_RES 는 0~1'); return String(x); },
+  WAVE_KEEP: v => (String(v) === '0' ? '0' : '1'),
   // GitHub 변수는 빈 값을 못 받는다 → 줄이 하나도 없으면 '#'(주석, 봇은 무시)로 저장
   MANUAL: v => String(v).replace(/\r/g, '').split('\n').map(s => s.trim()).filter(s => s && s !== '#').join('\n') || '#',
 };
