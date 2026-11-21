@@ -291,6 +291,8 @@ function render(j) {
   const mn = j.manual || {}; PIT_R = (mn.raw && mn.raw.rules) || {};
   if (!PIT_BUSY) LINES = (mn.lines || []).slice();
   cards.push(`<div class="card nolink"><h2>웅덩이 · 조건주문 <a href="chart.html?k=pit" class="tag">차트 →</a></h2><div id="pitLines"></div><div id="pitSlot"></div></div>`);
+  // 새로 그리기 전에 '새 줄 추가' 칸을 카드 밖으로 빼 둔다 (안 그러면 1분 새로고침 때 같이 지워짐)
+  const keep = $('#pitTools'); if (keep) $('#app').appendChild(keep);
   $('#grid').innerHTML = cards.join('');
   pitLines();
   const tools = $('#pitTools'); $('#pitSlot').appendChild(tools); tools.style.display = 'block';
