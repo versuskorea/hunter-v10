@@ -36,6 +36,7 @@ a{color:#9fb7ff}
 .foot{margin-top:18px;color:var(--dim);font-size:12px;text-align:center}
 details summary{cursor:pointer;color:var(--dim);font-size:12px;margin-top:6px}
 pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
+.card:has(a[href^="chart.html"]),.card:has(a[href="mnq.html"]){cursor:pointer}
 </style>
 </head>
 <body>
@@ -219,6 +220,12 @@ function render(j) {
 
 load();
 setInterval(load, 60000);
+// 카드 아무 데나 누르면 그 카드의 차트(보드)로 이동 — 링크·버튼·펼치기는 원래대로
+document.addEventListener('click', e => {
+  if (e.target.closest('a,button,summary,details,input,select,textarea')) return;
+  const c = e.target.closest('.card'); if (!c) return;
+  const a = c.querySelector('a[href^="chart.html"],a[href="mnq.html"]'); if (a) location.href = a.getAttribute('href');
+});
 </script>
 </body>
 </html>
