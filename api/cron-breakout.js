@@ -386,7 +386,15 @@ function liveBroker(vars, saveVar) {
   };
   const w = fn => async (...a) => {
     try { return await fn(await ensure(false), ...a); }
-    catch (e) { if (e.code === 'TOKEN_DEAD') return fn(await ensure(true), ...a); throw e; }
+    catch (e) {
+      if (e.code !== 'TOKEN_DEAD') throw e;
+      try { return await fn(await ensure(true), ...a); }
+      catch (e2) {
+        if (e2.code !== 'TOKEN_DEAD') throw e2;
+        await new Promise(r => setTimeout(r, 3000));   // 새 토큰도 거부되면 3초 쉬고 한 번 더 (발급 직후 반영 지연 대비)
+        return fn(await ensure(true), ...a);
+      }
+    }
   };
   return {
     price: w((t, s, ses) => M.price(t, s, ses)),
