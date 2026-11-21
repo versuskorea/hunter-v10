@@ -257,8 +257,7 @@ async function main() {
     const lines = [...base];
     const sameDay = !pl.date || pl.date === day;
     if (lv && sameDay) lines.push({ y: lv, c: '#22c55e', lab: '돌파가 ' + fmt(lv), w: 1.6 });
-    const stopPx = pl.stop > 1 ? pl.stop : (S.pos && S.pos.entry && pl.stop ? S.pos.entry * (1 - pl.stop) : null);
-    if (stopPx && sameDay) lines.push({ y: stopPx, c: '#ef4444', lab: '손절 ' + fmt(stopPx), dash: '4 3' });
+    // 손절은 SOXL 가격이 아니라 밤사이 NQ 하락폭(16:00 대비)이라 선 대신 글로 표시
     const marks = [], pos = S.pos;
     if (pos && pos.entry && (!pos.date || pos.date === day)) {
       const bi = b1.find(b => b.high >= pos.entry && b.low <= pos.entry);
@@ -270,7 +269,8 @@ async function main() {
     html += `<div class="chartbox">${head(K === 'bo' ? '🚀' : '🌙', K === 'bo' ? '계좌2 돌파' : '밤 돌파', esc(String(src.mode || '').toUpperCase()))}${pxHead}`
       + (b1.length ? chart({ path, x0: 570, x1: 960, xt: XT, lines, marks, cur }) : '')
       + (K === 'night' ? row('오늘 판단', esc(S.planMsg || '–')) : row('오늘 판단', esc(`${pl.date || '–'} · ${stt}${modeTxt ? ' · ' + modeTxt : ''}${pl.why ? ' (' + pl.why + ')' : ''}`)))
-      + row('돌파가', lv && sameDay ? fmt(lv) : '–', 'up')
+      + row('돌파가', lv && sameDay ? fmt(lv) + (pl.open && pl.atr ? ` (시가 ${fmt(pl.open)} + ${pl.k} × ATR ${fmt(pl.atr)})` : '') : '–', 'up')
+      + (K === 'bo' && pl.stop ? row('밤사이 손절', `NQ가 16:00 대비 −${(pl.stop * 100).toFixed(1)}%`) : '')
       + row('보유', pos && pos.qty ? `${pos.qty}주 @ ${fmt(pos.entry)}` : '없음')
       + (S.n ? row('기록', `${S.n}번 · 승 ${S.win || 0} · ${usd(S.tot)}`) : '')
       + `<div class="note">흰 선 가격 · 초록 돌파가 · 노랑 진입 · 회색 전일 종가/시가 · 시각은 한국 시각<details><summary>상태 원본</summary><pre>${esc(JSON.stringify(S, null, 1))}</pre></details></div></div>`;
