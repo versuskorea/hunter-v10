@@ -104,7 +104,7 @@ export default async function handler(req, res) {
   // 웅덩이(조건주문) — 줄과 줄별 상태
   const mstate = pj(vars.MANUAL_STATE) || {};
   const manual = {
-    lines: String(vars.MANUAL || '').split('\n').map(s => s.trim()).filter(Boolean),
+    lines: String(vars.MANUAL || '').split('\n').map(s => s.trim()).filter(s => s && s !== '#'),
     rules: mstate.rules || mstate.R || null,
     raw: mstate,
   };
