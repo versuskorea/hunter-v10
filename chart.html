@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>HUNTER 차트</title>
+<style>
+:root{--bg:#0b0d14;--card:#141826;--line:#232a3d;--tx:#e8ecf5;--dim:#8a93a8;--up:#ff5b6e;--dn:#4d8dff;--ok:#3ddc97;--warn:#ffb547;--acc:#9b7bff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:12px 12px 60px}
+h1{font-size:17px;margin:2px 0 8px}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}
+.tabs a{flex:none;padding:7px 12px;border-radius:99px;background:#1b2133;color:var(--dim);text-decoration:none;font-size:13px}
+.tabs a.on{background:var(--acc);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px}
+.sub{color:var(--dim);font-size:12px}
+.row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px dashed #1e2436}
+.row:last-child{border-bottom:0}
+.k{color:var(--dim)}.up{color:var(--up)}.dn{color:var(--dn)}
+svg{width:100%;display:block}
+.lg{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--dim);margin-top:6px}
+.lg i{display:inline-block;width:12px;height:3px;vertical-align:middle;margin-right:4px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+td,th{padding:4px 2px;text-align:right;border-bottom:1px solid #1e2436}
+td:first-child,th:first-child{text-align:left}
+th{color:var(--dim);font-weight:500}
+a{color:#9fb7ff}
+select{background:#0f1320;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:6px}
+</style>
+</head>
+<body>
+<h1><a href="dash.html" style="text-decoration:none">←</a> HUNTER 차트 <select id="day" style="float:right"></select></h1>
+<div class="tabs" id="tabs"></div>
+<div class="card"><svg id="cv" viewBox="0 0 1000 520"></svg><div class="lg" id="lg"></div></div>
+<div class="card" id="info"></div>
+<div class="card" id="list"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const pin = (() => { try { return localStorage.getItem('dashPin') || sessionStorage.getItem('dashPin') || ''; } catch { return ''; } })();
+const K = new URLSearchParams(location.search).get('k') || 'wave';
+const TABS = [['wave', 'SOXL 웨이브'], ['bo', '계좌2 돌파'], ['night', '밤 돌파'], ['pit', '웅덩이'], ['sniper', '스나이퍼']];
+$('#tabs').innerHTML = TABS.map(([k, t]) => `<a href="?k=${k}" class="${k === K ? 'on' : ''}">${t}</a>`).join('');
+const f2 = x => x == null || isNaN(x) ? '–' : Number(x).toFixed(2);
+const usd = x => x == null || isNaN(x) ? '–' : (x < 0 ? '−$' : '$') + Math.round(Math.abs(x)).toLocaleString('en-US');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const row = (k, v, c = '') => `<div class="row"><span class="k">${k}</span><span class="${c}">${v}</span></div>`;
+const hm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+const toMin = s => { const [h, m] = String(s).split(':').map(Number); return h * 60 + m; };
+
+// ── 차트 그리기 (SVG) ── bars: [{x, o,h,l,c}] · lines: [{pts:[[x,y]], color, dash, w}] · marks: [{x,y,type,color,label}]
+function draw({ bars = [], lines = [], marks = [], xlab = [], sub = null, ymin, ymax, xmin, xmax }) {
+  const W = 1000, H = sub ? 380 : 500, P = { l: 8, r: 62, t: 10, b: 22 };
+  let lo = ymin ?? Infinity, hi = ymax ?? -Infinity;
+  for (const b of bars) { lo = Math.min(lo, b.l); hi = Math.max(hi, b.h); }
+  for (const L of lines) for (const p of L.pts) if (p[1] != null) { lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); }
+  for (const m of marks) { lo = Math.min(lo, m.y); hi = Math.max(hi, m.y); }
+  if (!(hi > lo)) { hi = lo + 1; }
+  const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
+  const x0 = xmin ?? Math.min(...bars.map(b => b.x)), x1 = xmax ?? Math.max(...bars.map(b => b.x));
+  const X = x => P.l + (x - x0) / Math.max(1e-9, x1 - x0) * (W - P.l - P.r);
+  const Y = y => P.t + (hi - y) / (hi - lo) * (H - P.t - P.b);
+  const bw = Math.max(1, (W - P.l - P.r) / Math.max(1, bars.length) * 0.7);
+  let s = '';
+  for (let i = 0; i <= 4; i++) { const v = lo + (hi - lo) * i / 4; s += `<line x1="${P.l}" x2="${W - P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#1e2436"/><text x="${W - P.r + 4}" y="${Y(v) + 4}" fill="#8a93a8" font-size="12">${v.toFixed(2)}</text>`; }
+  for (const [x, t] of xlab) s += `<text x="${X(x)}" y="${H - 6}" fill="#8a93a8" font-size="11" text-anchor="middle">${t}</text>`;
+  for (const b of bars) { const up = b.c >= b.o, col = up ? '#ff5b6e' : '#4d8dff'; s += `<line x1="${X(b.x)}" x2="${X(b.x)}" y1="${Y(b.h)}" y2="${Y(b.l)}" stroke="${col}"/><rect x="${X(b.x) - bw / 2}" y="${Y(Math.max(b.o, b.c))}" width="${bw}" height="${Math.max(1, Math.abs(Y(b.o) - Y(b.c)))}" fill="${col}"/>`; }
+  for (const L of lines) {
+    const d = L.pts.filter(p => p[1] != null).map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('');
+    if (d) s += `<path d="${d}" fill="none" stroke="${L.color}" stroke-width="${L.w || 2}" ${L.dash ? `stroke-dasharray="${L.dash}"` : ''}/>`;
+    if (L.label && L.pts.length) { const p = L.pts[L.pts.length - 1]; s += `<text x="${W - P.r + 4}" y="${Y(p[1]) + 4}" fill="${L.color}" font-size="12" font-weight="600">${f2(p[1])}</text>`; }
+  }
+  for (const m of marks) {
+    const x = X(m.x), y = Y(m.y), c = m.color || '#fff';
+    if (m.type === 'up') s += `<path d="M${x} ${y + 3}l-8 14h16z" fill="${c}"/>`;
+    else if (m.type === 'dn') s += `<path d="M${x} ${y - 3}l-8 -14h16z" fill="${c}"/>`;
+    else s += `<path d="M${x - 7} ${y - 7}L${x + 7} ${y + 7}M${x + 7} ${y - 7}L${x - 7} ${y + 7}" stroke="${c}" stroke-width="3"/>`;
+    if (m.label) s += `<text x="${x + 9}" y="${y - 8}" fill="${c}" font-size="12">${esc(m.label)}</text>`;
+  }
+  if (sub) {
+    const T = H + 10, SH = 120, SY = v => T + (100 - v) / 100 * SH;
+    s += `<rect x="${P.l}" y="${T}" width="${W - P.l - P.r}" height="${SH}" fill="none" stroke="#1e2436"/>`;
+    for (const v of sub.levels || []) s += `<line x1="${P.l}" x2="${W - P.r}" y1="${SY(v)}" y2="${SY(v)}" stroke="#3a4260" stroke-dasharray="4 4"/><text x="${W - P.r + 4}" y="${SY(v) + 4}" fill="#8a93a8" font-size="11">${v}</text>`;
+    const d = sub.pts.filter(p => p[1] != null).map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + SY(p[1]).toFixed(1)).join('');
+    s += `<path d="${d}" fill="none" stroke="#ffb547" stroke-width="2"/>`;
+    $('#cv').setAttribute('viewBox', `0 0 1000 ${T + SH + 8}`);
+  } else $('#cv').setAttribute('viewBox', `0 0 1000 ${H}`);
+  $('#cv').innerHTML = s;
+}
+const legend = items => $('#lg').innerHTML = items.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('');
+
+async function getJ(u, h) { const r = await fetch(u, { headers: h || {}, cache: 'no-store' }); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; }
+
+// 1분봉 → n분봉
+function agg(b1, n) {
+  const out = []; let cur = null;
+  for (const b of b1) {
+    const m = toMin(b.etTime), k = Math.floor((m - 570) / n);
+    if (!cur || cur.k !== k) { if (cur) out.push(cur); cur = { k, x: 570 + k * n, t: b.etTime, o: b.open, h: b.high, l: b.low, c: b.close, v: b.volume || 0 }; }
+    else { cur.h = Math.max(cur.h, b.high); cur.l = Math.min(cur.l, b.low); cur.c = b.close; cur.v += b.volume || 0; }
+  }
+  if (cur) out.push(cur); return out;
+}
+function rsiSma(cs, n = 14) {
+  return cs.map((_, i) => { if (i < n) return null; let g = 0, l = 0; for (let j = i - n + 1; j <= i; j++) { const d = cs[j] - cs[j - 1]; if (d > 0) g += d; else l -= d; } return g + l ? 100 * g / (g + l) : 50; });
+}
+const XL = [[600, '10:00'], [660, '11:00'], [720, '12:00'], [780, '13:00'], [840, '14:00'], [900, '15:00'], [960, '16:00']];
+
+async function main() {
+  if (!pin) { location.href = 'dash.html'; return; }
+  const D = await getJ('/api/dash?full=1', { 'x-pin': pin });
+  const H = await getJ('/api/history?symbol=SOXL&interval=1m');
+  const days = [...new Set(H.bars.map(b => b.date))];
+  const sel = $('#day'); sel.innerHTML = days.slice().reverse().map(d => `<option>${d}</option>`).join('');
+  const want = new URLSearchParams(location.search).get('d'); if (want && days.includes(want)) sel.value = want;
+  sel.onchange = () => { const u = new URL(location.href); u.searchParams.set('d', sel.value); location.href = u.toString(); };
+  const day = sel.value;
+  const b1 = H.bars.filter(b => b.date === day);
+  const bars5 = agg(b1, 5);
+
+  if (K === 'wave') {
+    const w = D.wave || {}; const hist = w.hist || {};
+    const op = b1.length ? b1[0].open : null;
+    const CH = Array.from({ length: 12 }, (_, i) => 600 + i * 30);
+    const past = Object.keys(hist).filter(d => d < day).sort().slice(-14);
+    const sig = past.length >= 14 ? CH.map((_, j) => 0.8 * past.reduce((s, d) => s + Math.abs(hist[d].c[j] / hist[d].o - 1), 0) / 14) : null;
+    const lines = [];
+    if (sig && op) {
+      const st = (f) => CH.flatMap((x, j) => [[x, f(j)], [x + 30, f(j)]]);
+      lines.push({ pts: st(j => op * (1 + sig[j])), color: '#ff5b6e', dash: '6 4' }, { pts: st(j => op * (1 - sig[j])), color: '#4d8dff', dash: '6 4' });
+    }
+    let pv = 0, vv = 0; const vw = b1.map(b => { const tp = (b.high + b.low + b.close) / 3; pv += tp * (b.volume || 0); vv += b.volume || 0; return [toMin(b.etTime), vv ? pv / vv : null]; });
+    lines.push({ pts: vw, color: '#ffffff', w: 1.5 });
+    if (op) lines.push({ pts: [[570, op], [960, op]], color: '#8a93a8', dash: '2 4', w: 1 });
+    const marks = [];
+    for (const t of (w.trades || []).filter(t => t.d === day)) {
+      const sx = t.sym === 'SOXS';
+      // SOXS 거래는 SOXL 가격 축에 진입 시각만 표시
+      const xi = toMin(t.in), mo = String(t.out).match(/(\d\d):(\d\d)/), xo = mo ? +mo[1] * 60 + +mo[2] : null;
+      const bi = b1.find(b => toMin(b.etTime) >= xi), bo = xo == null ? null : b1.find(b => toMin(b.etTime) >= xo);
+      if (bi) marks.push({ x: xi, y: bi.close, type: sx ? 'dn' : 'up', color: sx ? '#4d8dff' : '#ff5b6e', label: sx ? '숏' : '롱' });
+      if (bo) marks.push({ x: xo, y: bo.close, type: 'x', color: t.pnl >= 0 ? '#3ddc97' : '#ffb547', label: usd(t.pnl) });
+    }
+    if (w.day === day && w.pos && w.entry_t) { const bi = b1.find(b => toMin(b.etTime) >= toMin(w.entry_t)); if (bi) marks.push({ x: toMin(w.entry_t), y: bi.close, type: w.pos > 0 ? 'up' : 'dn', color: '#ffb547', label: '보유 중' }); }
+    draw({ bars: bars5, lines, marks, xlab: XL, xmin: 570, xmax: 960 });
+    legend([['#ff5b6e', '위 밴드'], ['#4d8dff', '아래 밴드'], ['#ffffff', 'VWAP'], ['#8a93a8', '시가']]);
+    $('#info').innerHTML = `<b>SOXL 웨이브</b> <span class="sub">k 0.8 · 14일 · 30분마다 판단 (밴드는 화면용 근사)</span>` +
+      row('보유', w.pos ? `${w.pos > 0 ? '롱' : '숏'} ${esc(w.sym)} ${w.qty}주 @${f2(w.entry)}` : '없음') + row('누적 실현', usd(w.realized), w.realized >= 0 ? 'up' : 'dn');
+    $('#list').innerHTML = `<b>최근 거래</b><table><tr><th>날짜</th><th>시각</th><th>진입→청산</th><th>손익</th></tr>` +
+      (w.trades || []).slice().reverse().slice(0, 20).map(t => `<tr><td>${esc(t.d.slice(5))} ${esc(t.sym)}</td><td>${esc(t.in)} · ${esc(t.out)}</td><td>${f2(t.e)}→${f2(t.x)}</td><td class="${t.pnl >= 0 ? 'up' : 'dn'}">${usd(t.pnl)}</td></tr>`).join('') + '</table>';
+  }
+
+  if (K === 'bo' || K === 'night') {
+    const S = K === 'bo' ? (D.bo || {}).state || {} : (D.night || {}).state || {};
+    const pl = S.plan || {};
+    const op = b1.length ? b1[0].open : null;
+    const lines = [];
+    let lv = pl.level ?? pl.lv ?? pl.lvl ?? null;
+    if (K === 'night' && lv == null && S.planMsg) { const m = String(S.planMsg).match(/=\s*([\d.]+)/); if (m) lv = +m[1]; }
+    if (op) lines.push({ pts: [[570, op], [960, op]], color: '#8a93a8', dash: '2 4', w: 1 });
+    if (lv && (!pl.date || pl.date === day || K === 'night')) lines.push({ pts: [[570, lv], [960, lv]], color: '#3ddc97', dash: '8 4', label: 1 });
+    const marks = [];
+    const pos = S.pos;
+    if (pos && pos.entry && (!pos.date || pos.date === day)) { const bi = b1.find(b => Math.abs(b.close - pos.entry) / pos.entry < 0.01); marks.push({ x: bi ? toMin(bi.etTime) : 900, y: pos.entry, type: 'up', color: '#ffb547', label: `매수 ${pos.qty || ''}` }); }
+    draw({ bars: bars5, lines, marks, xlab: XL, xmin: 570, xmax: 960 });
+    legend([['#3ddc97', '돌파가'], ['#8a93a8', '시가']]);
+    $('#info').innerHTML = `<b>${K === 'bo' ? '계좌2 돌파' : '밤 돌파'}</b> <span class="sub">${esc((K === 'bo' ? D.bo : D.night).mode)}</span>` +
+      row('오늘 판단', esc(K === 'night' ? (S.planMsg || '–') : `${pl.date || '–'} · ${pl.status || '–'} · ${pl.mode === 'atk' ? '공격' : pl.mode === 'def' ? '방어' : (pl.mode || '–')}`)) +
+      row('돌파가', f2(lv)) + row('보유', pos && pos.qty ? `${pos.qty}주 @${f2(pos.entry)}` : '없음') +
+      (S.n ? row('기록', `${S.n}번 · 승 ${S.win || 0} · ${usd(S.tot)}`) : '');
+    $('#list').innerHTML = `<details><summary class="sub">상태 원본</summary><pre style="white-space:pre-wrap;font-size:11px;color:#8a93a8">${esc(JSON.stringify(S, null, 1))}</pre></details>`;
+  }
+
+  if (K === 'pit') {
+    const b3 = agg(b1, 3); const rs = rsiSma(b3.map(b => b.c));
+    const R = (D.manual && D.manual.raw && D.manual.raw.rules) || {};
+    const marks = []; const lines = [];
+    for (const [k, st] of Object.entries(R)) {
+      if (!/^SOXL/i.test(k)) continue;
+      if (st.avg && st.st === 'hold') lines.push({ pts: [[570, st.avg], [960, st.avg]], color: '#ffb547', dash: '2 3', w: 1.5, label: 1 });
+      if (st.slPx && st.st === 'hold') lines.push({ pts: [[570, st.slPx], [960, st.slPx]], color: '#4d8dff', dash: '6 4', label: 1 });
+      if (st.halfPx && st.st === 'hold') lines.push({ pts: [[570, st.halfPx], [960, st.halfPx]], color: '#3ddc97', dash: '6 4', label: 1 });
+    }
+    // 웅덩이 표시: RSI 25 아래 → 30 위로
+    let low = false, depth = 100;
+    b3.forEach((b, i) => { const r = rs[i]; if (r == null) return; if (r < 30) { low = true; depth = Math.min(depth, r); } else if (low) { if (depth < 25) marks.push({ x: b.x, y: b.l, type: 'up', color: '#ff5b6e', label: '웅덩이' }); low = false; depth = 100; } });
+    draw({ bars: b3, lines, marks, xlab: XL, xmin: 570, xmax: 960, sub: { pts: b3.map((b, i) => [b.x, rs[i]]), levels: [25, 30, 71] } });
+    legend([['#ffb547', '평단 · RSI(14, 3분)'], ['#4d8dff', '손절'], ['#3ddc97', '절반 익절']]);
+    $('#info').innerHTML = `<b>웅덩이 · SOXL 3분봉</b> <span class="sub">▲ = RSI 25 아래로 빠졌다가 30 위로 올라온 봉 (봇 진입 신호와 같은 정의)</span>`;
+    $('#list').innerHTML = `<b>조건주문 줄</b>` + (D.manual.lines || []).map(l => { const st = R[l] || {}; return row(esc(l), st.st || (l.startsWith('#') ? '꺼짐' : '대기')); }).join('');
+  }
+
+  if (K === 'sniper') {
+    const Hd = await getJ('/api/history?symbol=SOXL&years=1&interval=1d');
+    const bd = Hd.bars.slice(-90).map((b, i) => ({ x: i, o: b.open, h: b.high, l: b.low, c: b.close, d: b.date }));
+    const p = (D.sniper && D.sniper.plan) || {};
+    const lines = []; const n = bd.length;
+    for (const r of p.rows || []) if (r.price) lines.push({ pts: [[n - 6, r.price], [n + 2, r.price]], color: r.side === 'BUY' ? '#ff5b6e' : '#4d8dff', dash: '6 4', label: 1 });
+    const xl = bd.filter((b, i) => i % 15 === 0).map(b => [b.x, b.d.slice(5)]);
+    draw({ bars: bd, lines, marks: [], xlab: xl, xmin: 0, xmax: n + 2 });
+    legend([['#ff5b6e', '매수 LOC'], ['#4d8dff', '매도 LOC']]);
+    $('#info').innerHTML = `<b>스나이퍼</b> <span class="sub">일봉 90일 · 오늘 주문표 가격</span>` + row('주문표', esc(p.date) + ' · ' + (p.mode === 'def' ? '방어' : '공격')) + row('장부 주식 (주문 전)', (p.ledger_sh || 0).toLocaleString() + '주') + row('장부 자산', usd(p.ledger_E));
+    $('#list').innerHTML = `<b>주문표</b><table><tr><th>주문</th><th>가격</th><th>수량</th></tr>` + (p.rows || []).map(r => `<tr><td>${r.side === 'BUY' ? '매수' : '매도'} ${esc(r.tier || '')}</td><td>${r.price ? f2(r.price) : 'MOC'}</td><td>${r.qty.toLocaleString()}</td></tr>`).join('') + '</table>';
+  }
+}
+main().catch(e => { $('#info').innerHTML = `<span style="color:#ffb547">${esc(e.message || e)}</span>`; });
+</script>
+</body>
+</html>
