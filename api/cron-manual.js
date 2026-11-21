@@ -245,9 +245,11 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
         if (r.sym === 'SOXL') extraDelta -= add;
         if (o.half && !st.halfDone) {
           st.halfDone = 1;
-          const be = tick((st.avg || avg) * 1.001);
-          if (!st.slPx || st.slPx < be) st.slPx = be;
-          say.push(`↗ ${r.sym} 절반 매도 → 나머지 손절을 본전 ${fmt(be)} 로 올림`);
+          if (r.halfBE) {
+            const be = tick((st.avg || avg) * 1.001);
+            if (!st.slPx || st.slPx < be) st.slPx = be;
+            say.push(`↗ ${r.sym} 절반 매도 → 나머지 손절을 본전 ${fmt(be)} 로 올림`);
+          } else say.push(`↗ ${r.sym} 절반 매도 → 나머지 손절은 그대로 ${st.slPx ? fmt(st.slPx) : ''}`);
         }
         say.push(`${tag}✅ ${r.sym} 매도 ${add}주 @${fmt(avg)}  (${o.why})`);
       }
