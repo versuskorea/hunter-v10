@@ -1,209 +1,345 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HUNTER 차트</title>
+<meta http-equiv="Cache-Control" content="no-store, must-revalidate">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0b0d14;--card:#141826;--line:#232a3d;--tx:#e8ecf5;--dim:#8a93a8;--up:#ff5b6e;--dn:#4d8dff;--ok:#3ddc97;--warn:#ffb547;--acc:#9b7bff}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:12px 12px 60px}
-h1{font-size:17px;margin:2px 0 8px}
-.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
-.tabs a{flex:none;padding:7px 12px;border-radius:99px;background:#1b2133;color:var(--dim);text-decoration:none;font-size:13px}
-.tabs a.on{background:var(--acc);color:#fff}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px}
-.sub{color:var(--dim);font-size:12px}
-.row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px dashed #1e2436}
-.row:last-child{border-bottom:0}
-.k{color:var(--dim)}.up{color:var(--up)}.dn{color:var(--dn)}
-svg{width:100%;display:block}
-.lg{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--dim);margin-top:6px}
-.lg i{display:inline-block;width:12px;height:3px;vertical-align:middle;margin-right:4px}
-table{width:100%;border-collapse:collapse;font-size:12px}
-td,th{padding:4px 2px;text-align:right;border-bottom:1px solid #1e2436}
-td:first-child,th:first-child{text-align:left}
-th{color:var(--dim);font-weight:500}
-a{color:#9fb7ff}
-select{background:#0f1320;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:6px}
+:root{--bg:#08080a;--card:#111118;--card2:#1a1a1f;--border:#222233;--accent:#3b82f6;
+      --green:#22c55e;--red:#ef4444;--text:#f0f0f0;--dim:#666;--gold:#fbbf24;--purple:#a78bfa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;padding:12px;max-width:600px;margin:0 auto}
+.top{display:flex;align-items:center;gap:8px;padding:6px 0}
+.back{font-size:12px;color:var(--accent);text-decoration:none;font-weight:700;padding:6px 10px;border:1px solid var(--border);border-radius:9px;white-space:nowrap}
+.top h1{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;white-space:nowrap}
+.top h1 span{color:var(--accent)}
+.top select{margin-left:auto;background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:5px 8px;font-family:'JetBrains Mono',monospace;font-size:11px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
+.tabs a{padding:6px 11px;border-radius:20px;background:var(--card);border:1px solid var(--border);color:var(--dim);text-decoration:none;font-size:12px;font-weight:700}
+.tabs a.on{color:var(--text);border-color:var(--accent);background:#141b2e}
+.chartbox{background:var(--card);border:1px solid var(--border);border-radius:14px;margin:10px 0;overflow:hidden}
+.bhead{padding:11px 14px;font-size:13px;font-weight:700;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.bhead .r{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);font-weight:600}
+.sub2{padding:8px 14px 2px;font-size:11px;color:var(--dim)}
+.svgw{padding:4px 6px 2px}
+.info{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;padding:8px 14px;border-top:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:12px}
+.row{display:flex;justify-content:space-between;gap:10px;padding:8px 14px;border-top:1px solid var(--border);font-size:13px}
+.row .k{color:var(--dim);font-size:12px}
+.row .v{font-family:'JetBrains Mono',monospace;font-weight:700;text-align:right}
+.note{padding:8px 14px 11px;font-size:10.5px;color:var(--dim);line-height:1.5;border-top:1px solid var(--border)}
+.up{color:var(--green)}.dn{color:var(--red)}.gold{color:var(--gold)}
+.empty{padding:18px 14px;color:var(--dim);font-size:12px}
+table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:11px}
+td,th{padding:6px 8px;text-align:right;border-top:1px solid var(--border)}
+td:first-child,th:first-child{text-align:left;padding-left:14px}
+td:last-child,th:last-child{padding-right:14px}
+th{color:var(--dim);font-weight:600}
+.seg{display:flex;gap:6px;padding:8px 14px 0}
+.seg a{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;border:1px solid var(--border);color:var(--dim);text-decoration:none}
+.seg a.on{color:var(--text);border-color:var(--accent)}
+details summary{cursor:pointer}
+pre{white-space:pre-wrap;font-size:10px;color:var(--dim);padding:6px 0 0}
 </style>
 </head>
 <body>
-<h1><a href="dash.html" style="text-decoration:none">←</a> HUNTER 차트 <select id="day" style="float:right"></select></h1>
+<div class="top">
+  <a class="back" href="dash.html">← 홈</a>
+  <h1>HUNTER <span>CHART</span></h1>
+  <select id="day"></select>
+</div>
 <div class="tabs" id="tabs"></div>
-<div class="card"><svg id="cv" viewBox="0 0 1000 520"></svg><div class="lg" id="lg"></div></div>
-<div class="card" id="info"></div>
-<div class="card" id="list"></div>
+<div id="main"><div class="chartbox"><div class="empty">불러오는 중…</div></div></div>
 
 <script>
 const $ = s => document.querySelector(s);
+const Q = new URLSearchParams(location.search);
+const K = Q.get('k') || 'wave';
 const pin = (() => { try { return localStorage.getItem('dashPin') || sessionStorage.getItem('dashPin') || ''; } catch { return ''; } })();
-const K = new URLSearchParams(location.search).get('k') || 'wave';
-const TABS = [['wave', 'SOXL 웨이브'], ['bo', '계좌2 돌파'], ['night', '밤 돌파'], ['pit', '웅덩이'], ['sniper', '스나이퍼']];
-$('#tabs').innerHTML = TABS.map(([k, t]) => `<a href="?k=${k}" class="${k === K ? 'on' : ''}">${t}</a>`).join('');
-const f2 = x => x == null || isNaN(x) ? '–' : Number(x).toFixed(2);
-const usd = x => x == null || isNaN(x) ? '–' : (x < 0 ? '−$' : '$') + Math.round(Math.abs(x)).toLocaleString('en-US');
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const row = (k, v, c = '') => `<div class="row"><span class="k">${k}</span><span class="${c}">${v}</span></div>`;
-const hm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
-const toMin = s => { const [h, m] = String(s).split(':').map(Number); return h * 60 + m; };
+const TABS = [['wave', '🌊 웨이브'], ['bo', '🚀 계좌2 돌파'], ['night', '🌙 밤 돌파'], ['pit', '🌀 웅덩이'], ['sniper', '🎯 스나이퍼']];
+$('#tabs').innerHTML = TABS.map(([k, t]) => `<a href="?k=${k}" class="${k === K ? 'on' : ''}">${t}</a>`).join('') + '<a href="mnq.html">📈 MNQ</a>';
 
-// ── 차트 그리기 (SVG) ── bars: [{x, o,h,l,c}] · lines: [{pts:[[x,y]], color, dash, w}] · marks: [{x,y,type,color,label}]
-function draw({ bars = [], lines = [], marks = [], xlab = [], sub = null, ymin, ymax, xmin, xmax }) {
-  const W = 1000, H = sub ? 380 : 500, P = { l: 8, r: 62, t: 10, b: 22 };
-  let lo = ymin ?? Infinity, hi = ymax ?? -Infinity;
-  for (const b of bars) { lo = Math.min(lo, b.l); hi = Math.max(hi, b.h); }
-  for (const L of lines) for (const p of L.pts) if (p[1] != null) { lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); }
-  for (const m of marks) { lo = Math.min(lo, m.y); hi = Math.max(hi, m.y); }
-  if (!(hi > lo)) { hi = lo + 1; }
-  const pad = (hi - lo) * 0.06; lo -= pad; hi += pad;
-  const x0 = xmin ?? Math.min(...bars.map(b => b.x)), x1 = xmax ?? Math.max(...bars.map(b => b.x));
-  const X = x => P.l + (x - x0) / Math.max(1e-9, x1 - x0) * (W - P.l - P.r);
-  const Y = y => P.t + (hi - y) / (hi - lo) * (H - P.t - P.b);
-  const bw = Math.max(1, (W - P.l - P.r) / Math.max(1, bars.length) * 0.7);
-  let s = '';
-  for (let i = 0; i <= 4; i++) { const v = lo + (hi - lo) * i / 4; s += `<line x1="${P.l}" x2="${W - P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="#1e2436"/><text x="${W - P.r + 4}" y="${Y(v) + 4}" fill="#8a93a8" font-size="12">${v.toFixed(2)}</text>`; }
-  for (const [x, t] of xlab) s += `<text x="${X(x)}" y="${H - 6}" fill="#8a93a8" font-size="11" text-anchor="middle">${t}</text>`;
-  for (const b of bars) { const up = b.c >= b.o, col = up ? '#ff5b6e' : '#4d8dff'; s += `<line x1="${X(b.x)}" x2="${X(b.x)}" y1="${Y(b.h)}" y2="${Y(b.l)}" stroke="${col}"/><rect x="${X(b.x) - bw / 2}" y="${Y(Math.max(b.o, b.c))}" width="${bw}" height="${Math.max(1, Math.abs(Y(b.o) - Y(b.c)))}" fill="${col}"/>`; }
-  for (const L of lines) {
-    const d = L.pts.filter(p => p[1] != null).map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join('');
-    if (d) s += `<path d="${d}" fill="none" stroke="${L.color}" stroke-width="${L.w || 2}" ${L.dash ? `stroke-dasharray="${L.dash}"` : ''}/>`;
-    if (L.label && L.pts.length) { const p = L.pts[L.pts.length - 1]; s += `<text x="${W - P.r + 4}" y="${Y(p[1]) + 4}" fill="${L.color}" font-size="12" font-weight="600">${f2(p[1])}</text>`; }
-  }
-  for (const m of marks) {
-    const x = X(m.x), y = Y(m.y), c = m.color || '#fff';
-    if (m.type === 'up') s += `<path d="M${x} ${y + 3}l-8 14h16z" fill="${c}"/>`;
-    else if (m.type === 'dn') s += `<path d="M${x} ${y - 3}l-8 -14h16z" fill="${c}"/>`;
-    else s += `<path d="M${x - 7} ${y - 7}L${x + 7} ${y + 7}M${x + 7} ${y - 7}L${x - 7} ${y + 7}" stroke="${c}" stroke-width="3"/>`;
-    if (m.label) s += `<text x="${x + 9}" y="${y - 8}" fill="${c}" font-size="12">${esc(m.label)}</text>`;
-  }
-  if (sub) {
-    const T = H + 10, SH = 120, SY = v => T + (100 - v) / 100 * SH;
-    s += `<rect x="${P.l}" y="${T}" width="${W - P.l - P.r}" height="${SH}" fill="none" stroke="#1e2436"/>`;
-    for (const v of sub.levels || []) s += `<line x1="${P.l}" x2="${W - P.r}" y1="${SY(v)}" y2="${SY(v)}" stroke="#3a4260" stroke-dasharray="4 4"/><text x="${W - P.r + 4}" y="${SY(v) + 4}" fill="#8a93a8" font-size="11">${v}</text>`;
-    const d = sub.pts.filter(p => p[1] != null).map((p, i) => (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + SY(p[1]).toFixed(1)).join('');
-    s += `<path d="${d}" fill="none" stroke="#ffb547" stroke-width="2"/>`;
-    $('#cv').setAttribute('viewBox', `0 0 1000 ${T + SH + 8}`);
-  } else $('#cv').setAttribute('viewBox', `0 0 1000 ${H}`);
-  $('#cv').innerHTML = s;
-}
-const legend = items => $('#lg').innerHTML = items.map(([c, t]) => `<span><i style="background:${c}"></i>${t}</span>`).join('');
+const fmt = x => x == null || !isFinite(x) ? '–' : Number(x).toFixed(2);
+const usd = x => x == null || !isFinite(x) ? '–' : (x < 0 ? '−$' : '+$') + Math.round(Math.abs(x)).toLocaleString('en-US');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const toMin = s => { const m = String(s || '').match(/(\d\d):(\d\d)/); return m ? +m[1] * 60 + +m[2] : null; };
+const hm = em => String(Math.floor(em / 60)).padStart(2, '0') + ':' + String(em % 60).padStart(2, '0');
+const row = (k, v, c = '') => `<div class="row"><span class="k">${k}</span><span class="v ${c}">${v}</span></div>`;
+
+// ET ↔ 한국 시각 차이 (서머타임 13 / 겨울 14)
+const now = new Date();
+const hOf = tz => +new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(now);
+const OFF = (hOf('Asia/Seoul') - hOf('America/New_York') + 24) % 24;
+const etToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+const etMin = hOf('America/New_York') * 60 + +new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', minute: 'numeric' }).format(now);
+const kst = em => hm((em + OFF * 60) % 1440);
 
 async function getJ(u, h) { const r = await fetch(u, { headers: h || {}, cache: 'no-store' }); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; }
 
-// 1분봉 → n분봉
+// ── 공통 차트 (MNQ 웨이브 밴드와 같은 모양) ──
+function chart(o) {
+  const W0 = 360, H0 = o.sub ? 210 : 240, L = 46, R = 8, T = 12, B = 24, SH = 70;
+  const ys = [];
+  o.path.forEach(p => ys.push(p[1]));
+  (o.extra || []).forEach(p => p[1] != null && ys.push(p[1]));
+  if (o.bands) o.bands.pts.forEach(p => ys.push(p.ub, p.lb));
+  (o.lines || []).forEach(l => l.y > 0 && ys.push(l.y));
+  (o.marks || []).forEach(m => m.y > 0 && ys.push(m.y));
+  let y0 = Math.min(...ys), y1 = Math.max(...ys); const pad = (y1 - y0) * 0.08 || 1; y0 -= pad; y1 += pad;
+  const X = x => L + (x - o.x0) / (o.x1 - o.x0) * (W0 - L - R);
+  const Y = v => T + (y1 - v) / (y1 - y0) * (H0 - T - B);
+  let g = '';
+  for (let q = 0; q <= 4; q++) {
+    const v = y0 + (y1 - y0) * q / 4, yy = Y(v);
+    g += `<line x1="${L}" x2="${W0 - R}" y1="${yy}" y2="${yy}" stroke="var(--border)"/><text x="${L - 4}" y="${yy + 3}" text-anchor="end" font-size="9" fill="var(--dim)">${v.toFixed(2)}</text>`;
+  }
+  for (const [x, t] of o.xt || []) {
+    const xx = X(x);
+    g += `<line x1="${xx}" x2="${xx}" y1="${T}" y2="${H0 - B}" stroke="var(--border)" stroke-dasharray="2 3"/><text x="${xx}" y="${H0 - B + 14}" text-anchor="${x >= o.x1 ? 'end' : x <= o.x0 ? 'start' : 'middle'}" font-size="9" fill="var(--dim)">${t}</text>`;
+  }
+  if (o.bands) {
+    const P = o.bands.pts, step = k => P.map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(1)},${Y(p[k]).toFixed(1)}L${X(p.x2).toFixed(1)},${Y(p[k]).toFixed(1)}`).join('');
+    let area = step('ub');
+    for (let i = P.length - 1; i >= 0; i--) area += `L${X(P[i].x2).toFixed(1)},${Y(P[i].lb).toFixed(1)}L${X(P[i].x).toFixed(1)},${Y(P[i].lb).toFixed(1)}`;
+    g += `<path d="${area}Z" fill="rgba(148,163,184,.08)"/>`;
+    g += `<path d="${step('ub')}" fill="none" stroke="#f87171" stroke-width="2"/><path d="${step('lb')}" fill="none" stroke="#60a5fa" stroke-width="2"/>`;
+    P.forEach(p => [['ub', '#f87171'], ['lb', '#60a5fa']].forEach(([k, c]) => { g += `<circle cx="${X(p.x)}" cy="${Y(p[k])}" r="2.5" fill="${p.done ? 'var(--card)' : c}" stroke="${c}" stroke-width="1.2"/>`; }));
+  }
+  const labY = [];
+  for (const l of o.lines || []) {
+    if (!(l.y > 0)) continue;
+    const yy = Y(l.y);
+    g += `<line x1="${L}" x2="${W0 - R}" y1="${yy}" y2="${yy}" stroke="${l.c}" stroke-width="${l.w || 1.2}" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''}/>`;
+    let ty = yy - 3; while (labY.some(v => Math.abs(v - ty) < 10)) ty += 11; labY.push(ty);
+    g += l.left ? `<text x="${L + 4}" y="${ty}" font-size="9" font-weight="700" fill="${l.c}">${esc(l.lab)}</text>`
+                : `<text x="${W0 - R - 2}" y="${ty}" text-anchor="end" font-size="9" font-weight="700" fill="${l.c}">${esc(l.lab)}</text>`;
+  }
+  if (o.area && o.path.length > 1) {
+    const d = o.path.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('');
+    g += `<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b82f6" stop-opacity=".28"/><stop offset="1" stop-color="#3b82f6" stop-opacity="0"/></linearGradient></defs>`
+      + `<path d="${d}L${X(o.path[o.path.length - 1][0])},${H0 - B}L${X(o.path[0][0])},${H0 - B}Z" fill="url(#ag)"/>`;
+  }
+  if (o.extra && o.extra.length > 1) g += `<path d="${o.extra.filter(p => p[1] != null).map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('')}" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3 2" opacity=".9"/>`;
+  if (o.path.length > 1) g += `<path d="${o.path.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('')}" fill="none" stroke="#e5e7eb" stroke-width="1.3" opacity=".9"/>`;
+  for (const m of o.marks || []) {
+    if (m.x == null || !(m.y > 0)) continue;
+    const x = X(Math.min(Math.max(m.x, o.x0), o.x1)), y = Y(m.y);
+    if (m.kind === 'in') {
+      const c = m.side > 0 ? '#22c55e' : '#f97316';
+      const d = m.side > 0 ? `M${x},${y - 7}L${x - 6},${y + 4}L${x + 6},${y + 4}Z` : `M${x},${y + 7}L${x - 6},${y - 4}L${x + 6},${y - 4}Z`;
+      g += `<path d="${d}" fill="${c}" stroke="#0b1220" stroke-width="1"/>`;
+      if (m.lab) g += `<text x="${x + 8}" y="${m.side > 0 ? y + 12 : y - 6}" font-size="9" font-weight="700" fill="${c}">${esc(m.lab)}</text>`;
+    } else if (m.kind === 'sig') {
+      g += `<circle cx="${x}" cy="${y + 6}" r="3" fill="none" stroke="#a78bfa" stroke-width="1.4"/>`;
+    } else {
+      g += `<path d="M${x - 5},${y - 5}L${x + 5},${y + 5}M${x + 5},${y - 5}L${x - 5},${y + 5}" stroke="#facc15" stroke-width="2.2"/>`;
+      if (m.lab) g += `<text x="${x + 7}" y="${y - 6}" font-size="9" font-weight="700" fill="#facc15">${esc(m.lab)}</text>`;
+    }
+  }
+  if (o.cur && o.cur.y > 0) {
+    const cy = Y(o.cur.y);
+    if (o.cur.live) {
+      const cx = X(o.cur.x);
+      g += `<line x1="${cx}" x2="${cx}" y1="${T}" y2="${H0 - B}" stroke="#4ade80" stroke-dasharray="3 2"/><circle cx="${cx}" cy="${cy}" r="4.5" fill="#4ade80" stroke="var(--card)" stroke-width="1.5"/>`;
+    }
+    g += `<rect x="0" y="${cy - 7}" width="${L - 2}" height="14" rx="3" fill="#4ade80"/><text x="${L - 5}" y="${cy + 3}" text-anchor="end" font-size="9" font-weight="800" fill="#0b1220">${fmt(o.cur.y)}</text>`;
+  }
+  let H = H0;
+  if (o.sub) {
+    const t0 = H0 + 4, SY = v => t0 + (100 - v) / 100 * SH;
+    g += `<rect x="${L}" y="${t0}" width="${W0 - L - R}" height="${SH}" fill="none" stroke="var(--border)"/>`;
+    for (const [v, c, lab] of o.sub.levels) g += `<line x1="${L}" x2="${W0 - R}" y1="${SY(v)}" y2="${SY(v)}" stroke="${c}" stroke-dasharray="3 3"/><text x="${L - 4}" y="${SY(v) + 3}" text-anchor="end" font-size="9" fill="${c}">${lab}</text>`;
+    const d = o.sub.pts.filter(p => p[1] != null).map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${SY(p[1]).toFixed(1)}`).join('');
+    g += `<path d="${d}" fill="none" stroke="#fbbf24" stroke-width="1.3"/><text x="${L + 4}" y="${t0 + 10}" font-size="9" fill="#fbbf24">RSI</text>`;
+    H = t0 + SH + 6;
+  }
+  return `<div class="svgw"><svg viewBox="0 0 ${W0} ${H}" style="width:100%;height:auto;display:block;font-family:'JetBrains Mono',monospace">${g}</svg></div>`;
+}
+const XT = [600, 660, 720, 780, 840, 900, 960].map(m => [m, kst(m)]);
+
+// 1분봉 → n분봉 (날짜별)
 function agg(b1, n) {
   const out = []; let cur = null;
   for (const b of b1) {
-    const m = toMin(b.etTime), k = Math.floor((m - 570) / n);
-    if (!cur || cur.k !== k) { if (cur) out.push(cur); cur = { k, x: 570 + k * n, t: b.etTime, o: b.open, h: b.high, l: b.low, c: b.close, v: b.volume || 0 }; }
-    else { cur.h = Math.max(cur.h, b.high); cur.l = Math.min(cur.l, b.low); cur.c = b.close; cur.v += b.volume || 0; }
+    const m = toMin(b.etTime), slot = Math.floor((m - 570) / n), k = b.date + ':' + slot;
+    if (!cur || cur.k !== k) { if (cur) out.push(cur); cur = { k, date: b.date, x: 570 + slot * n, o: b.open, h: b.high, l: b.low, c: b.close }; }
+    else { cur.h = Math.max(cur.h, b.high); cur.l = Math.min(cur.l, b.low); cur.c = b.close; }
   }
   if (cur) out.push(cur); return out;
 }
-function rsiSma(cs, n = 14) {
-  return cs.map((_, i) => { if (i < n) return null; let g = 0, l = 0; for (let j = i - n + 1; j <= i; j++) { const d = cs[j] - cs[j - 1]; if (d > 0) g += d; else l -= d; } return g + l ? 100 * g / (g + l) : 50; });
+// 봇과 같은 RSI (와일더 14)
+function rsi(cs, n = 14) {
+  const out = cs.map(() => null); if (cs.length <= n) return out;
+  let g = 0, l = 0;
+  for (let i = 1; i <= n; i++) { const d = cs[i] - cs[i - 1]; g += Math.max(d, 0); l += Math.max(-d, 0); }
+  g /= n; l /= n; out[n] = l === 0 ? 100 : 100 - 100 / (1 + g / l);
+  for (let i = n + 1; i < cs.length; i++) { const d = cs[i] - cs[i - 1]; g = (g * (n - 1) + Math.max(d, 0)) / n; l = (l * (n - 1) + Math.max(-d, 0)) / n; out[i] = l === 0 ? 100 : 100 - 100 / (1 + g / l); }
+  return out;
 }
-const XL = [[600, '10:00'], [660, '11:00'], [720, '12:00'], [780, '13:00'], [840, '14:00'], [900, '15:00'], [960, '16:00']];
+const pxAt = (b1, m) => { if (m == null) return null; const b = b1.find(x => toMin(x.etTime) >= m) || b1[b1.length - 1]; return b ? b.close : null; };
 
 async function main() {
   if (!pin) { location.href = 'dash.html'; return; }
-  $('#info').innerHTML = '<span class="sub">불러오는 중…</span>';
-  const [D, H] = await Promise.all([getJ('/api/dash?full=1&chart=1', { 'x-pin': pin }), getJ('/api/history?symbol=SOXL&interval=1m')]);
+  const sym = K === 'pit' && (Q.get('s') || '').toUpperCase() === 'SOXS' ? 'SOXS' : 'SOXL';
+  const [D, H] = await Promise.all([getJ('/api/dash?full=1&chart=1', { 'x-pin': pin }), getJ(`/api/history?symbol=${sym}&interval=1m`)]);
   const days = [...new Set(H.bars.map(b => b.date))];
   const sel = $('#day'); sel.innerHTML = days.slice().reverse().map(d => `<option>${d}</option>`).join('');
-  const want = new URLSearchParams(location.search).get('d'); if (want && days.includes(want)) sel.value = want;
+  if (Q.get('d') && days.includes(Q.get('d'))) sel.value = Q.get('d');
   sel.onchange = () => { const u = new URL(location.href); u.searchParams.set('d', sel.value); location.href = u.toString(); };
   const day = sel.value;
-  const b1 = H.bars.filter(b => b.date === day);
-  const bars5 = agg(b1, 5);
+  const rth = b => { const m = toMin(b.etTime); return m >= 570 && m < 960; };
+  const b1 = H.bars.filter(b => b.date === day && rth(b));
+  const prevDay = days[days.indexOf(day) - 1];
+  const prevBars = prevDay ? H.bars.filter(b => b.date === prevDay && rth(b)) : [];
+  const pc = prevBars.length ? prevBars[prevBars.length - 1].close : null;
+  const op = b1.length ? b1[0].open : null;
+  const path = b1.map(b => [toMin(b.etTime), b.close]);
+  const isToday = day === etToday, live = isToday && etMin >= 570 && etMin < 960;
+  const last = b1.length ? b1[b1.length - 1] : null;
+  const cur = last ? { x: toMin(last.etTime), y: last.close, live } : null;
+  const chg = last && pc ? (last.close / pc - 1) * 100 : null;
+  const head = (icon, title, tag) => `<div class="bhead">${icon} ${title} <span class="r">${tag || ''}</span></div>`;
+  const pxHead = last ? `<div class="sub2">${day.slice(5)} · ${sym} <b style="color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px">${fmt(last.close)}</b> <span class="${chg >= 0 ? 'up' : 'dn'}" style="font-family:'JetBrains Mono',monospace;font-weight:700">${chg == null ? '' : (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%'}</span> · 전일 ${fmt(pc)}</div>` : '<div class="empty">이날 봉이 없어요</div>';
+  const base = [];
+  if (pc) base.push({ y: pc, c: '#9a9a9a', lab: '전일 ' + fmt(pc), dash: '4 3', w: 1 });
+  if (op && pc && Math.abs(op / pc - 1) > 0.002) base.push({ y: op, c: '#9a9a9a', lab: '시가 ' + fmt(op), dash: '1 3', w: 1 });
+  let html = '';
 
+  // ── 🌊 웨이브 (봇과 같은 밴드: 위 = max(시가,전일)×(1+σ), 아래 = min(시가,전일)×(1−σ)) ──
   if (K === 'wave') {
-    const w = D.wave || {}; const hist = w.hist || {};
-    const op = b1.length ? b1[0].open : null;
-    const CH = Array.from({ length: 12 }, (_, i) => 600 + i * 30);
-    const past = Object.keys(hist).filter(d => d < day).sort().slice(-14);
-    const sig = past.length >= 14 ? CH.map((_, j) => 0.8 * past.reduce((s, d) => s + Math.abs(hist[d].c[j] / hist[d].o - 1), 0) / 14) : null;
-    const lines = [];
-    if (sig && op) {
-      const st = (f) => CH.flatMap((x, j) => [[x, f(j)], [x + 30, f(j)]]);
-      lines.push({ pts: st(j => op * (1 + sig[j])), color: '#ff5b6e', dash: '6 4' }, { pts: st(j => op * (1 - sig[j])), color: '#4d8dff', dash: '6 4' });
+    const w = D.wave || {}, hist = w.hist || {};
+    const ks = Object.keys(hist).filter(d => d < day).sort().slice(-14);
+    const pcW = pc || (ks.length ? hist[ks[ks.length - 1]].c.slice(-1)[0] : null);
+    const opW = (w.day === day && w.op) ? +w.op : op;
+    let bands = null, nx = null;
+    if (ks.length >= 5 && opW && pcW) {
+      const hi = Math.max(opW, pcW), lo = Math.min(opW, pcW);
+      const done = (w.day === day && w.done) || [];
+      const pts = [];
+      for (let j = 0; j < 12; j++) {
+        let a = 0, n = 0; ks.forEach(k => { const h = hist[k]; if (h && h.c && h.c[j] && h.o) { a += Math.abs(h.c[j] / h.o - 1); n++; } });
+        const s = 0.8 * (n ? a / n : 0), em = 600 + 30 * j;
+        pts.push({ x: em, x2: j < 11 ? em + 30 : 960, ub: hi * (1 + s), lb: lo * (1 - s), done: !isToday || etMin >= em || done.includes(hm(em)), em });
+        if (nx == null && isToday && em > etMin) nx = j;
+      }
+      bands = { pts };
     }
     let pv = 0, vv = 0; const vw = b1.map(b => { const tp = (b.high + b.low + b.close) / 3; pv += tp * (b.volume || 0); vv += b.volume || 0; return [toMin(b.etTime), vv ? pv / vv : null]; });
-    lines.push({ pts: vw, color: '#ffffff', w: 1.5 });
-    if (op) lines.push({ pts: [[570, op], [960, op]], color: '#8a93a8', dash: '2 4', w: 1 });
-    const marks = [];
+    const marks = [], lines = [...base];
     for (const t of (w.trades || []).filter(t => t.d === day)) {
-      const sx = t.sym === 'SOXS';
-      // SOXS 거래는 SOXL 가격 축에 진입 시각만 표시
-      const xi = toMin(t.in), mo = String(t.out).match(/(\d\d):(\d\d)/), xo = mo ? +mo[1] * 60 + +mo[2] : null;
-      const bi = b1.find(b => toMin(b.etTime) >= xi), bo = xo == null ? null : b1.find(b => toMin(b.etTime) >= xo);
-      if (bi) marks.push({ x: xi, y: bi.close, type: sx ? 'dn' : 'up', color: sx ? '#4d8dff' : '#ff5b6e', label: sx ? '숏' : '롱' });
-      if (bo) marks.push({ x: xo, y: bo.close, type: 'x', color: t.pnl >= 0 ? '#3ddc97' : '#ffb547', label: usd(t.pnl) });
+      const side = t.sym === 'SOXS' ? -1 : 1, mi = toMin(t.in), mo = /15:50|종가/.test(t.out) ? 950 : toMin(t.out);
+      marks.push({ kind: 'in', side, x: mi, y: side > 0 ? +t.e : pxAt(b1, mi) });
+      if (mo != null) marks.push({ kind: 'out', x: mo, y: side > 0 ? +t.x : pxAt(b1, mo), lab: usd(t.pnl) });
     }
-    if (w.day === day && w.pos && w.entry_t) { const bi = b1.find(b => toMin(b.etTime) >= toMin(w.entry_t)); if (bi) marks.push({ x: toMin(w.entry_t), y: bi.close, type: w.pos > 0 ? 'up' : 'dn', color: '#ffb547', label: '보유 중' }); }
-    draw({ bars: bars5, lines, marks, xlab: XL, xmin: 570, xmax: 960 });
-    legend([['#ff5b6e', '위 밴드'], ['#4d8dff', '아래 밴드'], ['#ffffff', 'VWAP'], ['#8a93a8', '시가']]);
-    $('#info').innerHTML = `<b>SOXL 웨이브</b> <span class="sub">k 0.8 · 14일 · 30분마다 판단 (밴드는 화면용 근사)</span>` +
-      row('보유', w.pos ? `${w.pos > 0 ? '롱' : '숏'} ${esc(w.sym)} ${w.qty}주 @${f2(w.entry)}` : '없음') + row('누적 실현', usd(w.realized), w.realized >= 0 ? 'up' : 'dn');
-    $('#list').innerHTML = `<b>최근 거래</b><table><tr><th>날짜</th><th>시각</th><th>진입→청산</th><th>손익</th></tr>` +
-      (w.trades || []).slice().reverse().slice(0, 20).map(t => `<tr><td>${esc(t.d.slice(5))} ${esc(t.sym)}</td><td>${esc(t.in)} · ${esc(t.out)}</td><td>${f2(t.e)}→${f2(t.x)}</td><td class="${t.pnl >= 0 ? 'up' : 'dn'}">${usd(t.pnl)}</td></tr>`).join('') + '</table>';
+    const holding = w.day === day && +w.pos;
+    if (holding) {
+      const side = +w.pos > 0 ? 1 : -1, mi = toMin(w.entry_t);
+      marks.push({ kind: 'in', side, x: mi, y: side > 0 ? +w.entry : pxAt(b1, mi), lab: '보유 중' });
+      if (side > 0) lines.push({ y: +w.entry, c: '#facc15', lab: '진입 ' + fmt(+w.entry), left: 1 });
+    }
+    html += `<div class="chartbox">${head('🌊', 'SOXL 웨이브 밴드', w.day === day && w.op ? '시가 ' + fmt(+w.op) + ' 확정' : '')}`
+      + (holding ? `<div class="row" style="border-top:0;border-bottom:1px solid var(--border)"><span class="k">보유 중</span><span class="v">${+w.pos > 0 ? '📈 롱' : '📉 숏'} ${esc(w.sym)} ${(+w.qty).toLocaleString()}주 @ ${fmt(+w.entry)} (${esc(w.entry_t)} ET)</span></div>` : '')
+      + pxHead
+      + (b1.length ? chart({ path, x0: 570, x1: 960, xt: XT, bands, lines, marks, extra: vw, cur }) : '');
+    if (nx != null && bands) { const P = bands.pts[nx]; html += `<div class="info"><span style="color:var(--dim);font-size:11px">다음 판단 ${kst(P.em)}</span><span style="color:#f87171">위 ${fmt(P.ub)}</span><span style="color:#60a5fa">아래 ${fmt(P.lb)}</span>${last ? `<span style="margin-left:auto;color:var(--dim);font-size:11px">${last.close >= P.ub ? '위 돌파 중' : last.close <= P.lb ? '아래 돌파 중' : '↑' + (P.ub - last.close).toFixed(2) + ' ↓' + (last.close - P.lb).toFixed(2)}</span>` : ''}</div>`; }
+    html += row('누적 실현', usd(w.realized), w.realized >= 0 ? 'up' : 'dn')
+      + `<div class="note">빨강 위 밴드 · 파랑 아래 밴드 · 흰 선 가격 · 보라 점선 VWAP · ▲ 롱(SOXL) ▼ 숏(SOXS 매수) · ✕ 청산 · 초록 현재가(야후 ~10분 지연) · 시각은 한국 시각 · 30분마다 판단, 밴드 밖 + VWAP 같은 쪽이면 진입</div></div>`;
+    html += `<div class="chartbox">${head('🧾', '웨이브 거래', (w.trades || []).length + '건')}<table><tr><th>날짜</th><th>진입→청산</th><th>가격</th><th>손익</th></tr>`
+      + (w.trades || []).slice().reverse().slice(0, 20).map(t => `<tr><td>${esc(t.d.slice(5))} ${t.sym === 'SOXS' ? '숏' : '롱'}</td><td>${esc(t.in)}→${esc((String(t.out).match(/\d\d:\d\d/) || [t.out])[0])}</td><td>${fmt(t.e)}→${fmt(t.x)}</td><td class="${t.pnl >= 0 ? 'up' : 'dn'}">${usd(t.pnl)}</td></tr>`).join('') + '</table></div>';
   }
 
+  // ── 🚀 계좌2 돌파 / 🌙 밤 돌파 ──
   if (K === 'bo' || K === 'night') {
-    const S = K === 'bo' ? (D.bo || {}).state || {} : (D.night || {}).state || {};
-    const pl = S.plan || {};
-    const op = b1.length ? b1[0].open : null;
-    const lines = [];
-    let lv = pl.level ?? pl.lv ?? pl.lvl ?? null;
-    if (K === 'night' && lv == null && S.planMsg) { const m = String(S.planMsg).match(/=\s*([\d.]+)/); if (m) lv = +m[1]; }
-    if (op) lines.push({ pts: [[570, op], [960, op]], color: '#8a93a8', dash: '2 4', w: 1 });
-    if (lv && (!pl.date || pl.date === day || K === 'night')) lines.push({ pts: [[570, lv], [960, lv]], color: '#3ddc97', dash: '8 4', label: 1 });
-    const marks = [];
-    const pos = S.pos;
-    if (pos && pos.entry && (!pos.date || pos.date === day)) { const bi = b1.find(b => Math.abs(b.close - pos.entry) / pos.entry < 0.01); marks.push({ x: bi ? toMin(bi.etTime) : 900, y: pos.entry, type: 'up', color: '#ffb547', label: `매수 ${pos.qty || ''}` }); }
-    draw({ bars: bars5, lines, marks, xlab: XL, xmin: 570, xmax: 960 });
-    legend([['#3ddc97', '돌파가'], ['#8a93a8', '시가']]);
-    $('#info').innerHTML = `<b>${K === 'bo' ? '계좌2 돌파' : '밤 돌파'}</b> <span class="sub">${esc((K === 'bo' ? D.bo : D.night).mode)}</span>` +
-      row('오늘 판단', esc(K === 'night' ? (S.planMsg || '–') : `${pl.date || '–'} · ${pl.status || '–'} · ${pl.mode === 'atk' ? '공격' : pl.mode === 'def' ? '방어' : (pl.mode || '–')}`)) +
-      row('돌파가', f2(lv)) + row('보유', pos && pos.qty ? `${pos.qty}주 @${f2(pos.entry)}` : '없음') +
-      (S.n ? row('기록', `${S.n}번 · 승 ${S.win || 0} · ${usd(S.tot)}`) : '');
-    $('#list').innerHTML = `<details><summary class="sub">상태 원본</summary><pre style="white-space:pre-wrap;font-size:11px;color:#8a93a8">${esc(JSON.stringify(S, null, 1))}</pre></details>`;
-  }
-
-  if (K === 'pit') {
-    const b3 = agg(b1, 3); const rs = rsiSma(b3.map(b => b.c));
-    const R = (D.manual && D.manual.raw && D.manual.raw.rules) || {};
-    const marks = []; const lines = [];
-    for (const [k, st] of Object.entries(R)) {
-      if (!/^SOXL/i.test(k)) continue;
-      if (st.avg && st.st === 'hold') lines.push({ pts: [[570, st.avg], [960, st.avg]], color: '#ffb547', dash: '2 3', w: 1.5, label: 1 });
-      if (st.slPx && st.st === 'hold') lines.push({ pts: [[570, st.slPx], [960, st.slPx]], color: '#4d8dff', dash: '6 4', label: 1 });
-      if (st.halfPx && st.st === 'hold') lines.push({ pts: [[570, st.halfPx], [960, st.halfPx]], color: '#3ddc97', dash: '6 4', label: 1 });
+    const src = K === 'bo' ? (D.bo || {}) : (D.night || {}), S = src.state || {}, pl = S.plan || {};
+    let lv = pl.level ?? null;
+    if (K === 'night' && lv == null && S.planMsg) { const m = String(S.planMsg).match(/돌파가\s*=?\s*([\d.]+)/); if (m) lv = +m[1]; }
+    const lines = [...base];
+    const sameDay = !pl.date || pl.date === day;
+    if (lv && sameDay) lines.push({ y: lv, c: '#22c55e', lab: '돌파가 ' + fmt(lv), w: 1.6 });
+    if (pl.stop && sameDay) lines.push({ y: pl.stop, c: '#ef4444', lab: '손절 ' + fmt(pl.stop), dash: '4 3' });
+    const marks = [], pos = S.pos;
+    if (pos && pos.entry && (!pos.date || pos.date === day)) {
+      const bi = b1.find(b => b.high >= pos.entry && b.low <= pos.entry);
+      marks.push({ kind: 'in', side: 1, x: bi ? toMin(bi.etTime) : 945, y: pos.entry, lab: (pos.qty || '') + '주' });
+      lines.push({ y: pos.entry, c: '#facc15', lab: '진입 ' + fmt(pos.entry), left: 1 });
     }
-    // 웅덩이 표시: RSI 25 아래 → 30 위로
-    let low = false, depth = 100;
-    b3.forEach((b, i) => { const r = rs[i]; if (r == null) return; if (r < 30) { low = true; depth = Math.min(depth, r); } else if (low) { if (depth < 25) marks.push({ x: b.x, y: b.l, type: 'up', color: '#ff5b6e', label: '웅덩이' }); low = false; depth = 100; } });
-    draw({ bars: b3, lines, marks, xlab: XL, xmin: 570, xmax: 960, sub: { pts: b3.map((b, i) => [b.x, rs[i]]), levels: [25, 30, 71] } });
-    legend([['#ffb547', '평단 · RSI(14, 3분)'], ['#4d8dff', '손절'], ['#3ddc97', '절반 익절']]);
-    $('#info').innerHTML = `<b>웅덩이 · SOXL 3분봉</b> <span class="sub">▲ = RSI 25 아래로 빠졌다가 30 위로 올라온 봉 (봇 진입 신호와 같은 정의)</span>`;
-    $('#list').innerHTML = `<b>조건주문 줄</b>` + (D.manual.lines || []).map(l => { const st = R[l] || {}; return row(esc(l), st.st || (l.startsWith('#') ? '꺼짐' : '대기')); }).join('');
+    const modeTxt = pl.mode === 'atk' ? '공격' : pl.mode === 'def' ? '방어' : pl.mode === 'skip' ? '' : (pl.mode || '');
+    const stt = pl.status === 'skip' ? '오늘 안 함' : pl.status === 'wait' ? '돌파 대기' : pl.status === 'done' ? '끝' : (pl.status || '');
+    html += `<div class="chartbox">${head(K === 'bo' ? '🚀' : '🌙', K === 'bo' ? '계좌2 돌파' : '밤 돌파', esc(String(src.mode || '').toUpperCase()))}${pxHead}`
+      + (b1.length ? chart({ path, x0: 570, x1: 960, xt: XT, lines, marks, cur }) : '')
+      + (K === 'night' ? row('오늘 판단', esc(S.planMsg || '–')) : row('오늘 판단', esc(`${pl.date || '–'} · ${stt}${modeTxt ? ' · ' + modeTxt : ''}`)))
+      + row('돌파가', lv && sameDay ? fmt(lv) : '–', 'up')
+      + row('보유', pos && pos.qty ? `${pos.qty}주 @ ${fmt(pos.entry)}` : '없음')
+      + (S.n ? row('기록', `${S.n}번 · 승 ${S.win || 0} · ${usd(S.tot)}`) : '')
+      + `<div class="note">흰 선 가격 · 초록 돌파가 · 노랑 진입 · 회색 전일 종가/시가 · 시각은 한국 시각<details><summary>상태 원본</summary><pre>${esc(JSON.stringify(S, null, 1))}</pre></details></div></div>`;
   }
 
+  // ── 🕳 웅덩이 ──
+  if (K === 'pit') {
+    const M = D.manual || {}, R = (M.raw && M.raw.rules) || {};
+    const rules = Object.entries(R).filter(([k]) => new RegExp('^\\s*' + sym + '\\b', 'i').test(k));
+    const all3 = agg(H.bars.filter(rth), 3);
+    const rs = rsi(all3.map(b => b.c));
+    const idx = all3.map((b, i) => i).filter(i => all3[i].date === day);
+    const b3 = idx.map(i => all3[i]);
+    const p3 = b3.map(b => [b.x + 3, b.c]);
+    const dm = rules.map(([k]) => k.match(/PIT\d*M?\s*<\s*(\d+)/i)).find(Boolean);
+    const depth = dm ? +dm[1] : 25;
+    const marks = [], lines = [];
+    for (const i of idx) {
+      if (!(rs[i] >= 30 && rs[i - 1] != null && rs[i - 1] < 30)) continue;
+      let j = i - 1, mn = 100; while (j >= 0 && rs[j] != null && rs[j] < 30) { mn = Math.min(mn, rs[j]); j--; }
+      if (mn < depth) marks.push({ kind: 'sig', x: all3[i].x + 3, y: all3[i].l });
+    }
+    const holdTxt = [];
+    for (const [, st] of rules) {
+      const on = st.st === 'hold' || st.st === 'exiting';
+      if (st.lastSig && st.day === day && st.avg) {
+        const id = String(st.lastSig), km = +id.slice(8, 10) * 60 + +id.slice(10, 12);
+        marks.push({ kind: 'in', side: 1, x: (km - OFF * 60 + 1440) % 1440 + 3, y: st.avg, lab: '진입' });
+      }
+      if (on) {
+        if (st.avg) lines.push({ y: st.avg, c: '#facc15', lab: '진입 ' + fmt(st.avg), left: 1, w: 1.4 });
+        if (st.slPx) lines.push({ y: st.slPx, c: '#ef4444', lab: '손절 ' + fmt(st.slPx), w: 1.6 });
+        if (st.halfPx && !st.halfDone) lines.push({ y: st.halfPx, c: '#22c55e', lab: '절반 ' + fmt(st.halfPx), dash: '5 3' });
+        if (st.tpPx) lines.push({ y: st.tpPx, c: '#3b82f6', lab: '익절 ' + fmt(st.tpPx), w: 1.6 });
+        holdTxt.push(`${((st.bought || 0) - (st.sold || 0)).toLocaleString()}주 @ ${fmt(st.avg)}`);
+      }
+    }
+    const last3 = b3[b3.length - 1];
+    const cur3 = last3 ? { x: last3.x + 3, y: last3.c, live } : null;
+    const seg = ['SOXL', 'SOXS'].map(s => `<a href="?k=pit&s=${s}${Q.get('d') ? '&d=' + day : ''}" class="${s === sym ? 'on' : ''}">${s}</a>`).join('');
+    html += `<div class="chartbox">${head('🌀', '웅덩이 · 3분봉', holdTxt.length ? '보유 ' + holdTxt.join(', ') : '대기')}<div class="seg">${seg}</div>${pxHead}`
+      + (b3.length ? chart({ path: p3, x0: 570, x1: 960, xt: XT, lines, marks, cur: cur3, sub: { pts: idx.map(i => [all3[i].x + 3, rs[i]]), levels: [[70, '#666', '70'], [30, '#a78bfa', '30'], [depth, '#f97316', String(depth)]] } }) : '')
+      + `<div class="note">흰 선 3분봉 종가 · ○ 웅덩이 신호(RSI ${depth} 아래로 빠졌다 30 위로) · ▲ 진입 · 노랑 진입가 · 빨강 손절 · 초록 절반 익절 · 파랑 익절 · 아래 노란 선 RSI · 시각은 한국 시각</div></div>`;
+    html += `<div class="chartbox">${head('📝', '조건주문 줄', (M.lines || []).length + '줄')}`
+      + ((M.lines || []).map(l => { const st = R[l] || {}; const s = l.startsWith('#') ? '꺼짐' : st.st === 'hold' ? `보유 ${((st.bought || 0) - (st.sold || 0)).toLocaleString()}주` : (st.st || '대기'); return `<div class="row"><span class="k" style="font-family:'JetBrains Mono',monospace;font-size:10.5px">${esc(l)}</span><span class="v ${st.st === 'hold' ? 'gold' : ''}" style="white-space:nowrap">${esc(s)}</span></div>`; }).join('') || '<div class="empty">등록된 줄 없음</div>') + '</div>';
+  }
+
+  // ── 🎯 스나이퍼 ──
   if (K === 'sniper') {
     const Hd = await getJ('/api/history?symbol=SOXL&years=1&interval=1d');
-    const bd = Hd.bars.slice(-90).map((b, i) => ({ x: i, o: b.open, h: b.high, l: b.low, c: b.close, d: b.date }));
+    const bd = Hd.bars.slice(-90);
     const p = (D.sniper && D.sniper.plan) || {};
-    const lines = []; const n = bd.length;
-    for (const r of p.rows || []) if (r.price) lines.push({ pts: [[n - 6, r.price], [n + 2, r.price]], color: r.side === 'BUY' ? '#ff5b6e' : '#4d8dff', dash: '6 4', label: 1 });
-    const xl = bd.filter((b, i) => i % 15 === 0).map(b => [b.x, b.d.slice(5)]);
-    draw({ bars: bd, lines, marks: [], xlab: xl, xmin: 0, xmax: n + 2 });
-    legend([['#ff5b6e', '매수 LOC'], ['#4d8dff', '매도 LOC']]);
-    $('#info').innerHTML = `<b>스나이퍼</b> <span class="sub">일봉 90일 · 오늘 주문표 가격</span>` + row('주문표', esc(p.date) + ' · ' + (p.mode === 'def' ? '방어' : '공격')) + row('장부 주식 (주문 전)', (p.ledger_sh || 0).toLocaleString() + '주') + row('장부 자산', usd(p.ledger_E));
-    $('#list').innerHTML = `<b>주문표</b><table><tr><th>주문</th><th>가격</th><th>수량</th></tr>` + (p.rows || []).map(r => `<tr><td>${r.side === 'BUY' ? '매수' : '매도'} ${esc(r.tier || '')}</td><td>${r.price ? f2(r.price) : 'MOC'}</td><td>${r.qty.toLocaleString()}</td></tr>`).join('') + '</table>';
+    const n = bd.length, path2 = bd.map((b, i) => [i, b.close]);
+    const lines = (p.rows || []).filter(r => r.price).map(r => ({ y: r.price, c: r.side === 'BUY' ? '#22c55e' : '#a78bfa', lab: `${r.side === 'BUY' ? '매수' : '매도'} ${r.tier || ''} ${fmt(r.price)}`, dash: '5 3' }));
+    const xt = bd.map((b, i) => [i, b.date.slice(5)]).filter((_, i) => i % 20 === 0);
+    const lb = bd[n - 1], pb = bd[n - 2];
+    const ch = lb && pb ? (lb.close / pb.close - 1) * 100 : null;
+    html += `<div class="chartbox">${head('🎯', '스나이퍼 · 일봉 90일', p.mode === 'def' ? '방어' : p.mode === 'atk' ? '공격' : '')}`
+      + (lb ? `<div class="sub2">${lb.date.slice(5)} 종가 <b style="color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px">${fmt(lb.close)}</b> <span class="${ch >= 0 ? 'up' : 'dn'}" style="font-family:'JetBrains Mono',monospace;font-weight:700">${ch == null ? '' : (ch >= 0 ? '+' : '') + ch.toFixed(2) + '%'}</span></div>` : '')
+      + chart({ path: path2, x0: 0, x1: n - 1, xt, lines, area: true, cur: lb ? { x: n - 1, y: lb.close } : null })
+      + row('주문표', `${esc(p.date || '–')} · ${p.placed ? '접수됨' : '미접수'}`)
+      + row('장부 주식 (주문 전)', (p.ledger_sh || 0).toLocaleString() + '주')
+      + row('장부 자산', '$' + Math.round(p.ledger_E || 0).toLocaleString())
+      + `<div class="note">흰 선 종가 · 초록 매수 LOC · 보라 매도 LOC (오늘 주문표)</div></div>`;
+    html += `<div class="chartbox">${head('📋', '주문표', '')}<table><tr><th>주문</th><th>가격</th><th>수량</th></tr>`
+      + (p.rows || []).map(r => `<tr><td style="color:${r.side === 'BUY' ? '#22c55e' : '#a78bfa'}">${r.side === 'BUY' ? '매수' : '매도'} ${esc(r.tier || '')}</td><td>${r.price ? fmt(r.price) : 'MOC'}</td><td>${(r.qty || 0).toLocaleString()}</td></tr>`).join('') + '</table></div>';
   }
+  $('#main').innerHTML = html;
 }
-main().catch(e => { $('#info').innerHTML = `<span style="color:#ffb547">${esc(e.message || e)}</span>`; });
+main().catch(e => { $('#main').innerHTML = `<div class="chartbox"><div class="empty" style="color:var(--gold)">${esc(e.message || e)}</div></div>`; });
 // 당겨서 새로고침 — 맨 위에서 아래로 끌어내리면 다시 불러온다 (홈 화면 앱에서도 동작)
 (() => {
   const el = document.createElement('div');
