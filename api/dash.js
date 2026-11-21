@@ -94,7 +94,7 @@ export default async function handler(req, res) {
   try { vars = await V.readAll(); } catch (e) { vars = { _err: String(e.message || e) }; }
 
   const [q, plan, wave, cfg, mnq, mnqi] = await Promise.all([
-    lite ? [null, null, null, null] : Promise.all(['SOXL', 'SOXS', 'QQQ', 'KRW=X'].map(yq)),
+    lite ? [null, null, null, null, null] : Promise.all(['SOXL', 'SOXS', 'QQQ', 'KRW=X', 'MNQ=F'].map(yq)),
     sniperFile('plan.json'), sniperFile('wave.json'), sniperFile('config.json'),
     pubJson('mnq_state.json'), pubJson('mnq_intra_state.json'),
   ]);
@@ -118,7 +118,7 @@ export default async function handler(req, res) {
 
   res.status(200).json({
     ok: true, at: new Date().toISOString(),
-    px: { SOXL: q[0], SOXS: q[1], QQQ: q[2] }, fx: q[3] ? q[3].last : null,
+    px: { SOXL: q[0], SOXS: q[1], QQQ: q[2], MNQ: q[4] }, fx: q[3] ? q[3].last : null,
     acct1, acct2,
     extraShares: Number(vars.EXTRA_SHARES || 0),
     sniper: { plan, cfg },
