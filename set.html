@@ -1,1 +1,176 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>HUNTER 설정</title>
+<style>
+:root{--bg:#0b0d14;--card:#141826;--line:#232a3d;--tx:#e8ecf5;--dim:#8a93a8;--up:#ff5b6e;--dn:#4d8dff;--ok:#3ddc97;--warn:#ffb547;--acc:#9b7bff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:14px 14px 80px}
+h1{font-size:18px;margin:4px 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.card h2{font-size:15px;margin:0 0 6px}
+.sub{color:var(--dim);font-size:12px;margin-bottom:8px}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.seg button{flex:1;min-width:60px;padding:9px 6px;border-radius:10px;border:1px solid var(--line);background:#1b2133;color:var(--tx);font-size:14px}
+.seg button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+input,select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0f1320;color:var(--tx);font-size:15px}
+.rowf{display:flex;gap:8px;align-items:center;margin:6px 0}
+.rowf>*{flex:1}
+.btn{padding:10px 14px;border-radius:10px;border:0;background:var(--acc);color:#fff;font-size:15px}
+.btn.gray{background:#2a3149}.btn.red{background:#5a1e2a;color:#ffb3bd}
+.line{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px dashed #1e2436;font-size:12px}
+.line .t{flex:1;word-break:break-all}
+.line.off .t{color:#666;text-decoration:line-through}
+.sw{width:46px;height:26px;border-radius:13px;background:#2a3149;position:relative;flex:none;border:0}
+.sw::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#888;transition:.15s}
+.sw.on{background:var(--ok)}.sw.on::after{left:23px;background:#fff}
+.x{background:none;border:0;color:var(--dim);font-size:18px;flex:none}
+#msg{position:fixed;left:14px;right:14px;bottom:14px;padding:12px;border-radius:12px;background:#1d2a20;color:var(--ok);display:none;text-align:center}
+#msg.err{background:#3a1d22;color:var(--up)}
+a{color:#9fb7ff}
+label{font-size:13px;color:var(--dim)}
+</style>
+</head>
+<body>
+<h1>HUNTER 설정 <span class="sub" style="font-weight:400"> · <a href="dash.html">대시보드로</a></span></h1>
 
+<div class="card">
+  <h2>스나이퍼 시드</h2>
+  <div class="sub">봇이 9/22부터 이 시드로 장부를 다시 계산해서 다음 주문표를 만들어요. 반으로 줄이면 모든 티어 수량이 반이 돼요.</div>
+  <div class="rowf"><input id="seed" type="number" step="0.01"><button class="btn" onclick="saveSeed()">저장</button></div>
+  <div class="seg"><button onclick="$('#seed').value=375225">반반 375,225</button><button onclick="$('#seed').value=750450">원래 750,450</button></div>
+  <div class="sub" id="seedNow"></div>
+</div>
+
+<div class="card">
+  <h2>EXTRA_SHARES</h2>
+  <div class="sub">계좌 SOXL − 스나이퍼 장부 주식 수. 계좌가 적으면 음수. 봇이 장부와 계좌를 맞출 때 써요.</div>
+  <div class="rowf"><input id="extra" type="number" step="1"><button class="btn" onclick="saveVar('EXTRA_SHARES',$('#extra').value)">저장</button></div>
+</div>
+
+<div class="card">
+  <h2>SOXL 웨이브</h2>
+  <div class="sub">스나이퍼가 안 쓰는 현금 중 웨이브에 넣는 비율</div>
+  <div class="seg" id="waveCash"></div>
+  <div class="sub" style="margin-top:8px">모드</div>
+  <div class="seg" id="waveMode"></div>
+  <div class="sub" id="waveNow" style="margin-top:8px"></div>
+  <button class="btn red" onclick="waveReset()">웨이브 보유 기록 비우기</button>
+  <div class="sub" style="margin-top:6px">계좌에 웨이브 물량이 없는데 기록만 남아 있을 때만 누르세요.</div>
+</div>
+
+<div class="card">
+  <h2>계좌2 돌파</h2>
+  <div class="seg" id="boMode"></div>
+  <div class="sub">LIVE 는 계좌2 돈으로 실제 주문. 보유 중일 때 OFF 로 바꾸지 마세요.</div>
+</div>
+
+<div class="card">
+  <h2>밤 돌파</h2>
+  <div class="seg" id="nightMode"></div>
+  <div class="sub">비중 (NQ 20일선 위 / 아래)</div>
+  <div class="rowf"><input id="nwUp" type="number" step="0.1" min="0" max="1"><input id="nwDn" type="number" step="0.1" min="0" max="1"><button class="btn" onclick="saveNight()">저장</button></div>
+</div>
+
+<div class="card">
+  <h2>웅덩이 · 조건주문</h2>
+  <div class="sub">스위치로 켜고 끄기 (끄면 줄 앞에 # 이 붙어요). 보유 중인 줄을 끄면 그 물량의 손절 관리도 멈춰요.</div>
+  <div id="lines"></div>
+  <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+    <div class="sub">새 웅덩이 줄 만들기</div>
+    <div class="rowf">
+      <select id="nSym"><option>SOXL</option><option>SOXS</option></select>
+      <select id="nTf"><option value="3M">3분봉</option><option value="1M">1분봉</option><option value="5M">5분봉</option></select>
+    </div>
+    <div class="rowf">
+      <div><label>최대 수량</label><input id="nQty" type="number" value="1000"></div>
+      <div><label>RISK ($)</label><input id="nRisk" type="number" value="700"></div>
+    </div>
+    <div class="rowf">
+      <div><label>절반 익절 (R)</label><input id="nHalf" type="number" step="0.1" value="0.5"></div>
+      <div><label>봉우리 RSI</label><input id="nPeak" type="number" value="71"></div>
+    </div>
+    <div class="seg" id="nOpts"></div>
+    <div class="sub" id="nPrev" style="word-break:break-all"></div>
+    <button class="btn gray" onclick="addLine()">줄 추가</button>
+  </div>
+  <div style="margin-top:12px"><button class="btn" onclick="saveLines()">조건주문 저장</button> <span class="sub" id="dirty"></span></div>
+</div>
+
+<div id="msg"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let pin = (() => { try { return localStorage.getItem('dashPin') || sessionStorage.getItem('dashPin') || ''; } catch { return ''; } })();
+let V = {}, LINES = [], OPT = { RTH: true, EOD: false, REPEAT: true };
+function toast(t, err) { const m = $('#msg'); m.textContent = t; m.className = err ? 'err' : ''; m.style.display = 'block'; clearTimeout(window.__t); window.__t = setTimeout(() => m.style.display = 'none', 3500); }
+async function api(body) {
+  const r = await fetch('/api/settings', { method: body ? 'POST' : 'GET', headers: { 'x-pin': pin, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
+  const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status); return j;
+}
+function seg(el, opts, cur, onPick) {
+  $(el).innerHTML = opts.map(([v, t]) => `<button data-v="${v}" class="${String(v) === String(cur) ? 'on' : ''}">${t}</button>`).join('');
+  $(el).querySelectorAll('button').forEach(b => b.onclick = () => onPick(b.dataset.v));
+}
+async function saveVar(k, v) { try { await api({ set: { [k]: v } }); toast(`${k} 저장됨`); await load(); } catch (e) { toast(e.message, 1); } }
+async function saveSeed() {
+  const s = Number($('#seed').value); if (!s) return;
+  if (!confirm(`스나이퍼 시드를 ${s.toLocaleString()} 로 바꿀까요? 다음 주문표부터 수량이 바뀌어요.`)) return;
+  try { await api({ seed: s }); toast('시드 저장됨 · 다음 주문표부터 적용'); await load(); } catch (e) { toast(e.message, 1); }
+}
+async function waveReset() {
+  if (!confirm('웨이브 보유 기록을 비울까요? 계좌에 웨이브 물량이 없을 때만 하세요.')) return;
+  try { await api({ waveReset: true }); toast('웨이브 기록 비움'); await load(); } catch (e) { toast(e.message, 1); }
+}
+async function saveNight() { try { await api({ set: { NIGHT_W_UP: $('#nwUp').value, NIGHT_W_DN: $('#nwDn').value } }); toast('밤 돌파 비중 저장됨'); } catch (e) { toast(e.message, 1); } }
+
+function lineHtml() {
+  $('#lines').innerHTML = LINES.length ? LINES.map((l, i) => {
+    const off = l.startsWith('#'); const t = off ? l.replace(/^#\s*/, '') : l;
+    return `<div class="line ${off ? 'off' : ''}"><button class="sw ${off ? '' : 'on'}" onclick="tog(${i})"></button><span class="t">${t.replace(/</g, '&lt;')}</span><button class="x" onclick="del(${i})">✕</button></div>`;
+  }).join('') : '<div class="sub">줄 없음</div>';
+}
+function mark() { $('#dirty').textContent = '저장 안 됨'; }
+function tog(i) { const l = LINES[i]; LINES[i] = l.startsWith('#') ? l.replace(/^#\s*/, '') : '# ' + l; lineHtml(); mark(); }
+function del(i) { if (!confirm('이 줄을 지울까요?')) return; LINES.splice(i, 1); lineHtml(); mark(); }
+function build() {
+  const s = $('#nSym').value, tf = $('#nTf').value, q = Math.max(1, +$('#nQty').value || 1000), r = +$('#nRisk').value || 0, h = +$('#nHalf').value, pk = +$('#nPeak').value || 71;
+  let l = `${s} BUY ${q} PIT${tf}<25 PEAK${tf}>${pk} SL=LOW`;
+  if (h > 0) l += ` HALF=R${h}`;
+  if (OPT.EOD) l += ' EOD'; if (OPT.RTH) l += ' RTH';
+  if (r > 0) l += ` RISK=${r}`; if (OPT.REPEAT) l += ' REPEAT';
+  return l;
+}
+function opts() {
+  $('#nOpts').innerHTML = [['RTH', '정규장만'], ['EOD', '장 마감 정리'], ['REPEAT', '매일 반복']].map(([k, t]) => `<button class="${OPT[k] ? 'on' : ''}" data-k="${k}">${t}</button>`).join('');
+  $('#nOpts').querySelectorAll('button').forEach(b => b.onclick = () => { OPT[b.dataset.k] = !OPT[b.dataset.k]; opts(); });
+  $('#nPrev').textContent = build();
+}
+['#nSym', '#nTf', '#nQty', '#nRisk', '#nHalf', '#nPeak'].forEach(s => $(s).addEventListener('input', () => $('#nPrev').textContent = build()));
+function addLine() { LINES.push(build()); lineHtml(); mark(); }
+async function saveLines() { try { await api({ set: { MANUAL: LINES.join('\n') } }); $('#dirty').textContent = ''; toast('조건주문 저장됨 · 1분 안에 봇이 읽어요'); } catch (e) { toast(e.message, 1); } }
+
+async function load() {
+  if (!pin) { pin = (prompt('PIN 을 넣으세요') || '').trim(); try { localStorage.setItem('dashPin', pin); } catch {} try { sessionStorage.setItem('dashPin', pin); } catch {} }
+  if (!pin) return;
+  let j; try { j = await api(); } catch (e) { toast('불러오기 실패: ' + e.message, 1); $('#seedNow').textContent = '불러오기 실패: ' + e.message; if (/PIN/.test(e.message)) { try { localStorage.removeItem('dashPin'); } catch {} pin = ''; } return; }
+  V = j.vars || {};
+  $('#seed').value = j.cfg && j.cfg.seed || '';
+  $('#seedNow').textContent = j.cfg && !j.cfg.err ? `지금 시드 ${Number(j.cfg.seed).toLocaleString()} · 시작 ${j.cfg.start}` : (j.cfg && j.cfg.err || '');
+  $('#extra').value = V.EXTRA_SHARES ?? 0;
+  seg('#waveCash', [[0, '0'], [0.3, '0.3'], [0.5, '0.5'], [1, '1']], Number(V.WAVE_CASH ?? 0.3), v => saveVar('WAVE_CASH', v));
+  seg('#waveMode', [['OFF', 'OFF'], ['PAPER', 'PAPER'], ['LIVE', 'LIVE']], (V.WAVE_MODE || '').toUpperCase(), v => confirm(`웨이브 모드를 ${v} 로 바꿀까요?`) && saveVar('WAVE_MODE', v));
+  seg('#boMode', [['OFF', 'OFF'], ['PAPER', 'PAPER'], ['LIVE', 'LIVE']], (V.BO_MODE || 'PAPER').toUpperCase(), v => confirm(`계좌2 돌파를 ${v} 로 바꿀까요?`) && saveVar('BO_MODE', v));
+  seg('#nightMode', [['OFF', 'OFF'], ['PAPER', 'PAPER'], ['LIVE', 'LIVE']], (V.NIGHT_MODE || 'OFF').toUpperCase(), v => confirm(`밤 돌파를 ${v} 로 바꿀까요?`) && saveVar('NIGHT_MODE', v));
+  $('#nwUp').value = V.NIGHT_W_UP ?? 1; $('#nwDn').value = V.NIGHT_W_DN ?? 0.5;
+  const w = j.wave || {};
+  $('#waveNow').textContent = w.err ? w.err : `웨이브 기록: ${w.pos ? (w.pos > 0 ? '롱 ' : '숏 ') + (w.sym || '') + ' ' + w.qty + '주 @' + w.entry + ' (' + w.day + ')' : '보유 없음'}`;
+  if (!$('#dirty').textContent) { LINES = String(V.MANUAL || '').split('\n').map(s => s.trim()).filter(Boolean); lineHtml(); }
+  opts();
+}
+load();
+</script>
+</body>
+</html>
