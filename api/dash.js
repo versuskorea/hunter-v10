@@ -89,16 +89,17 @@ export default async function handler(req, res) {
   if (!pin) return res.status(503).json({ ok: false, error: 'DASH_PIN 이 아직 없어요 (Vercel 환경변수)' });
   if (!safeEq(String(req.headers['x-pin'] || ''), pin)) return res.status(401).json({ ok: false, error: 'PIN 이 틀려요' });
 
+  const lite = !!(req.query && req.query.chart);   // 차트 화면: 계좌 조회 생략 (빠르게)
   let vars = {};
   try { vars = await V.readAll(); } catch (e) { vars = { _err: String(e.message || e) }; }
 
   const [q, plan, wave, cfg, mnq, mnqi] = await Promise.all([
-    Promise.all(['SOXL', 'SOXS', 'QQQ', 'KRW=X'].map(yq)),
+    lite ? [null, null, null, null] : Promise.all(['SOXL', 'SOXS', 'QQQ', 'KRW=X'].map(yq)),
     sniperFile('plan.json'), sniperFile('wave.json'), sniperFile('config.json'),
     pubJson('mnq_state.json'), pubJson('mnq_intra_state.json'),
   ]);
-  const acct1 = await account(vars, { keyEnv: 'MERITZ_APP_KEY', secEnv: 'MERITZ_APP_SECRET', varName: 'MANUAL_TOKEN', salt: 'manual-token:' });
-  const acct2 = await account(vars, { keyEnv: 'MERITZ2_APP_KEY', secEnv: 'MERITZ2_APP_SECRET', varName: 'BO_TOKEN', salt: 'bo-token:' });
+  const acct1 = lite ? null : await account(vars, { keyEnv: 'MERITZ_APP_KEY', secEnv: 'MERITZ_APP_SECRET', varName: 'MANUAL_TOKEN', salt: 'manual-token:' });
+  const acct2 = lite ? null : await account(vars, { keyEnv: 'MERITZ2_APP_KEY', secEnv: 'MERITZ2_APP_SECRET', varName: 'BO_TOKEN', salt: 'bo-token:' });
 
   // 웅덩이(조건주문) — 줄과 줄별 상태
   const mstate = pj(vars.MANUAL_STATE) || {};
