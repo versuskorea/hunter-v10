@@ -110,7 +110,10 @@ export default async function handler(req, res) {
 
   // 웨이브 기록은 최근 30건만
   if (wave && Array.isArray(wave.trades)) wave.trades = wave.trades.slice(-30);
-  if (wave && wave.hist) delete wave.hist;
+  if (wave && wave.hist) {
+    if (req.query && req.query.full) { const ks = Object.keys(wave.hist).sort().slice(-20); wave.hist = Object.fromEntries(ks.map(k => [k, wave.hist[k]])); }
+    else delete wave.hist;
+  }
 
   res.status(200).json({
     ok: true, at: new Date().toISOString(),
