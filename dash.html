@@ -167,11 +167,16 @@ function render(j) {
   // MNQ
   const m = j.mnq; let mnqKrw = null;
   if (m) {
-    mnqKrw = m.equity;
-    const it = j.mnqIntra || {};
+    // MNQ 보드의 '현재 자산'과 같은 계산: 납입 시드 + 봇 실현 + 웨이브 실현 + 평가손익
+    const it = j.mnqIntra || {}, cf = m.cfg || {}, FXm = +cf.fx || 1360;
+    const seedM = (+cf.paid || 0) * 1e4, mpx = (px.MNQ && px.MNQ.last) || (m.quote && m.quote.px) || 0;
+    const unrM = (m.positions || []).reduce((a, q) => a + (mpx - q.entry) * 2 * (+q.qty || 1) * FXm, 0);
+    mnqKrw = seedM ? seedM + (+m.realized || 0) + (+it.realized || 0) + unrM : m.equity;
     const pos = (m.positions || []).length;
     cards.push(`<div class="card"><h2>MNQ <a href="mnq.html" class="tag">보드 →</a></h2>
-      <div class="big">${krw(m.equity)}</div>
+      <div class="big">${krw(mnqKrw)} <span class="${cls(mnqKrw - seedM)}" style="font-size:14px">${seedM ? sg((mnqKrw / seedM - 1) * 100) : ''}</span></div>
+      ${seedM ? row('시드 (납입)', krw(seedM)) : ''}
+      ${row('평가손익 (MNQ ' + f2(mpx) + ')', krw(unrM), cls(unrM))}
       ${row('봇 보유', pos + '계약 (' + (m.step || 0) + '티어)')}
       ${row('봇 실현손익', krw(m.realized), cls(m.realized))}
       ${row('웨이브', it.pos ? (it.pos > 0 ? '롱 ' : '숏 ') + it.qty + '계약 @' + f2(it.entry) : '없음')}
