@@ -111,17 +111,15 @@ function chart(o) {
     if (!(l.y > 0)) continue;
     const yy = Y(l.y);
     g += `<line x1="${L}" x2="${W0 - R}" y1="${yy}" y2="${yy}" stroke="${l.c}" stroke-width="${l.w || 1.2}" ${l.dash ? `stroke-dasharray="${l.dash}"` : ''}/>`;
-    let ty = yy - 3; while (labY.some(v => Math.abs(v - ty) < 10)) ty += 11; labY.push(ty);
-    g += l.left ? `<text x="${L + 4}" y="${ty}" font-size="9" font-weight="700" fill="${l.c}">${esc(l.lab)}</text>`
-                : `<text x="${W0 - R - 2}" y="${ty}" text-anchor="end" font-size="9" font-weight="700" fill="${l.c}">${esc(l.lab)}</text>`;
+    labY.push({ y: yy, c: l.c, lab: l.lab });
   }
   if (o.area && o.path.length > 1) {
     const d = o.path.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('');
-    g += `<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b82f6" stop-opacity=".28"/><stop offset="1" stop-color="#3b82f6" stop-opacity="0"/></linearGradient></defs>`
+    g += `<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${o.col || '#3b82f6'}" stop-opacity=".35"/><stop offset="1" stop-color="${o.col || '#3b82f6'}" stop-opacity="0"/></linearGradient></defs>`
       + `<path d="${d}L${X(o.path[o.path.length - 1][0])},${H0 - B}L${X(o.path[0][0])},${H0 - B}Z" fill="url(#ag)"/>`;
   }
   if (o.extra && o.extra.length > 1) g += `<path d="${o.extra.filter(p => p[1] != null).map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('')}" fill="none" stroke="#a78bfa" stroke-width="1" stroke-dasharray="3 2" opacity=".9"/>`;
-  if (o.path.length > 1) g += `<path d="${o.path.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('')}" fill="none" stroke="#e5e7eb" stroke-width="1.3" opacity=".9"/>`;
+  if (o.path.length > 1) g += `<path d="${o.path.map((p, i) => `${i ? 'L' : 'M'}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join('')}" fill="none" stroke="${o.col || '#e5e7eb'}" stroke-width="${o.col ? 1.7 : 1.3}" stroke-linejoin="round" opacity=".95"/>`;
   for (const m of o.marks || []) {
     if (m.x == null || !(m.y > 0)) continue;
     const x = X(Math.min(Math.max(m.x, o.x0), o.x1)), y = Y(m.y);
@@ -144,6 +142,13 @@ function chart(o) {
       g += `<line x1="${cx}" x2="${cx}" y1="${T}" y2="${H0 - B}" stroke="#4ade80" stroke-dasharray="3 2"/><circle cx="${cx}" cy="${cy}" r="4.5" fill="#4ade80" stroke="var(--card)" stroke-width="1.5"/>`;
     }
     g += `<rect x="0" y="${cy - 7}" width="${L - 2}" height="14" rx="3" fill="#4ade80"/><text x="${L - 5}" y="${cy + 3}" text-anchor="end" font-size="9" font-weight="800" fill="#0b1220">${fmt(o.cur.y)}</text>`;
+  }
+  // 선 이름표 (MNQ 보드처럼 오른쪽 상자, 겹치면 아래로)
+  labY.sort((a, b) => a.y - b.y);
+  for (let q = 1; q < labY.length; q++) if (labY[q].y - labY[q - 1].y < 15) labY[q].y = labY[q - 1].y + 15;
+  for (const t of labY) {
+    const w = t.lab.replace(/[가-힣]/g, '').length * 5.6 + (t.lab.match(/[가-힣]/g) || []).length * 9.5 + 10, x = W0 - R - w, y = Math.min(Math.max(t.y, T + 7), H0 - B - 7);
+    g += `<rect x="${x}" y="${y - 7}" width="${w}" height="14" rx="4" fill="#0b0b12" stroke="${t.c}"/><text x="${x + w / 2}" y="${y + 3}" fill="${t.c}" font-size="9" font-weight="700" text-anchor="middle">${esc(t.lab)}</text>`;
   }
   let H = H0;
   if (o.sub) {
@@ -199,11 +204,13 @@ async function main() {
   const last = b1.length ? b1[b1.length - 1] : null;
   const cur = last ? { x: toMin(last.etTime), y: last.close, live } : null;
   const chg = last && pc ? (last.close / pc - 1) * 100 : null;
+  const tone = chg == null ? null : chg >= 0 ? '#22c55e' : '#ef4444';
   const head = (icon, title, tag) => `<div class="bhead">${icon} ${title} <span class="r">${tag || ''}</span></div>`;
   const pxHead = last ? `<div class="sub2">${day.slice(5)} · ${sym} <b style="color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px">${fmt(last.close)}</b> <span class="${chg >= 0 ? 'up' : 'dn'}" style="font-family:'JetBrains Mono',monospace;font-weight:700">${chg == null ? '' : (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%'}</span> · 전일 ${fmt(pc)}</div>` : '<div class="empty">이날 봉이 없어요</div>';
   const base = [];
-  if (pc) base.push({ y: pc, c: '#22d3ee', lab: '전일 ' + fmt(pc), dash: '4 3', w: 1.3 });
-  if (op && pc && Math.abs(op / pc - 1) > 0.002) base.push({ y: op, c: '#f0f', lab: '시가 ' + fmt(op), dash: '2 3', w: 1.3 });
+  const PCC = K === 'wave' ? '#cbd5e1' : '#9a9a9a', OPC = K === 'wave' ? '#fbbf24' : '#38bdf8';   // MNQ 보드와 같은 색 (전일 회색 · 시가 하늘)
+  if (pc) base.push({ y: pc, c: PCC, lab: '전일 ' + fmt(pc), dash: '4 3', w: 1.3 });
+  if (op && pc && Math.abs(op / pc - 1) > 0.002) base.push({ y: op, c: OPC, lab: '시가 ' + fmt(op), dash: '2 3', w: 1.3 });
   let html = '';
 
   // ── 🌊 웨이브 (봇과 같은 밴드: 위 = max(시가,전일)×(1+σ), 아래 = min(시가,전일)×(1−σ)) ──
@@ -244,7 +251,7 @@ async function main() {
       + (b1.length ? chart({ path, x0: 570, x1: 960, xt: XT, bands, lines, marks, extra: vw, cur }) : '');
     if (nx != null && bands) { const P = bands.pts[nx]; html += `<div class="info"><span style="color:var(--dim);font-size:11px">다음 판단 ${kst(P.em)}</span><span style="color:#f87171">위 ${fmt(P.ub)}</span><span style="color:#60a5fa">아래 ${fmt(P.lb)}</span>${last ? `<span style="margin-left:auto;color:var(--dim);font-size:11px">${last.close >= P.ub ? '위 돌파 중' : last.close <= P.lb ? '아래 돌파 중' : '↑' + (P.ub - last.close).toFixed(2) + ' ↓' + (last.close - P.lb).toFixed(2)}</span>` : ''}</div>`; }
     html += row('누적 실현', usd(w.realized), w.realized >= 0 ? 'up' : 'dn')
-      + `<div class="note">빨강 위 밴드 · 파랑 아래 밴드 · 흰 선 가격 · 보라 점선 VWAP · 하늘색 전일 종가 · 분홍 시가 · ▲ 롱(SOXL) ▼ 숏(SOXS 매수) · ✕ 청산 · 초록 현재가(야후 ~10분 지연) · 시각은 한국 시각 · 30분마다 판단, 밴드 밖 + VWAP 같은 쪽이면 진입</div></div>`;
+      + `<div class="note">빨강 위 밴드 · 파랑 아래 밴드 · 흰 선 가격 · 보라 점선 VWAP · 밝은 회색 점선 전일 종가 · 주황 점선 시가 · ▲ 롱(SOXL) ▼ 숏(SOXS 매수) · ✕ 청산 · 초록 현재가(야후 ~10분 지연) · 시각은 한국 시각 · 30분마다 판단, 밴드 밖 + VWAP 같은 쪽이면 진입</div></div>`;
     html += `<div class="chartbox">${head('🧾', '웨이브 거래', (w.trades || []).length + '건')}<table><tr><th>날짜</th><th>진입→청산</th><th>가격</th><th>손익</th></tr>`
       + (w.trades || []).slice().reverse().slice(0, 20).map(t => `<tr><td>${esc(t.d.slice(5))} ${t.sym === 'SOXS' ? '숏' : '롱'}</td><td>${esc(t.in)}→${esc((String(t.out).match(/\d\d:\d\d/) || [t.out])[0])}</td><td>${fmt(t.e)}→${fmt(t.x)}</td><td class="${t.pnl >= 0 ? 'up' : 'dn'}">${usd(t.pnl)}</td></tr>`).join('') + '</table></div>';
   }
@@ -267,13 +274,13 @@ async function main() {
     const modeTxt = pl.mode === 'atk' ? '공격' : pl.mode === 'def' ? '방어' : pl.mode === 'skip' ? '' : (pl.mode || '');
     const stt = pl.status === 'skip' ? '오늘 안 함' : pl.status === 'wait' ? '돌파 대기' : pl.status === 'done' ? '끝' : (pl.status || '');
     html += `<div class="chartbox">${head(K === 'bo' ? '🚀' : '🌙', K === 'bo' ? '계좌2 돌파' : '밤 돌파', esc(String(src.mode || '').toUpperCase()))}${pxHead}`
-      + (b1.length ? chart({ path, x0: 570, x1: 960, xt: XT, lines, marks, cur }) : '')
+      + (b1.length ? chart({ path, x0: 570, x1: 960, xt: XT, lines, marks, cur, area: true, col: tone }) : '')
       + (K === 'night' ? row('오늘 판단', esc(S.planMsg || '–')) : row('오늘 판단', esc(`${pl.date || '–'} · ${stt}${modeTxt ? ' · ' + modeTxt : ''}${pl.why ? ' (' + pl.why + ')' : ''}`)))
       + row('돌파가', lv && sameDay ? fmt(lv) + (pl.open && pl.atr ? ` (시가 ${fmt(pl.open)} + ${pl.k} × ATR ${fmt(pl.atr)})` : '') : '–', 'up')
       + (K === 'bo' && pl.stop ? row('밤사이 손절', `NQ가 16:00 대비 −${(pl.stop * 100).toFixed(1)}%`) : '')
       + row('보유', pos && pos.qty ? `${pos.qty}주 @ ${fmt(pos.entry)}` : '없음')
       + (S.n ? row('기록', `${S.n}번 · 승 ${S.win || 0} · ${usd(S.tot)}`) : '')
-      + `<div class="note">흰 선 가격 · 초록 돌파가 · 노랑 진입 · 하늘색 전일 종가 · 분홍 시가 · 시각은 한국 시각<details><summary>상태 원본</summary><pre>${esc(JSON.stringify(S, null, 1))}</pre></details></div></div>`;
+      + `<div class="note">가격선 (전일보다 위 초록 · 아래 빨강) · 초록 돌파가 · 노랑 진입 · 회색 전일 종가 · 하늘 시가 · 시각은 한국 시각<details><summary>상태 원본</summary><pre>${esc(JSON.stringify(S, null, 1))}</pre></details></div></div>`;
   }
 
   // ── 🕳 웅덩이 ──
@@ -312,8 +319,8 @@ async function main() {
     const cur3 = last3 ? { x: last3.x + 3, y: last3.c, live } : null;
     const seg = ['SOXL', 'SOXS'].map(s => `<a href="?k=pit&s=${s}${Q.get('d') ? '&d=' + day : ''}" class="${s === sym ? 'on' : ''}">${s}</a>`).join('');
     html += `<div class="chartbox">${head('🌀', '웅덩이 · 3분봉', holdTxt.length ? '보유 ' + holdTxt.join(', ') : '대기')}<div class="seg">${seg}</div>${pxHead}`
-      + (b3.length ? chart({ path: p3, x0: 570, x1: 960, xt: XT, lines, marks, cur: cur3, sub: { pts: idx.map(i => [all3[i].x + 3, rs[i]]), levels: [[70, '#666', '70'], [30, '#a78bfa', '30'], [depth, '#f97316', String(depth)]] } }) : '')
-      + `<div class="note">흰 선 3분봉 종가 · ○ 웅덩이 신호(RSI ${depth} 아래로 빠졌다 30 위로) · ▲ 진입 · 노랑 진입가 · 빨강 손절 · 초록 절반 익절 · 파랑 익절 · 아래 노란 선 RSI · 시각은 한국 시각</div></div>`;
+      + (b3.length ? chart({ path: p3, x0: 570, x1: 960, xt: XT, lines, marks, cur: cur3, area: true, col: tone, sub: { pts: idx.map(i => [all3[i].x + 3, rs[i]]), levels: [[70, '#666', '70'], [30, '#a78bfa', '30'], [depth, '#f97316', String(depth)]] } }) : '')
+      + `<div class="note">가격선 3분봉 종가 · ○ 웅덩이 신호(RSI ${depth} 아래로 빠졌다 30 위로) · ▲ 진입 · 노랑 진입가 · 빨강 손절 · 초록 절반 익절 · 파랑 익절 · 아래 노란 선 RSI · 시각은 한국 시각</div></div>`;
     html += `<div class="chartbox">${head('📝', '조건주문 줄', (M.lines || []).length + '줄')}`
       + ((M.lines || []).map(l => { const st = R[l] || {}; const s = l.startsWith('#') ? '꺼짐' : st.st === 'hold' ? `보유 ${((st.bought || 0) - (st.sold || 0)).toLocaleString()}주` : (st.st || '대기'); return `<div class="row"><span class="k" style="font-family:'JetBrains Mono',monospace;font-size:10.5px">${esc(l)}</span><span class="v ${st.st === 'hold' ? 'gold' : ''}" style="white-space:nowrap">${esc(s)}</span></div>`; }).join('') || '<div class="empty">등록된 줄 없음</div>') + '</div>';
   }
@@ -330,11 +337,11 @@ async function main() {
     const ch = lb && pb ? (lb.close / pb.close - 1) * 100 : null;
     html += `<div class="chartbox">${head('🎯', '스나이퍼 · 일봉 90일', p.mode === 'def' ? '방어' : p.mode === 'atk' ? '공격' : '')}`
       + (lb ? `<div class="sub2">${lb.date.slice(5)} 종가 <b style="color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px">${fmt(lb.close)}</b> <span class="${ch >= 0 ? 'up' : 'dn'}" style="font-family:'JetBrains Mono',monospace;font-weight:700">${ch == null ? '' : (ch >= 0 ? '+' : '') + ch.toFixed(2) + '%'}</span></div>` : '')
-      + chart({ path: path2, x0: 0, x1: n - 1, xt, lines, area: true, cur: lb ? { x: n - 1, y: lb.close } : null })
+      + chart({ path: path2, x0: 0, x1: n - 1, xt, lines, area: true, col: ch >= 0 ? '#22c55e' : '#ef4444', cur: lb ? { x: n - 1, y: lb.close } : null })
       + row('주문표', `${esc(p.date || '–')} · ${p.placed ? '접수됨' : '미접수'}`)
       + row('장부 주식 (주문 전)', (p.ledger_sh || 0).toLocaleString() + '주')
       + row('장부 자산', '$' + Math.round(p.ledger_E || 0).toLocaleString())
-      + `<div class="note">흰 선 종가 · 초록 매수 LOC · 보라 매도 LOC (오늘 주문표)</div></div>`;
+      + `<div class="note">가격선 종가 · 초록 매수 LOC · 보라 매도 LOC (오늘 주문표)</div></div>`;
     html += `<div class="chartbox">${head('📋', '주문표', '')}<table><tr><th>주문</th><th>가격</th><th>수량</th></tr>`
       + (p.rows || []).map(r => `<tr><td style="color:${r.side === 'BUY' ? '#22c55e' : '#a78bfa'}">${r.side === 'BUY' ? '매수' : '매도'} ${esc(r.tier || '')}</td><td>${r.price ? fmt(r.price) : 'MOC'}</td><td>${(r.qty || 0).toLocaleString()}</td></tr>`).join('') + '</table></div>';
   }
