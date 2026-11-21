@@ -108,8 +108,8 @@ const XL = [[600, '10:00'], [660, '11:00'], [720, '12:00'], [780, '13:00'], [840
 
 async function main() {
   if (!pin) { location.href = 'dash.html'; return; }
-  const D = await getJ('/api/dash?full=1', { 'x-pin': pin });
-  const H = await getJ('/api/history?symbol=SOXL&interval=1m');
+  $('#info').innerHTML = '<span class="sub">불러오는 중…</span>';
+  const [D, H] = await Promise.all([getJ('/api/dash?full=1&chart=1', { 'x-pin': pin }), getJ('/api/history?symbol=SOXL&interval=1m')]);
   const days = [...new Set(H.bars.map(b => b.date))];
   const sel = $('#day'); sel.innerHTML = days.slice().reverse().map(d => `<option>${d}</option>`).join('');
   const want = new URLSearchParams(location.search).get('d'); if (want && days.includes(want)) sel.value = want;
