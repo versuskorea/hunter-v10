@@ -204,6 +204,25 @@ async function main() {
   }
 }
 main().catch(e => { $('#info').innerHTML = `<span style="color:#ffb547">${esc(e.message || e)}</span>`; });
+// 당겨서 새로고침 — 맨 위에서 아래로 끌어내리면 다시 불러온다 (홈 화면 앱에서도 동작)
+(() => {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;left:50%;top:0;transform:translate(-50%,-40px);padding:6px 14px;border-radius:99px;background:#9b7bff;color:#fff;font-size:13px;z-index:99;transition:transform .15s;pointer-events:none';
+  el.textContent = '↓ 당겨서 새로고침'; document.body.appendChild(el);
+  let y0 = null, dy = 0;
+  addEventListener('touchstart', e => { y0 = (scrollY <= 0) ? e.touches[0].clientY : null; dy = 0; }, { passive: true });
+  addEventListener('touchmove', e => {
+    if (y0 == null) return; dy = e.touches[0].clientY - y0;
+    if (dy <= 0) { el.style.transform = 'translate(-50%,-40px)'; return; }
+    el.style.transform = `translate(-50%,${Math.min(dy, 90) / 2}px)`;
+    el.textContent = dy > 80 ? '↻ 놓으면 새로고침' : '↓ 당겨서 새로고침';
+  }, { passive: true });
+  addEventListener('touchend', () => {
+    if (y0 != null && dy > 80) { el.textContent = '불러오는 중…'; location.reload(); }
+    else el.style.transform = 'translate(-50%,-40px)';
+    y0 = null; dy = 0;
+  });
+})();
 </script>
 </body>
 </html>
