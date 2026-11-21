@@ -16,6 +16,8 @@ h1{font-size:18px;margin:4px 0 2px}
 .grid{display:grid;gap:12px;grid-template-columns:1fr}
 @media(min-width:760px){.grid{grid-template-columns:1fr 1fr}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+.card{transition:transform .12s ease,background-color .12s ease;-webkit-tap-highlight-color:transparent}
+.card.press{transform:scale(.97);background:#1c2236}
 .card h2{font-size:15px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
 .tag{font-size:11px;padding:2px 8px;border-radius:99px;background:#232a3d;color:var(--dim)}
 .tag.live{background:#3a1520;color:var(--up)}.tag.paper{background:#1d2440;color:#8fb0ff}.tag.off{background:#222;color:#777}
@@ -224,8 +226,15 @@ setInterval(load, 60000);
 document.addEventListener('click', e => {
   if (e.target.closest('a,button,summary,details,input,select,textarea')) return;
   const c = e.target.closest('.card'); if (!c) return;
-  const a = c.querySelector('a[href^="chart.html"],a[href="mnq.html"]'); if (a) location.href = a.getAttribute('href');
+  const a = c.querySelector('a[href^="chart.html"],a[href="mnq.html"]'); if (a) { c.classList.add('press'); setTimeout(() => { location.href = a.getAttribute('href'); }, 120); }
 });
+// 누르는 동안 눌린 느낌 (스크롤하면 풀림), 뒤로 와도 풀림
+const linkCard = t => { const c = t.closest && t.closest('.card'); return c && c.querySelector('a[href^="chart.html"],a[href="mnq.html"]') ? c : null; };
+const unpress = () => document.querySelectorAll('.card.press').forEach(c => c.classList.remove('press'));
+document.addEventListener('touchstart', e => { const c = linkCard(e.target); if (c && !e.target.closest('a,button,summary,details')) c.classList.add('press'); }, { passive: true });
+document.addEventListener('touchmove', unpress, { passive: true });
+document.addEventListener('touchcancel', unpress, { passive: true });
+addEventListener('pageshow', unpress);
 // 당겨서 새로고침 — 맨 위에서 아래로 끌어내리면 다시 불러온다 (홈 화면 앱에서도 동작)
 (() => {
   const el = document.createElement('div');
