@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>HUNTER 대시보드</title>
+<style>
+:root{--bg:#0b0d14;--card:#141826;--line:#232a3d;--tx:#e8ecf5;--dim:#8a93a8;--up:#ff5b6e;--dn:#4d8dff;--ok:#3ddc97;--warn:#ffb547;--acc:#9b7bff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:14px 14px 60px}
+h1{font-size:18px;margin:4px 0 2px}
+.sub{color:var(--dim);font-size:12px}
+.strip{display:flex;gap:8px;overflow-x:auto;margin:12px 0}
+.chip{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px;min-width:110px}
+.chip b{display:block;font-size:16px}
+.grid{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:760px){.grid{grid-template-columns:1fr 1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
+.card h2{font-size:15px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
+.tag{font-size:11px;padding:2px 8px;border-radius:99px;background:#232a3d;color:var(--dim)}
+.tag.live{background:#3a1520;color:var(--up)}.tag.paper{background:#1d2440;color:#8fb0ff}.tag.off{background:#222;color:#777}
+.big{font-size:24px;font-weight:700}
+.row{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px dashed #1e2436}
+.row:last-child{border-bottom:0}
+.k{color:var(--dim)}
+.up{color:var(--up)}.dn{color:var(--dn)}.ok{color:var(--ok)}.warn{color:var(--warn)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td,th{padding:4px 2px;text-align:right;border-bottom:1px solid #1e2436}
+td:first-child,th:first-child{text-align:left}
+th{color:var(--dim);font-weight:500}
+a{color:#9fb7ff}
+.err{color:var(--warn);font-size:12px}
+#pin{display:none;max-width:320px;margin:80px auto;text-align:center}
+#pin input{width:100%;padding:12px;font-size:18px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--tx);text-align:center;letter-spacing:4px}
+#pin button,.btn{margin-top:10px;padding:10px 16px;border-radius:12px;border:0;background:var(--acc);color:#fff;font-size:15px}
+.foot{margin-top:18px;color:var(--dim);font-size:12px;text-align:center}
+details summary{cursor:pointer;color:var(--dim);font-size:12px;margin-top:6px}
+pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div id="pin">
+  <h1>HUNTER</h1>
+  <div class="sub">PIN 을 넣으세요 (Vercel 환경변수 DASH_PIN)</div>
+  <input id="pinIn" type="password" inputmode="numeric" autocomplete="off">
+  <button onclick="savePin()">들어가기</button>
+  <div id="pinErr" class="err"></div>
+</div>
+
+<div id="app" style="display:none">
+  <h1>HUNTER 대시보드</h1>
+  <div class="sub" id="at">불러오는 중…</div>
+  <div class="strip" id="strip"></div>
+  <div class="card" style="margin-bottom:12px">
+    <h2>전체 자산 <span class="tag" id="fxTag"></span></h2>
+    <div class="big" id="totKrw">–</div>
+    <div id="totRows"></div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="foot">
+    <a href="mnq.html">MNQ 보드</a> · <a href="index.html?old=1">예전 화면</a> · <a href="#" onclick="logout()">PIN 지우기</a><br>
+    1분마다 새로고침 · 주문은 봇만 냅니다
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const f2 = x => x == null || isNaN(x) ? '–' : Number(x).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const f0 = x => x == null || isNaN(x) ? '–' : Math.round(Number(x)).toLocaleString('en-US');
+const usd = x => x == null || isNaN(x) ? '–' : (x < 0 ? '−$' : '$') + f0(Math.abs(x));
+const krw = x => x == null || isNaN(x) ? '–' : (Math.abs(x) >= 1e8 ? (x / 1e8).toFixed(2) + '억' : f0(x / 1e4) + '만') + '원';
+const pct = (a, b) => (a && b) ? ((a / b - 1) * 100) : null;
+const cls = v => v == null ? '' : v > 0 ? 'up' : v < 0 ? 'dn' : '';
+const sg = v => v == null ? '–' : (v > 0 ? '+' : '') + v.toFixed(2) + '%';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const row = (k, v, c = '') => `<div class="row"><span class="k">${k}</span><span class="${c}">${v}</span></div>`;
+const modeTag = m => { m = String(m || '').toUpperCase(); return `<span class="tag ${m === 'LIVE' ? 'live' : m === 'PAPER' ? 'paper' : 'off'}">${m || 'OFF'}</span>`; };
+
+function getPin() { try { return localStorage.getItem('dashPin') || ''; } catch { return ''; } }
+function savePin() { const v = $('#pinIn').value.trim(); try { localStorage.setItem('dashPin', v); } catch {} window.__pin = v; load(); }
+function logout() { try { localStorage.removeItem('dashPin'); } catch {} location.reload(); }
+
+async function load() {
+  const pin = window.__pin || getPin();
+  if (!pin) { $('#pin').style.display = 'block'; $('#app').style.display = 'none'; return; }
+  let j;
+  try {
+    const r = await fetch('/api/dash', { headers: { 'x-pin': pin }, cache: 'no-store' });
+    j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+  } catch (e) {
+    $('#pin').style.display = 'block'; $('#app').style.display = 'none'; $('#pinErr').textContent = String(e.message || e); return;
+  }
+  $('#pin').style.display = 'none'; $('#app').style.display = 'block';
+  render(j);
+}
+
+function acctCard(title, a, px, extra) {
+  if (!a || a.err) return { html: `<div class="card"><h2>${title}</h2><div class="err">${esc(a && a.err || '불러오기 실패')}</div></div>`, usd: null };
+  let val = a.cash || 0, rows = '';
+  for (const [s, h] of Object.entries(a.hold || {})) {
+    if (!h.qty) continue;
+    const p = px[s] ? px[s].last : null; const v = p ? h.qty * p : h.qty * h.avg; val += v;
+    const pl = p ? (p - h.avg) * h.qty : null;
+    rows += `<tr><td>${s}</td><td>${f0(h.qty)}</td><td>${f2(h.avg)}</td><td>${f2(p)}</td><td class="${cls(pl)}">${usd(pl)}</td></tr>`;
+  }
+  const html = `<div class="card"><h2>${title} ${extra || ''}</h2>
+    <div class="big">${usd(val)}</div>
+    ${row('현금', usd(a.cash))}
+    ${rows ? `<table><tr><th>종목</th><th>수량</th><th>평단</th><th>현재</th><th>평가손익</th></tr>${rows}</table>` : row('보유', '없음')}
+  </div>`;
+  return { html, usd: val };
+}
+
+function render(j) {
+  const px = j.px || {}; const fx = j.fx || 1350;
+  $('#at').textContent = '갱신 ' + new Date(j.at).toLocaleString('ko-KR', { hour12: false });
+  $('#strip').innerHTML = ['SOXL', 'SOXS', 'QQQ'].map(s => {
+    const q = px[s]; if (!q) return '';
+    const c = pct(q.last, q.prev);
+    return `<div class="chip"><span class="k">${s}</span><b>${f2(q.last)}</b><span class="${cls(c)}">${sg(c)}</span></div>`;
+  }).join('');
+  $('#fxTag').textContent = '환율 ' + f0(fx);
+
+  const cards = [];
+  // 계좌1 · 계좌2
+  const a1 = acctCard('계좌1 · 스나이퍼·웨이브·밤돌파·웅덩이', j.acct1, px);
+  const a2 = acctCard('계좌2 · 돌파', j.acct2, px, modeTag(j.bo && j.bo.mode));
+  cards.push(a1.html, a2.html);
+
+  // MNQ
+  const m = j.mnq; let mnqKrw = null;
+  if (m) {
+    mnqKrw = m.equity;
+    const it = j.mnqIntra || {};
+    const pos = (m.positions || []).length;
+    cards.push(`<div class="card"><h2>MNQ <a href="mnq.html" class="tag">보드 →</a></h2>
+      <div class="big">${krw(m.equity)}</div>
+      ${row('봇 보유', pos + '계약 (' + (m.step || 0) + '티어)')}
+      ${row('봇 실현손익', krw(m.realized), cls(m.realized))}
+      ${row('웨이브', it.pos ? (it.pos > 0 ? '롱 ' : '숏 ') + it.qty + '계약 @' + f2(it.entry) : '없음')}
+      ${row('웨이브 누적 실현', krw(it.realized), cls(it.realized))}
+      ${row('최근 처리일', esc(m.last_date))}
+    </div>`);
+  }
+
+  // 전체
+  const tot = (a1.usd || 0) * fx + (a2.usd || 0) * fx + (mnqKrw || 0);
+  $('#totKrw').textContent = krw(tot);
+  $('#totRows').innerHTML = row('계좌1', a1.usd == null ? '–' : usd(a1.usd) + ' · ' + krw(a1.usd * fx)) + row('계좌2', a2.usd == null ? '–' : usd(a2.usd) + ' · ' + krw(a2.usd * fx)) + row('MNQ', krw(mnqKrw));
+
+  // 스나이퍼
+  const p = j.sniper && j.sniper.plan;
+  if (p && !p.err) {
+    const soxl = (j.acct1 && j.acct1.hold && j.acct1.hold.SOXL) ? j.acct1.hold.SOXL.qty : null;
+    const rows = (p.rows || []).map(r => `<tr><td>${r.side === 'BUY' ? '<span class="up">매수</span>' : '<span class="dn">매도</span>'} ${esc(r.tier || '')}</td><td>${r.type}</td><td>${r.price ? f2(r.price) : 'MOC'}</td><td>${f0(r.qty)}</td></tr>`).join('');
+    const lp = px.SOXL ? px.SOXL.last : null;
+    cards.push(`<div class="card"><h2>스나이퍼 <span class="tag">${p.mode === 'def' ? '방어' : p.mode === 'atk' ? '공격' : esc(p.mode)}</span></h2>
+      ${row('주문표 날짜', esc(p.date) + (p.placed ? ' · 접수됨' : ' · 미접수'))}
+      ${row('장부 주식 (주문 전)', f0(p.ledger_sh) + '주')}
+      ${row('장부 자산 (주문 전 종가)', usd(p.ledger_E))}
+      ${row('계좌 SOXL', soxl == null ? '–' : f0(soxl) + '주')}
+      ${row('EXTRA_SHARES', f0(j.extraShares))}
+      ${rows ? `<table><tr><th>주문</th><th>방식</th><th>가격</th><th>수량</th></tr>${rows}</table>` : ''}
+      ${lp && p.rows ? row('지금가 대비 매도가', p.rows.filter(r => r.side === 'SELL' && r.price).map(r => sg(pct(r.price, lp))).slice(0, 1).join('') || '–') : ''}
+    </div>`);
+  } else cards.push(`<div class="card"><h2>스나이퍼</h2><div class="err">${esc(p && p.err || '주문표 없음')}</div></div>`);
+
+  // SOXL 웨이브
+  const w = j.wave;
+  if (w && !w.err) {
+    const lp = w.sym && px[w.sym] ? px[w.sym].last : null;
+    const open = w.pos && w.qty ? (lp - w.entry) * w.qty : null;
+    const tr = (w.trades || []).slice(-5).reverse().map(t => `<tr><td>${esc(t.d.slice(5))} ${esc(t.sym)}</td><td>${esc(t.in)}→${esc(String(t.out).split(' ')[0])}</td><td>${f2(t.e)}→${f2(t.x)}</td><td class="${cls(t.pnl)}">${usd(t.pnl)}</td></tr>`).join('');
+    cards.push(`<div class="card"><h2>SOXL 웨이브 <span class="tag">${esc(w.day || '')}</span></h2>
+      ${row('보유', w.pos ? `${w.pos > 0 ? '롱' : '숏'} · ${esc(w.sym)} ${f0(w.qty)}주 @${f2(w.entry)} (${esc(w.entry_t)})` : '없음')}
+      ${open != null ? row('평가손익', usd(open), cls(open)) : ''}
+      ${row('누적 실현', usd(w.realized), cls(w.realized))}
+      ${tr ? `<table><tr><th>날짜</th><th>시각</th><th>진입→청산</th><th>손익</th></tr>${tr}</table>` : ''}
+    </div>`);
+  }
+
+  // 계좌2 돌파
+  const b = j.bo || {}; const bs = b.state || {};
+  const pl = bs.plan || {};
+  cards.push(`<div class="card"><h2>계좌2 돌파 ${modeTag(b.mode)}</h2>
+    ${row('오늘', esc(pl.date || '–') + ' · ' + esc(pl.status || '–'))}
+    ${row('모드', esc(pl.mode === 'atk' ? '공격' : pl.mode === 'def' ? '방어' : pl.mode || '–'))}
+    ${pl.level != null ? row('돌파가', f2(pl.level)) : ''}${pl.lv != null ? row('돌파가', f2(pl.lv)) : ''}
+    ${row('보유', bs.pos && bs.pos.qty ? `${f0(bs.pos.qty)}주 @${f2(bs.pos.entry)}` : '없음')}
+    ${bs.paper ? row('PAPER 자산', usd(bs.paper.cash + (bs.paper.sq || 0) * (px.SOXL ? px.SOXL.last : 0))) : ''}
+    ${bs.errMsg ? `<div class="err">${esc(bs.errMsg)}</div>` : ''}
+    <details><summary>상태 원본</summary><pre>${esc(JSON.stringify(bs, null, 1))}</pre></details>
+  </div>`);
+
+  // 밤 돌파
+  const n = j.night || {}; const ns = n.state || {};
+  cards.push(`<div class="card"><h2>밤 돌파 ${modeTag(n.mode)}</h2>
+    ${row('오늘 판단', esc(ns.planMsg || '–'))}
+    ${row('보유', ns.pos && ns.pos.qty ? `${f0(ns.pos.qty)}주` : '없음')}
+    ${ns.n ? row('기록', `${ns.n}번 · 승 ${ns.win || 0} · 합계 ${usd(ns.tot)}`) : ''}
+    ${row('마지막 실행', esc(ns.last || '–'))}
+    ${ns.errMsg ? `<div class="err">${esc(ns.errMsg)}</div>` : ''}
+  </div>`);
+
+  // 웅덩이 (조건주문)
+  const mn = j.manual || {}; const R = (mn.raw && mn.raw.rules) || {};
+  const lines = (mn.lines || []).map(l => {
+    const off = l.startsWith('#'); const st = R[l] || {};
+    const held = (st.bought || 0) - (st.sold || 0);
+    const s = off ? '<span class="k">꺼짐</span>' : st.st === 'hold' ? `<span class="up">보유 ${f0(held)}주</span>` : st.st === 'done' ? '끝' : st.st || '대기';
+    const det = st.st === 'hold' ? `<div class="sub">평단 ${f2(st.avg)} · 손절 ${f2(st.slPx)}${st.halfPx ? ' · 절반 ' + f2(st.halfPx) : ''}${st.tpPx ? ' · 익절 ' + f2(st.tpPx) : ''}</div>` : '';
+    return `<div class="row" style="display:block"><div style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:12px">${esc(l)}</span><span>${s}</span></div>${det}</div>`;
+  }).join('');
+  cards.push(`<div class="card"><h2>웅덩이 · 조건주문</h2>${lines || '<div class="k">등록된 줄 없음</div>'}</div>`);
+
+  $('#grid').innerHTML = cards.join('');
+}
+
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>
