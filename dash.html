@@ -104,7 +104,8 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
         <div><label>최대 수량</label><input id="nQty" type="number" inputmode="numeric" value="1000"></div>
         <div><label>RISK ($)</label><input id="nRisk" type="number" inputmode="numeric" value="700"></div>
         <div><label>절반 익절 (R)</label><input id="nHalf" type="number" inputmode="decimal" step="0.1" value="0.5"></div>
-        <div><label>봉우리 RSI</label><input id="nPeak" type="number" inputmode="numeric" value="71"></div>
+        <div><label>웅덩이 RSI (이 아래)</label><input id="nPit" type="number" inputmode="numeric" value="25"></div>
+        <div><label>봉우리 RSI (이 위)</label><input id="nPeak" type="number" inputmode="numeric" value="71"></div>
       </div>
       <div class="ob" id="nOpts"></div>
       <div id="nPrev"></div>
@@ -324,8 +325,8 @@ async function pitSave(msg) {
 function pitTog(i) { const l = LINES[i]; LINES[i] = l.startsWith('#') ? l.replace(/^#\s*/, '') : '# ' + l; pitSave(LINES[i].startsWith('#') ? '끔' : '켬'); }
 function pitDel(i) { if (!confirm('이 줄을 지울까요?\n' + LINES[i])) return; LINES.splice(i, 1); pitSave('지움'); }
 function build() {
-  const s = $('#nSym').value, tf = $('#nTf').value, q = Math.max(1, +$('#nQty').value || 1000), r = +$('#nRisk').value || 0, h = +$('#nHalf').value, pk = +$('#nPeak').value || 71;
-  let l = `${s} BUY ${q} PIT${tf}<25 PEAK${tf}>${pk} SL=LOW`;
+  const s = $('#nSym').value, tf = $('#nTf').value, q = Math.max(1, +$('#nQty').value || 1000), r = +$('#nRisk').value || 0, h = +$('#nHalf').value, pk = +$('#nPeak').value || 71, pt = Math.min(50, Math.max(5, +$('#nPit').value || 25));
+  let l = `${s} BUY ${q} PIT${tf}<${pt} PEAK${tf}>${pk} SL=LOW`;
   if (h > 0) l += ` HALF=R${h}`;
   if (OPT.EOD) l += ' EOD'; if (OPT.RTH) l += ' RTH';
   if (r > 0) l += ` RISK=${r}`; if (OPT.REPEAT) l += ' REPEAT';
@@ -336,7 +337,7 @@ function opts() {
   $('#nOpts').querySelectorAll('button').forEach(b => b.onclick = () => { OPT[b.dataset.k] = !OPT[b.dataset.k]; opts(); });
   $('#nPrev').textContent = build();
 }
-['#nSym', '#nTf', '#nQty', '#nRisk', '#nHalf', '#nPeak'].forEach(s => $(s).addEventListener('input', () => $('#nPrev').textContent = build()));
+['#nSym', '#nTf', '#nQty', '#nRisk', '#nHalf', '#nPit', '#nPeak'].forEach(s => $(s).addEventListener('input', () => $('#nPrev').textContent = build()));
 opts();
 function addLine() { const l = build(); if (LINES.includes(l)) { pmsg('같은 줄이 이미 있어요', 1); return; } LINES.push(l); pitSave('추가함'); }
 
