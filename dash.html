@@ -155,7 +155,7 @@ function render(j) {
     const soxl = (j.acct1 && j.acct1.hold && j.acct1.hold.SOXL) ? j.acct1.hold.SOXL.qty : null;
     const rows = (p.rows || []).map(r => `<tr><td>${r.side === 'BUY' ? '<span class="up">매수</span>' : '<span class="dn">매도</span>'} ${esc(r.tier || '')}</td><td>${r.type}</td><td>${r.price ? f2(r.price) : 'MOC'}</td><td>${f0(r.qty)}</td></tr>`).join('');
     const lp = px.SOXL ? px.SOXL.last : null;
-    cards.push(`<div class="card"><h2>스나이퍼 <span class="tag">${p.mode === 'def' ? '방어' : p.mode === 'atk' ? '공격' : esc(p.mode)}</span></h2>
+    cards.push(`<div class="card"><h2>스나이퍼 <span class="tag">${p.mode === 'def' ? '방어' : p.mode === 'atk' ? '공격' : esc(p.mode)}</span> <a href="chart.html?k=sniper" class="tag">차트 →</a></h2>
       ${row('주문표 날짜', esc(p.date) + (p.placed ? ' · 접수됨' : ' · 미접수'))}
       ${row('장부 주식 (주문 전)', f0(p.ledger_sh) + '주')}
       ${row('장부 자산 (주문 전 종가)', usd(p.ledger_E))}
@@ -172,7 +172,7 @@ function render(j) {
     const lp = w.sym && px[w.sym] ? px[w.sym].last : null;
     const open = w.pos && w.qty ? (lp - w.entry) * w.qty : null;
     const tr = (w.trades || []).slice(-5).reverse().map(t => `<tr><td>${esc(t.d.slice(5))} ${esc(t.sym)}</td><td>${esc(t.in)}→${esc(String(t.out).split(' ')[0])}</td><td>${f2(t.e)}→${f2(t.x)}</td><td class="${cls(t.pnl)}">${usd(t.pnl)}</td></tr>`).join('');
-    cards.push(`<div class="card"><h2>SOXL 웨이브 <span class="tag">${esc(w.day || '')}</span></h2>
+    cards.push(`<div class="card"><h2>SOXL 웨이브 <span class="tag">${esc(w.day || '')}</span> <a href="chart.html?k=wave" class="tag">차트 →</a></h2>
       ${row('보유', w.pos ? `${w.pos > 0 ? '롱' : '숏'} · ${esc(w.sym)} ${f0(w.qty)}주 @${f2(w.entry)} (${esc(w.entry_t)})` : '없음')}
       ${open != null ? row('평가손익', usd(open), cls(open)) : ''}
       ${row('누적 실현', usd(w.realized), cls(w.realized))}
@@ -183,7 +183,7 @@ function render(j) {
   // 계좌2 돌파
   const b = j.bo || {}; const bs = b.state || {};
   const pl = bs.plan || {};
-  cards.push(`<div class="card"><h2>계좌2 돌파 ${modeTag(b.mode)}</h2>
+  cards.push(`<div class="card"><h2>계좌2 돌파 ${modeTag(b.mode)} <a href="chart.html?k=bo" class="tag">차트 →</a></h2>
     ${row('오늘', esc(pl.date || '–') + ' · ' + esc(pl.status || '–'))}
     ${row('모드', esc(pl.mode === 'atk' ? '공격' : pl.mode === 'def' ? '방어' : pl.mode || '–'))}
     ${pl.level != null ? row('돌파가', f2(pl.level)) : ''}${pl.lv != null ? row('돌파가', f2(pl.lv)) : ''}
@@ -195,7 +195,7 @@ function render(j) {
 
   // 밤 돌파
   const n = j.night || {}; const ns = n.state || {};
-  cards.push(`<div class="card"><h2>밤 돌파 ${modeTag(n.mode)}</h2>
+  cards.push(`<div class="card"><h2>밤 돌파 ${modeTag(n.mode)} <a href="chart.html?k=night" class="tag">차트 →</a></h2>
     ${row('오늘 판단', esc(ns.planMsg || '–'))}
     ${row('보유', ns.pos && ns.pos.qty ? `${f0(ns.pos.qty)}주` : '없음')}
     ${ns.n ? row('기록', `${ns.n}번 · 승 ${ns.win || 0} · 합계 ${usd(ns.tot)}`) : ''}
@@ -212,7 +212,7 @@ function render(j) {
     const det = st.st === 'hold' ? `<div class="sub">평단 ${f2(st.avg)} · 손절 ${f2(st.slPx)}${st.halfPx ? ' · 절반 ' + f2(st.halfPx) : ''}${st.tpPx ? ' · 익절 ' + f2(st.tpPx) : ''}</div>` : '';
     return `<div class="row" style="display:block"><div style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:12px">${esc(l)}</span><span>${s}</span></div>${det}</div>`;
   }).join('');
-  cards.push(`<div class="card"><h2>웅덩이 · 조건주문</h2>${lines || '<div class="k">등록된 줄 없음</div>'}</div>`);
+  cards.push(`<div class="card"><h2>웅덩이 · 조건주문 <a href="chart.html?k=pit" class="tag">차트 →</a></h2>${lines || '<div class="k">등록된 줄 없음</div>'}</div>`);
 
   $('#grid').innerHTML = cards.join('');
 }
