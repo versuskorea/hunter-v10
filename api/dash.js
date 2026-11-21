@@ -109,8 +109,31 @@ export default async function handler(req, res) {
     raw: mstate,
   };
 
-  // 웨이브 기록은 최근 30건만
-  if (wave && Array.isArray(wave.trades)) wave.trades = wave.trades.slice(-30);
+  // 웨이브 기록: 대시보드는 최근 30건, 차트(full)는 전부 (레이스·활동 피드용)
+  const full = !!(req.query && req.query.full);
+  if (wave && Array.isArray(wave.trades) && !full) wave.trades = wave.trades.slice(-30);
+
+  // 하루 한 번 자산 기록 (HUNTER_DAILY) — 수익 레이스용. 대시보드를 연 날만 쌓인다.
+  let daily = pj(vars.HUNTER_DAILY) || {};
+  try {
+    if (!lite && acct1 && !acct1.err && q[3]) {
+      const key = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+      if (!daily[key]) {
+        const pxOf = s => (s === 'SOXL' ? q[0] : s === 'SOXS' ? q[1] : null);
+        const val = a => (a && !a.err) ? (a.cash || 0) + Object.entries(a.hold || {}).reduce((t, [s, h]) => t + (h.qty || 0) * ((pxOf(s) && pxOf(s).last) || h.avg || 0), 0) : null;
+        const cf = (mnq && mnq.cfg) || {}, mp = (q[4] && q[4].last) || (mnq && mnq.quote && mnq.quote.px) || 0;
+        const unr = ((mnq && mnq.positions) || []).reduce((t, p) => t + (mp - p.entry) * 2 * (+p.qty || 1) * (+cf.fx || 1360), 0);
+        daily[key] = {
+          sn: plan && plan.ledger_E ? Math.round(plan.ledger_E) : null,
+          a1: Math.round(val(acct1) || 0), a2: Math.round(val(acct2) || 0),
+          mnq: mnq ? Math.round((+cf.paid || 0) * 1e4 + (+mnq.realized || 0) + (+(mnqi && mnqi.realized) || 0) + unr) : null,
+          fx: Math.round(q[3].last),
+        };
+        const ks = Object.keys(daily).sort().slice(-400); daily = Object.fromEntries(ks.map(k => [k, daily[k]]));
+        await V.write('HUNTER_DAILY', JSON.stringify(daily), 'HUNTER_DAILY' in vars);
+      }
+    }
+  } catch { /* 기록 실패는 무시 */ }
   if (wave && wave.hist) {
     if (req.query && req.query.full) { const ks = Object.keys(wave.hist).sort().slice(-20); wave.hist = Object.fromEntries(ks.map(k => [k, wave.hist[k]])); }
     else delete wave.hist;
@@ -126,7 +149,8 @@ export default async function handler(req, res) {
     bo: { mode: vars.BO_MODE || 'PAPER', state: pj(vars.BO_STATE) },
     night: { mode: vars.NIGHT_MODE || 'OFF', state: pj(vars.NIGHT_STATE) },
     manual,
-    mnq: mnq ? { ...mnq, hist: undefined, history: undefined } : null,
+    mnq: mnq ? { ...mnq, hist: undefined, history: (mnq.history || []).slice(full ? -200 : -10) } : null,
+    daily,
     mnqIntra: mnqi ? { ...mnqi, hist: undefined, history: undefined } : null,
   });
 }
