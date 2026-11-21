@@ -20,7 +20,8 @@
 //   EOD                           진입한 거래일 15:45 ET MOC 정리
 //   PEAK5M>80                     5분봉 RSI14 가 80 위로 올랐다가 70 아래로 다시 꺾인 봉에서 매도 (1M·15M·30M·60M 도, 숫자 생략 시 80)
 //   TRAIL=2% | TRAIL=1.5          트레일링 스탑: 감시·매수 뒤 최고가에서 2% / $1.5 내려오면 매도 (SL 과 같이 쓰면 더 높은 쪽)
-//   HALF=R0.5                     손절폭의 0.5배 오르면 절반 매도, 나머지는 손절을 본전으로 올리고 계속 (SL 필요)
+//   HALF=R0.5                     손절폭의 0.5배 오르면 절반 매도, 나머지는 손절 그대로 두고 계속 (SL 필요)
+//   HALF=R0.5BE                   위와 같지만 절반 매도 뒤 나머지 손절을 본전으로 올림
 // 예) SOXL BUY 500 PIT15M<20 TREND=UP RTH SL=LOW TP=R1 EOD RISK=1500 REPEAT
 //     SOXS BUY 300 NOW TP=+3% SL=-2.5%
 //     SOXS SELL 1000 TP=60 SL=48      ← 이미 가진 주식 (퍼센트는 평균단가 기준)
@@ -66,7 +67,7 @@ export function parseRules(text, year) {
       else if ((m = w.match(new RegExp(`^TP=${N}$`)))) r.tp = { k: 'abs', v: Number(m[1]) };
       else if ((m = w.match(new RegExp(`^TP=\\+${N}%$`)))) r.tp = { k: 'pct', v: Number(m[1]) };
       else if ((m = w.match(new RegExp(`^TP=R${N}$`)))) r.tp = { k: 'R', v: Number(m[1]) };
-      else if ((m = w.match(new RegExp(`^HALF=R${N}$`)))) r.half = Number(m[1]);
+      else if ((m = w.match(new RegExp(`^HALF=R${N}(BE)?$`)))) { r.half = Number(m[1]); r.halfBE = !!m[2]; }
       else if ((m = w.match(new RegExp(`^SL=${N}$`)))) r.sl = { k: 'abs', v: Number(m[1]) };
       else if ((m = w.match(new RegExp(`^SL=-${N}%$`)))) r.sl = { k: 'pct', v: -Number(m[1]) };
       else if (w === 'SL=LOW') r.sl = { k: 'low' };
