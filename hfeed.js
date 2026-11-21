@@ -50,7 +50,8 @@
     if (mr.errs) out.push({ ts: Infinity, when: '지금', icon: '⚠️', text: `웅덩이 ${mr.errs}`, pnl: null, warn: 1 });
     for (const [k, st] of Object.entries(mr.rules || {})) if (st.st === 'hold' && st.day) push(at(st.day, '12:00'), '🕳', `웅덩이 진입 · ${k.split(' ')[0]} ${((st.bought || 0) - (st.sold || 0)).toLocaleString()}주 @${f2(st.avg)}`, null, { kind: 'in' });
     const p = j.sniper && j.sniper.plan;
-    if (p && p.date) push(at(p.date, '09:00'), '🎯', `스나이퍼 주문표 ${p.date.slice(5)} · ${p.mode === 'def' ? '방어' : '공격'} · ${(p.rows || []).length}건${p.placed ? ' 접수' : ''}`, null);
+    const kst = s => { const d = new Date(s * 1000 + 9 * 3600e3); return { ts: Math.floor(s / 60) + 540, txt: `${d.getUTCMonth() + 1}/${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}` }; };
+    if (p && p.date) push(+p.created ? kst(+p.created) : at(p.date, '09:00'), '🎯', `스나이퍼 주문표 ${p.date.slice(5)} · ${p.mode === 'def' ? '방어' : '공격'} · ${(p.rows || []).length}건${p.placed ? ' 접수' : ''}`, null);
     return out.filter(x => x.ts != null).sort((a, b) => b.ts - a.ts);
   }
 
