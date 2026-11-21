@@ -38,7 +38,23 @@ a{color:#9fb7ff}
 .foot{margin-top:18px;color:var(--dim);font-size:12px;text-align:center}
 details summary{cursor:pointer;color:var(--dim);font-size:12px;margin-top:6px}
 pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
-.card:has(a[href^="chart.html"]),.card:has(a[href="mnq.html"]){cursor:pointer}
+.card:not(.nolink):has(a[href^="chart.html"]),.card:not(.nolink):has(a[href="mnq.html"]){cursor:pointer}
+.pl{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed #1e2436}
+.pl .t{flex:1;font-size:12px;word-break:break-all}.pl.off .t{color:#5a6278;text-decoration:line-through}
+.sw{flex:none;width:40px;height:24px;border-radius:99px;border:0;background:#2a3147;position:relative;padding:0}
+.sw::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#8a93a8;transition:left .15s}
+.sw.on{background:#3ddc97}.sw.on::after{left:19px;background:#fff}
+.xb{flex:none;border:0;background:#2a1820;color:#ff8a9a;border-radius:8px;width:30px;height:28px;font-size:13px}
+.pst{font-size:12px;white-space:nowrap}
+.nb{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.nb .g{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:6px}
+.nb label{display:block;font-size:10.5px;color:var(--dim);margin-bottom:2px}
+.nb input,.nb select{width:100%;padding:7px;border-radius:9px;border:1px solid var(--line);background:#0f1320;color:var(--tx);font-size:14px}
+.ob{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.ob button{border:1px solid var(--line);background:#0f1320;color:var(--dim);border-radius:99px;padding:5px 10px;font-size:12px}
+.ob button.on{border-color:var(--acc);color:#fff;background:#231c40}
+#nPrev{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#c9b8ff;margin-top:8px;word-break:break-all}
+#pmsg{font-size:12px;margin-top:6px;min-height:16px}
 </style>
 </head>
 <body>
@@ -60,8 +76,25 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
     <div id="totRows"></div>
   </div>
   <div class="grid" id="grid"></div>
+  <div id="pitTools" style="display:none">
+    <div class="nb">
+      <div class="sub">새 웅덩이 줄 추가</div>
+      <div class="g">
+        <div><label>종목</label><select id="nSym"><option>SOXL</option><option>SOXS</option></select></div>
+        <div><label>봉</label><select id="nTf"><option value="3M">3분봉</option><option value="1M">1분봉</option><option value="5M">5분봉</option></select></div>
+        <div><label>최대 수량</label><input id="nQty" type="number" inputmode="numeric" value="1000"></div>
+        <div><label>RISK ($)</label><input id="nRisk" type="number" inputmode="numeric" value="700"></div>
+        <div><label>절반 익절 (R)</label><input id="nHalf" type="number" inputmode="decimal" step="0.1" value="0.5"></div>
+        <div><label>봉우리 RSI</label><input id="nPeak" type="number" inputmode="numeric" value="71"></div>
+      </div>
+      <div class="ob" id="nOpts"></div>
+      <div id="nPrev"></div>
+      <button class="btn" style="width:100%" onclick="addLine()">＋ 이 줄 추가 (바로 저장)</button>
+    </div>
+    <div id="pmsg"></div>
+  </div>
   <div class="foot">
-    <a href="set.html"><b>⚙️ 설정 · 웅덩이</b></a> · <a href="mnq.html">MNQ 보드</a> · <a href="index.html?old=1">예전 화면</a> · <a href="#" onclick="logout()">PIN 지우기</a><br>
+    <a href="set.html"><b>⚙️ 설정</b></a> · <a href="mnq.html">MNQ 보드</a> · <a href="index.html?old=1">예전 화면</a> · <a href="#" onclick="logout()">PIN 지우기</a><br>
     1분마다 새로고침 · 주문은 봇만 냅니다
   </div>
 </div>
@@ -206,30 +239,67 @@ function render(j) {
     ${ns.errMsg ? `<div class="err">${esc(ns.errMsg)}</div>` : ''}
   </div>`);
 
-  // 웅덩이 (조건주문)
-  const mn = j.manual || {}; const R = (mn.raw && mn.raw.rules) || {};
-  const lines = (mn.lines || []).map(l => {
-    const off = l.startsWith('#'); const st = R[l] || {};
-    const held = (st.bought || 0) - (st.sold || 0);
-    const s = off ? '<span class="k">꺼짐</span>' : st.st === 'hold' ? `<span class="up">보유 ${f0(held)}주</span>` : st.st === 'done' ? '끝' : st.st || '대기';
-    const det = st.st === 'hold' ? `<div class="sub">평단 ${f2(st.avg)} · 손절 ${f2(st.slPx)}${st.halfPx ? ' · 절반 ' + f2(st.halfPx) : ''}${st.tpPx ? ' · 익절 ' + f2(st.tpPx) : ''}</div>` : '';
-    return `<div class="row" style="display:block"><div style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:12px">${esc(l)}</span><span>${s}</span></div>${det}</div>`;
-  }).join('');
-  cards.push(`<div class="card"><h2>웅덩이 · 조건주문 <a href="chart.html?k=pit" class="tag">차트 →</a></h2>${lines || '<div class="k">등록된 줄 없음</div>'}</div>`);
-
+  // 웅덩이 (조건주문) — 여기서 바로 켜기/끄기·지우기·추가 (카드 통째 이동 없음, 차트는 오른쪽 위 버튼)
+  const mn = j.manual || {}; PIT_R = (mn.raw && mn.raw.rules) || {};
+  if (!PIT_BUSY) LINES = (mn.lines || []).slice();
+  cards.push(`<div class="card nolink"><h2>웅덩이 · 조건주문 <a href="chart.html?k=pit" class="tag">차트 →</a></h2><div id="pitLines"></div><div id="pitSlot"></div></div>`);
   $('#grid').innerHTML = cards.join('');
+  pitLines();
+  const tools = $('#pitTools'); $('#pitSlot').appendChild(tools); tools.style.display = 'block';
 }
+
+// ── 웅덩이 조작 ──
+let LINES = [], PIT_R = {}, PIT_BUSY = false;
+const OPT = { RTH: false, EOD: false, REPEAT: true };
+function pitLines() {
+  const el = $('#pitLines'); if (!el) return;
+  el.innerHTML = LINES.length ? LINES.map((l, i) => {
+    const off = l.startsWith('#'), t = off ? l.replace(/^#\s*/, '') : l, st = PIT_R[l] || {};
+    const held = (st.bought || 0) - (st.sold || 0);
+    const s = off ? '<span class="k">꺼짐</span>' : st.st === 'hold' ? `<span class="up">보유 ${f0(held)}주</span>` : st.st === 'done' ? '<span class="k">끝</span>' : `<span class="k">${esc(st.st || '대기')}</span>`;
+    const det = st.st === 'hold' ? `<div class="sub">평단 ${f2(st.avg)} · 손절 ${f2(st.slPx)}${st.halfPx && !st.halfDone ? ' · 절반 ' + f2(st.halfPx) : ''}${st.tpPx ? ' · 익절 ' + f2(st.tpPx) : ''}</div>` : '';
+    return `<div class="pl ${off ? 'off' : ''}"><button class="sw ${off ? '' : 'on'}" onclick="pitTog(${i})" aria-label="켜기/끄기"></button><div class="t">${esc(t)}${det}</div><span class="pst">${s}</span><button class="xb" onclick="pitDel(${i})" aria-label="지우기">✕</button></div>`;
+  }).join('') : '<div class="k" style="font-size:13px">등록된 줄 없음</div>';
+}
+function pmsg(t, err) { const m = $('#pmsg'); if (m) { m.textContent = t; m.className = err ? 'err' : 'ok'; } }
+async function pitSave(msg) {
+  PIT_BUSY = true; pitLines(); pmsg('저장 중…');
+  try {
+    const r = await fetch('/api/settings', { method: 'POST', headers: { 'x-pin': window.__pin || getPin(), 'content-type': 'application/json' }, body: JSON.stringify({ set: { MANUAL: LINES.join('\n') } }) });
+    const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status);
+    pmsg(msg + ' · 1분 안에 봇이 읽어요');
+  } catch (e) { pmsg('저장 실패: ' + (e.message || e), 1); }
+  PIT_BUSY = false;
+}
+function pitTog(i) { const l = LINES[i]; LINES[i] = l.startsWith('#') ? l.replace(/^#\s*/, '') : '# ' + l; pitSave(LINES[i].startsWith('#') ? '끔' : '켬'); }
+function pitDel(i) { if (!confirm('이 줄을 지울까요?\n' + LINES[i])) return; LINES.splice(i, 1); pitSave('지움'); }
+function build() {
+  const s = $('#nSym').value, tf = $('#nTf').value, q = Math.max(1, +$('#nQty').value || 1000), r = +$('#nRisk').value || 0, h = +$('#nHalf').value, pk = +$('#nPeak').value || 71;
+  let l = `${s} BUY ${q} PIT${tf}<25 PEAK${tf}>${pk} SL=LOW`;
+  if (h > 0) l += ` HALF=R${h}`;
+  if (OPT.EOD) l += ' EOD'; if (OPT.RTH) l += ' RTH';
+  if (r > 0) l += ` RISK=${r}`; if (OPT.REPEAT) l += ' REPEAT';
+  return l;
+}
+function opts() {
+  $('#nOpts').innerHTML = [['RTH', '정규장만'], ['EOD', '장 마감 정리'], ['REPEAT', '매일 반복']].map(([k, t]) => `<button class="${OPT[k] ? 'on' : ''}" data-k="${k}">${t}</button>`).join('');
+  $('#nOpts').querySelectorAll('button').forEach(b => b.onclick = () => { OPT[b.dataset.k] = !OPT[b.dataset.k]; opts(); });
+  $('#nPrev').textContent = build();
+}
+['#nSym', '#nTf', '#nQty', '#nRisk', '#nHalf', '#nPeak'].forEach(s => $(s).addEventListener('input', () => $('#nPrev').textContent = build()));
+opts();
+function addLine() { const l = build(); if (LINES.includes(l)) { pmsg('같은 줄이 이미 있어요', 1); return; } LINES.push(l); pitSave('추가함'); }
 
 load();
 setInterval(load, 60000);
 // 카드 아무 데나 누르면 그 카드의 차트(보드)로 이동 — 링크·버튼·펼치기는 원래대로
 document.addEventListener('click', e => {
   if (e.target.closest('a,button,summary,details,input,select,textarea')) return;
-  const c = e.target.closest('.card'); if (!c) return;
+  const c = e.target.closest('.card'); if (!c || c.classList.contains('nolink')) return;
   const a = c.querySelector('a[href^="chart.html"],a[href="mnq.html"]'); if (a) { c.classList.add('press'); setTimeout(() => { location.href = a.getAttribute('href'); }, 120); }
 });
 // 누르는 동안 눌린 느낌 (스크롤하면 풀림), 뒤로 와도 풀림
-const linkCard = t => { const c = t.closest && t.closest('.card'); return c && c.querySelector('a[href^="chart.html"],a[href="mnq.html"]') ? c : null; };
+const linkCard = t => { const c = t.closest && t.closest('.card'); return c && !c.classList.contains('nolink') && c.querySelector('a[href^="chart.html"],a[href="mnq.html"]') ? c : null; };
 const unpress = () => document.querySelectorAll('.card.press').forEach(c => c.classList.remove('press'));
 // 폰: 손 떼는 순간 직접 이동 (아이폰은 누를 때 모양이 바뀌면 click 을 안 보내는 경우가 있음)
 let tc = null, tx = 0, ty = 0;
