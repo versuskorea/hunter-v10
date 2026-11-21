@@ -257,7 +257,8 @@ async function main() {
     const lines = [...base];
     const sameDay = !pl.date || pl.date === day;
     if (lv && sameDay) lines.push({ y: lv, c: '#22c55e', lab: '돌파가 ' + fmt(lv), w: 1.6 });
-    if (pl.stop && sameDay) lines.push({ y: pl.stop, c: '#ef4444', lab: '손절 ' + fmt(pl.stop), dash: '4 3' });
+    const stopPx = pl.stop > 1 ? pl.stop : (S.pos && S.pos.entry && pl.stop ? S.pos.entry * (1 - pl.stop) : null);
+    if (stopPx && sameDay) lines.push({ y: stopPx, c: '#ef4444', lab: '손절 ' + fmt(stopPx), dash: '4 3' });
     const marks = [], pos = S.pos;
     if (pos && pos.entry && (!pos.date || pos.date === day)) {
       const bi = b1.find(b => b.high >= pos.entry && b.low <= pos.entry);
@@ -268,7 +269,7 @@ async function main() {
     const stt = pl.status === 'skip' ? '오늘 안 함' : pl.status === 'wait' ? '돌파 대기' : pl.status === 'done' ? '끝' : (pl.status || '');
     html += `<div class="chartbox">${head(K === 'bo' ? '🚀' : '🌙', K === 'bo' ? '계좌2 돌파' : '밤 돌파', esc(String(src.mode || '').toUpperCase()))}${pxHead}`
       + (b1.length ? chart({ path, x0: 570, x1: 960, xt: XT, lines, marks, cur }) : '')
-      + (K === 'night' ? row('오늘 판단', esc(S.planMsg || '–')) : row('오늘 판단', esc(`${pl.date || '–'} · ${stt}${modeTxt ? ' · ' + modeTxt : ''}`)))
+      + (K === 'night' ? row('오늘 판단', esc(S.planMsg || '–')) : row('오늘 판단', esc(`${pl.date || '–'} · ${stt}${modeTxt ? ' · ' + modeTxt : ''}${pl.why ? ' (' + pl.why + ')' : ''}`)))
       + row('돌파가', lv && sameDay ? fmt(lv) : '–', 'up')
       + row('보유', pos && pos.qty ? `${pos.qty}주 @ ${fmt(pos.entry)}` : '없음')
       + (S.n ? row('기록', `${S.n}번 · 승 ${S.win || 0} · ${usd(S.tot)}`) : '')
