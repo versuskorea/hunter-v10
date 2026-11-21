@@ -52,12 +52,13 @@ pre{white-space:pre-wrap;font-size:10px;color:var(--dim);padding:6px 0 0}
 <div class="tabs" id="tabs"></div>
 <div id="main"><div class="chartbox"><div class="empty">불러오는 중…</div></div></div>
 
+<script src="hfeed.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const Q = new URLSearchParams(location.search);
 const K = Q.get('k') || 'wave';
 const pin = (() => { try { return localStorage.getItem('dashPin') || sessionStorage.getItem('dashPin') || ''; } catch { return ''; } })();
-const TABS = [['wave', '🌊 웨이브'], ['bo', '🚀 계좌2 돌파'], ['night', '🌙 밤 돌파'], ['pit', '🌀 웅덩이'], ['sniper', '🎯 스나이퍼']];
+const TABS = [['wave', '🌊 웨이브'], ['bo', '🚀 계좌2 돌파'], ['night', '🌙 밤 돌파'], ['pit', '🌀 웅덩이'], ['sniper', '🎯 스나이퍼'], ['race', '🏁 레이스'], ['feed', '📜 활동']];
 $('#tabs').innerHTML = TABS.map(([k, t]) => `<a href="?k=${k}" class="${k === K ? 'on' : ''}">${t}</a>`).join('') + '<a href="mnq.html">📈 MNQ</a>';
 
 const fmt = x => x == null || !isFinite(x) ? '–' : Number(x).toFixed(2);
@@ -188,6 +189,7 @@ async function main() {
   if (!pin) { location.href = 'dash.html'; return; }
   const sym = K === 'pit' && (Q.get('s') || '').toUpperCase() === 'SOXS' ? 'SOXS' : 'SOXL';
   const [D, H] = await Promise.all([getJ('/api/dash?full=1&chart=1', { 'x-pin': pin }), getJ(`/api/history?symbol=${sym}&interval=1m`)]);
+  if (K === 'race' || K === 'feed') { $('#day').style.display = 'none'; extra(D); return; }
   const days = [...new Set(H.bars.map(b => b.date))];
   const sel = $('#day'); sel.innerHTML = days.slice().reverse().map(d => `<option>${d}</option>`).join('');
   if (Q.get('d') && days.includes(Q.get('d'))) sel.value = Q.get('d');
@@ -355,6 +357,40 @@ async function main() {
   }
   $('#main').innerHTML = html;
   if (live) { clearTimeout(window.__rt); window.__rt = setTimeout(() => main().catch(() => {}), 60000); }   // 장중 1분마다 다시 그림
+}
+// ── 🏁 레이스 · 📜 활동 ──
+function extra(D) {
+  if (K === 'feed') {
+    const F = HF.feed(D);
+    $('#main').innerHTML = `<div class="chartbox"><div class="bhead">📜 봇 활동 <span class="r">${F.length}건</span></div>`
+      + F.map(x => `<div class="row" style="align-items:flex-start"><span style="flex:none;width:22px">${x.icon}</span><span style="flex:1;font-size:12.5px">${esc(x.text)}<br><span class="k" style="font-size:11px">${esc(x.when)}</span></span><span class="v" style="color:${x.pnl == null ? 'var(--dim)' : x.pnl >= 0 ? '#22c55e' : '#ef4444'}">${x.pnl == null ? '' : HF.krw(x.pnl)}</span></div>`).join('')
+      + `<div class="note">웨이브·MNQ·돌파·웅덩이·스나이퍼 주문표 기록을 시간순으로 모았어요 · 시각은 한국 시각 · 손익은 원화</div></div>`;
+    return;
+  }
+  const S = HF.race(D), names = Object.keys(S).filter(k => S[k].pts.length);
+  const dates = [...new Set(names.flatMap(k => S[k].pts.map(p => p[0])))].sort();
+  if (!dates.length) { $('#main').innerHTML = '<div class="chartbox"><div class="empty">기록이 아직 없어요</div></div>'; return; }
+  const W0 = 360, H0 = 250, L = 46, R = 8, T = 12, B = 24;
+  const ser = names.map(k => { let v = 0, i = 0; const pts = S[k].pts; return { k, c: S[k].c, ys: dates.map(d => { while (i < pts.length && pts[i][0] <= d) v = pts[i++][1]; return v; }) }; });
+  const all = ser.flatMap(s => s.ys).concat([0]);
+  let y0 = Math.min(...all), y1 = Math.max(...all); const pad = (y1 - y0) * 0.1 || 1e5; y0 -= pad; y1 += pad;
+  const X = i => L + (dates.length > 1 ? i / (dates.length - 1) : 0.5) * (W0 - L - R), Y = v => T + (y1 - v) / (y1 - y0) * (H0 - T - B);
+  const big = v => (v < 0 ? '−' : '') + (Math.abs(v) >= 1e8 ? (Math.abs(v) / 1e8).toFixed(1) + '억' : Math.round(Math.abs(v) / 1e4).toLocaleString() + '만');
+  let g = '';
+  for (let q = 0; q <= 4; q++) { const v = y0 + (y1 - y0) * q / 4; g += `<line x1="${L}" x2="${W0 - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--border)"/><text x="${L - 4}" y="${Y(v) + 3}" text-anchor="end" font-size="9" fill="var(--dim)">${big(v)}</text>`; }
+  g += `<line x1="${L}" x2="${W0 - R}" y1="${Y(0)}" y2="${Y(0)}" stroke="#9a9a9a" stroke-dasharray="2 3"/>`;
+  const step = Math.max(1, Math.ceil(dates.length / 5));
+  dates.forEach((d, i) => { if (i % step === 0 || i === dates.length - 1) g += `<text x="${X(i)}" y="${H0 - 8}" text-anchor="${i === 0 ? 'start' : i === dates.length - 1 ? 'end' : 'middle'}" font-size="9" fill="var(--dim)">${d.slice(5)}</text>`; });
+  const rank = ser.slice().sort((a, b) => b.ys[b.ys.length - 1] - a.ys[a.ys.length - 1]);
+  for (const s of ser) {
+    g += `<path d="${s.ys.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join('')}" fill="none" stroke="${s.c}" stroke-width="2" stroke-linejoin="round"/>`;
+    g += `<circle cx="${X(dates.length - 1)}" cy="${Y(s.ys[s.ys.length - 1])}" r="3.5" fill="${s.c}"/>`;
+  }
+  const medal = ['🥇', '🥈', '🥉'];
+  $('#main').innerHTML = `<div class="chartbox"><div class="bhead">🏁 수익 레이스 <span class="r">${dates[0].slice(5)} ~ ${dates[dates.length - 1].slice(5)}</span></div>`
+    + `<div class="svgw"><svg viewBox="0 0 ${W0} ${H0}" style="width:100%;height:auto;display:block;font-family:'JetBrains Mono',monospace">${g}</svg></div>`
+    + rank.map((s, i) => { const v = s.ys[s.ys.length - 1]; return `<div class="row"><span><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${s.c};margin-right:6px"></span>${medal[i] || (i + 1) + '.'} ${esc(s.k)}</span><span class="v" style="color:${v >= 0 ? '#22c55e' : '#ef4444'}">${HF.krw(v)}</span></div>`; }).join('')
+    + `<div class="note">누적 실현손익(원) · 웨이브·MNQ는 거래 기록, 스나이퍼 장부·계좌2는 대시보드를 연 날의 자산 기록으로 그려요 (오늘부터 쌓임) · 환율은 그날 기록 기준</div></div>`;
 }
 main().catch(e => { $('#main').innerHTML = `<div class="chartbox"><div class="empty" style="color:var(--gold)">${esc(e.message || e)}</div></div>`; });
 // 당겨서 새로고침 — 맨 위에서 아래로 끌어내리면 다시 불러온다 (홈 화면 앱에서도 동작)
