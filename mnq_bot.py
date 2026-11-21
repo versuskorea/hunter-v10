@@ -45,7 +45,7 @@ def _flag(name, default="0"):
     v = (os.getenv(name) or default).strip().lower()
     return v in ("1", "true", "yes", "y", "on")
 
-BOT_VER    = "v5.7"
+BOT_VER    = "v5.8"
 MODE       = os.getenv("MODE", "PAPER").strip().upper()
 QTY        = int(os.getenv("QTY", "1"))        # 티어당 계약수
 TIERS      = int(os.getenv("TIERS", "3"))      # 최대 티어
@@ -84,6 +84,7 @@ FOMO_MULT  = float(os.getenv("FOMO_MULT", "2.0"))  # 배수
 # ── v5.7 고점 가드: 고점 대비 깊게 빠진 구간에서는 계약을 줄인다 ──
 DD_CUT     = float(os.getenv("DD_CUT", "0.20") or 0)   # 0=끔, 0.20=126일 고점 대비 −20% 이하
 DD_MULT    = float(os.getenv("DD_MULT", "0.5"))         # 그때 총 계약 배수
+MA_PAUSE   = int(float(os.getenv("MA_PAUSE", "0") or 0))   # v5.8 0=끔, 200=전일 종가가 200일선 아래면 봇 신규 매수 쉼 (웨이브는 그대로)
 DD_LB      = int(float(os.getenv("DD_LB", "126")))      # 고점 기간(거래일)
 
 STATE_FILE = os.getenv("STATE_FILE", "mnq_state.json")
@@ -1061,6 +1062,7 @@ def quote_test():
 
 # ─────────── 메인 ───────────
 def main():
+    global PAUSE_BUY
     if QUOTE_TEST:
         quote_test()
         return
@@ -1159,6 +1161,22 @@ def main():
                 log(f"⚠️ 고점 가드: 일봉 {len(win)}개뿐 — 판정 생략")
         except Exception as e:
             log(f"⚠️ 고점 가드 계산 실패: {str(e)[:80]}")
+    # v5.8 이동평균 쉬기 — 전일 종가가 MA_PAUSE일 평균 아래면 신규 매수만 쉼 (백테 maCut 쉬기와 동일, 보유분 청산·웨이브는 그대로)
+    ma_pause = False
+    if MA_PAUSE > 0 and not PAUSE_BUY:
+        try:
+            mpc = ma_closes(CONTRACT, closes, MA_PAUSE + 1)
+            win2 = mpc[-(MA_PAUSE + 1):-1]
+            if len(win2) >= MA_PAUSE:
+                ma_v = sum(win2) / len(win2)
+                ma_pause = win2[-1] < ma_v
+                log(f"MA{MA_PAUSE} 쉬기: 전일 {win2[-1]:,.2f} vs MA {ma_v:,.2f} → {'쉼' if ma_pause else '정상'}")
+            else:
+                log(f"⚠️ MA{MA_PAUSE} 쉬기: 일봉 {len(win2)}개뿐 — 판정 생략")
+        except Exception as e:
+            log(f"⚠️ MA{MA_PAUSE} 쉬기 계산 실패: {str(e)[:80]}")
+    if ma_pause:
+        PAUSE_BUY = True
     # 추세 판정 (전일 종가 > MA)
     is_atk = False
     sma = None
@@ -1313,7 +1331,7 @@ def main():
     elif step < TIERS and hit and not roll_block and buy_qty == 0:
         lines.append(f"⚠️ <b>매수 조건 충족 · 증거금 부족으로 스킵</b>")
     elif roll_block and step < TIERS and hit:
-        if PAUSE_BUY: why = "신규 매수 중단 설정 (PAUSE_BUY=1)"
+        if PAUSE_BUY: why = (f"{MA_PAUSE}일선 아래 — 봇 쉼" if ma_pause else "신규 매수 중단 설정 (PAUSE_BUY=1)")
         elif d2e_data <= HOLD_DAYS+1: why = f"데이터 월물 만기 D-{d2e_data}"
         else: why = f"거래 월물 만기 D-{d2e}"
         lines.append(f"⚠️ <b>{why} — 신규 매수 중단</b> (조건은 충족했음)")
@@ -1349,7 +1367,7 @@ def main():
         lines.append(f"🚨 <b>증거금 부족</b> — 순자산 {net_eq/1e4:,.0f}만 < 1계약 {mg_one/1e4:,.0f}만")
         lines.append(f"   <b>{short_of/1e4:,.0f}만원 입금하면 재개</b>")
     if PAUSE_BUY:
-        lines.append("⏸️ <b>신규 매수 중단 중</b> (보유분은 정상 청산)")
+        lines.append(f"⏸️ <b>{MA_PAUSE}일선 아래 — 봇 신규 매수 쉼</b> (보유분은 정상 청산, 웨이브는 그대로)" if ma_pause else "⏸️ <b>신규 매수 중단 중</b> (보유분은 정상 청산)")
     if is_atk:
         lines.append(f"📈 <b>상승 추세</b> (MA{ATK_MA} {sma:,.2f} · 전일 {p1:,.2f}) — T1 "
                      + ("양방향" if ATK_BOTH else "공격모드"))
