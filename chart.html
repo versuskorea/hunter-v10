@@ -335,6 +335,14 @@ async function main() {
     const xt = bd.map((b, i) => [i, b.date.slice(5)]).filter((_, i) => i % 20 === 0);
     const lb = bd[n - 1], pb = bd[n - 2];
     const ch = lb && pb ? (lb.close / pb.close - 1) * 100 : null;
+    // 오늘 장 (MNQ 보드처럼 1분봉 실시간 + 주문표 LOC 가격선). 지금가에서 너무 먼 가격은 선 대신 표로만
+    const near = (p.rows || []).filter(r => r.price && last && Math.abs(r.price / last.close - 1) < 0.3);
+    const lines1 = [...base, ...near.map(r => ({ y: r.price, c: r.side === 'BUY' ? '#22c55e' : '#38bdf8', lab: `${r.side === 'BUY' ? '매수' : '매도'} ${r.tier || ''} ${fmt(r.price)}`, dash: '1 0' }))];
+    const far = (p.rows || []).filter(r => r.price && !near.includes(r));
+    html += `<div class="chartbox">${head('🎯', '스나이퍼 · 오늘 장', p.date ? '주문표 ' + p.date.slice(5) : '')}${pxHead}`
+      + (b1.length ? chart({ path, x0: 570, x1: 960, xt: XT, lines: lines1, cur, area: true, col: tone }) : '')
+      + (far.length ? `<div class="note">화면 밖 주문: ${far.map(r => `${r.side === 'BUY' ? '매수' : '매도'} ${esc(r.tier || '')} ${fmt(r.price)}`).join(' · ')}</div>` : '')
+      + `<div class="note">가격선 1분봉 (전일보다 위 초록 · 아래 빨강) · 초록 매수 LOC · 하늘 매도 LOC · 체결은 종가(16:00 ET, 한국 06:00)에서 판단 · 장중엔 1분마다 자동 갱신 · 야후 ~10분 지연</div></div>`;
     html += `<div class="chartbox">${head('🎯', '스나이퍼 · 일봉 90일', p.mode === 'def' ? '방어' : p.mode === 'atk' ? '공격' : '')}`
       + (lb ? `<div class="sub2">${lb.date.slice(5)} 종가 <b style="color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px">${fmt(lb.close)}</b> <span class="${ch >= 0 ? 'up' : 'dn'}" style="font-family:'JetBrains Mono',monospace;font-weight:700">${ch == null ? '' : (ch >= 0 ? '+' : '') + ch.toFixed(2) + '%'}</span></div>` : '')
       + chart({ path: path2, x0: 0, x1: n - 1, xt, lines, area: true, col: ch >= 0 ? '#22c55e' : '#ef4444', cur: lb ? { x: n - 1, y: lb.close } : null })
@@ -346,6 +354,7 @@ async function main() {
       + (p.rows || []).map(r => `<tr><td style="color:${r.side === 'BUY' ? '#22c55e' : '#a78bfa'}">${r.side === 'BUY' ? '매수' : '매도'} ${esc(r.tier || '')}</td><td>${r.price ? fmt(r.price) : 'MOC'}</td><td>${(r.qty || 0).toLocaleString()}</td></tr>`).join('') + '</table></div>';
   }
   $('#main').innerHTML = html;
+  if (live) { clearTimeout(window.__rt); window.__rt = setTimeout(() => main().catch(() => {}), 60000); }   // 장중 1분마다 다시 그림
 }
 main().catch(e => { $('#main').innerHTML = `<div class="chartbox"><div class="empty" style="color:var(--gold)">${esc(e.message || e)}</div></div>`; });
 // 당겨서 새로고침 — 맨 위에서 아래로 끌어내리면 다시 불러온다 (홈 화면 앱에서도 동작)
