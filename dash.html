@@ -55,6 +55,23 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
 .ob button.on{border-color:var(--acc);color:#fff;background:#231c40}
 #nPrev{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#c9b8ff;margin-top:8px;word-break:break-all}
 #pmsg{font-size:12px;margin-top:6px;min-height:16px}
+.wx{display:flex;align-items:center;gap:12px}
+.wx .ic{font-size:46px;line-height:1}
+.wx .nm{font-size:13px;color:var(--dim)}
+.wx .v{font-size:22px;font-weight:800}
+.mvp{margin-top:8px;padding:8px 10px;border-radius:12px;background:linear-gradient(90deg,#3a2a0a,#1a1406);border:1px solid #6b4f12;font-size:13px}
+.sb{display:grid;grid-template-columns:96px 1fr 76px;gap:6px;align-items:center;font-size:12px;margin-top:5px}
+.sb .bar{height:8px;border-radius:99px;background:#1e2436;position:relative;overflow:hidden}
+.sb .bar i{position:absolute;top:0;bottom:0;border-radius:99px}
+.sb .n{text-align:right;font-variant-numeric:tabular-nums}
+.fd{display:grid;grid-template-columns:22px 1fr auto;gap:2px 8px;padding:6px 0;border-bottom:1px dashed #1e2436;font-size:12.5px}
+.fd:last-child{border-bottom:0}
+.fd .w{grid-column:2;color:var(--dim);font-size:11px}
+.tiers{display:flex;gap:4px;margin:4px 0 6px}
+.tiers i{flex:1;height:12px;border-radius:4px;background:#1e2436}
+.tiers i.on{background:linear-gradient(90deg,#f87171,#fb923c)}
+.pg{height:10px;border-radius:99px;background:#1e2436;overflow:hidden;margin:3px 0 7px}
+.pg i{display:block;height:100%;border-radius:99px}
 </style>
 </head>
 <body>
@@ -70,11 +87,13 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
   <h1>HUNTER 대시보드 <a href="set.html" style="float:right;font-size:14px;text-decoration:none">⚙️ 설정</a></h1>
   <div class="sub" id="at">불러오는 중…</div>
   <div class="strip" id="strip"></div>
+  <div class="card" id="wx" style="margin-bottom:12px"></div>
   <div class="card" style="margin-bottom:12px">
     <h2>전체 자산 <span class="tag" id="fxTag"></span></h2>
     <div class="big" id="totKrw">–</div>
     <div id="totRows"></div>
   </div>
+  <div class="card" id="feedCard" style="margin-bottom:12px"></div>
   <div class="grid" id="grid"></div>
   <div id="pitTools" style="display:none">
     <div class="nb">
@@ -99,6 +118,7 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
   </div>
 </div>
 
+<script src="hfeed.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const f2 = x => x == null || isNaN(x) ? '–' : Number(x).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -188,6 +208,20 @@ function render(j) {
   // 전체
   const tot = (a1.usd || 0) * fx + (a2.usd || 0) * fx + (mnqKrw || 0);
   $('#totKrw').textContent = krw(tot);
+  // ☀️ 오늘 날씨 · MVP
+  try {
+    const T = HF.today(j), pc = tot ? T.tot / tot * 100 : 0, [ic, nm] = HF.weather(pc);
+    const mx = Math.max(1, ...Object.values(T.by).map(Math.abs));
+    $('#wx').innerHTML = `<div class="wx"><div class="ic">${ic}</div><div><div class="nm">오늘 날씨 · ${esc(T.day.slice(5))} 장</div><div class="v ${cls(T.tot)}">${nm} ${HF.krw(T.tot)} <span style="font-size:14px">${sg(pc)}</span></div></div></div>`
+      + (T.mvp && T.mvp[1] > 0 ? `<div class="mvp">🏆 오늘의 MVP <b>${esc(T.mvp[0])}</b> ${HF.krw(T.mvp[1])}</div>` : '')
+      + Object.entries(T.by).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="sb"><span>${esc(k)}</span><span class="bar"><i style="${v >= 0 ? 'left:50%' : 'right:50%'};width:${Math.abs(v) / mx * 50}%;background:${v >= 0 ? 'var(--up)' : 'var(--dn)'}"></i></span><span class="n ${cls(v)}">${HF.krw(v)}</span></div>`).join('');
+  } catch (e) { $('#wx').innerHTML = '<span class="k">날씨 계산 실패</span>'; }
+  // 📜 봇 활동 (최근 5건)
+  try {
+    const F = HF.feed(j).slice(0, 5);
+    $('#feedCard').innerHTML = `<h2>📜 봇 활동 <a href="chart.html?k=feed" class="tag">전체 →</a></h2>` + (F.map(x => `<div class="fd"><span>${x.icon}</span><span class="${x.warn ? 'warn' : ''}">${esc(x.text)}</span><span class="${x.pnl == null ? 'k' : cls(x.pnl)}">${x.pnl == null ? '' : HF.krw(x.pnl)}</span><span class="w">${esc(x.when)}</span></div>`).join('') || '<div class="k">아직 기록 없음</div>');
+  } catch (e) { $('#feedCard').innerHTML = '<span class="k">활동 불러오기 실패</span>'; }
+  try { HF.alertNew(j); } catch { }
   $('#totRows').innerHTML = row('계좌1', a1.usd == null ? '–' : usd(a1.usd) + ' · ' + krw(a1.usd * fx)) + row('계좌2', a2.usd == null ? '–' : usd(a2.usd) + ' · ' + krw(a2.usd * fx)) + row('MNQ', krw(mnqKrw));
 
   // 스나이퍼
@@ -196,7 +230,16 @@ function render(j) {
     const soxl = (j.acct1 && j.acct1.hold && j.acct1.hold.SOXL) ? j.acct1.hold.SOXL.qty : null;
     const rows = (p.rows || []).map(r => `<tr><td>${r.side === 'BUY' ? '<span class="up">매수</span>' : '<span class="dn">매도</span>'} ${esc(r.tier || '')}</td><td>${r.type}</td><td>${r.price ? f2(r.price) : 'MOC'}</td><td>${f0(r.qty)}</td></tr>`).join('');
     const lp = px.SOXL ? px.SOXL.last : null;
+    // 사이클 진행바: 보유 티어 · 매도가까지 · 다음 매수까지
+    const sells = (p.rows || []).filter(r => r.side === 'SELL'), maxT = p.mode === 'def' ? 5 : 6;
+    const held = new Set(sells.map(r => r.tier)).size;
+    const sp = sells.filter(r => r.price).map(r => r.price), sMin = sp.length ? Math.min(...sp) : null;
+    const bp = (p.rows || []).filter(r => r.side === 'BUY' && r.price).map(r => r.price), bMax = bp.length ? Math.max(...bp) : null;
+    let snBar = `<div class="sub">보유 티어 ${held} / ${maxT}</div><div class="tiers">${Array.from({ length: maxT }, (_, i) => `<i class="${i < held ? 'on' : ''}"></i>`).join('')}</div>`;
+    if (lp && sMin) { const g = Math.min(1, lp / sMin); snBar += `<div class="sub">매도가 ${f2(sMin)}까지 ${lp >= sMin ? '도달 🎉' : sg((sMin / lp - 1) * 100)}</div><div class="pg"><i style="width:${g * 100}%;background:linear-gradient(90deg,#3b82f6,#38bdf8)"></i></div>`; }
+    if (lp && bMax) snBar += `<div class="sub">다음 매수 ${f2(bMax)} ${lp <= bMax ? '— 지금가면 매수 구간' : '까지 ' + sg((bMax / lp - 1) * 100)}</div>`;
     cards.push(`<div class="card"><h2>스나이퍼 <span class="tag">${p.mode === 'def' ? '방어' : p.mode === 'atk' ? '공격' : esc(p.mode)}</span> <a href="chart.html?k=sniper" class="tag">차트 →</a></h2>
+      ${snBar}
       ${row('주문표 날짜', esc(p.date) + (p.placed ? ' · 접수됨' : ' · 미접수'))}
       ${row('장부 주식 (주문 전)', f0(p.ledger_sh) + '주')}
       ${row('장부 자산 (주문 전 종가)', usd(p.ledger_E))}
