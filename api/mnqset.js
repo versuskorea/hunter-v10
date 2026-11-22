@@ -15,7 +15,7 @@ const ALLOW = {
   PAUSE_BUY: v => (String(v) === '1' ? '1' : '0'),             // 1 = 봇 신규 매수 쉼 (매도는 그대로)
   SIZE_LEV: num(0, 12, 'SIZE_LEV'),                             // 계약 수 = 자산 × 배수 ÷ 계약가치
   INTRA_LEV: num(0, 10, 'INTRA_LEV'),                           // 웨이브 계약 수 배수
-  INTRA_MAX: v => String(Math.max(0, Math.min(10, Math.trunc(Number(v) || 0)))),   // 웨이브 최대 계약
+  INTRA_MAX: v => String(Math.max(0, Math.min(99, Math.trunc(Number(v) || 0)))),   // 웨이브 최대 계약
   TOTAL_PAID: num(100, 1e6, 'TOTAL_PAID'),                      // 총 납입액 (만원)
 };
 const SHOW = [...Object.keys(ALLOW), 'MODE', 'INTRA_MODE'];
