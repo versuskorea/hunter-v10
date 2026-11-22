@@ -352,7 +352,13 @@ const RAT = [
   ['NIGHT_W_UP', '🌙 밤 돌파 · NQ 20일선 위', '남는 현금 중 넣을 비율', [['0', '끔'], ['0.5'], ['1', '전부']], '1'],
   ['NIGHT_W_DN', '🌙 밤 돌파 · NQ 20일선 아래', '남는 현금 중 넣을 비율', [['0', '끔'], ['0.25'], ['0.5'], ['1', '전부']], '0.5'],
   ['NIGHT_CAP', '🌙 밤 돌파 최대', '계좌 자산 대비 최대 비율', [['0.3'], ['0.5'], ['0.7'], ['1']], '0.7'],
+  ['MA_PAUSE', '📈 MNQ 200일선 아래 쉬기', '전일 종가가 200일선 아래면 봇 신규 매수 쉼 (매도·웨이브는 그대로)', [['0', '끔'], ['200', '켬']], '0'],
+  ['PAUSE_BUY', '📈 MNQ 신규 매수', '쉼 = 봇이 새로 사지 않음 (가진 건 규칙대로 매도)', [['0', '함'], ['1', '쉼']], '0'],
+  ['SIZE_LEV', '📈 MNQ 계약 수 방식', '기존 = 수익 나면 계약 +1 (복리) · 숫자 = 자산 × 배수로 계약 수 계산', [['0', '기존'], ['4', '×4'], ['5', '×5'], ['6.5', '×6.5']], '6.5'],
+  ['INTRA_MAX', '🌀 MNQ 웨이브 최대 계약', '웨이브가 한 번에 들어가는 최대 계약 수', [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4']], '2'],
+  ['INTRA_LEV', '🌀 MNQ 웨이브 배수', '자산 × 배수로 웨이브 계약 수 계산 (최대 계약 안에서)', [['2', '×2'], ['3.3', '×3.3'], ['5', '×5']], '3.3'],
 ];
+const MKEYS = ['MA_PAUSE', 'PAUSE_BUY', 'SIZE_LEV', 'INTRA_MAX', 'INTRA_LEV', 'TOTAL_PAID', 'MODE', 'INTRA_MODE'];
 let RV = null;
 function rmsg(t, err) { const m = $('#rmsg'); if (m) { m.textContent = t; m.className = err ? 'err' : 'ok'; } }
 function drawRatios() {
@@ -360,16 +366,22 @@ function drawRatios() {
   el.innerHTML = `<h2>⚖️ 비중 조절 <a href="set.html" class="tag">설정 →</a></h2>` + RAT.map(([k, t, hint, opts, def]) => {
     const cur = RV[k] == null || RV[k] === '' ? def : RV[k];
     return `<div class="rt"><div style="font-size:13px">${t}</div><div class="sub">${hint}</div><div class="ob">${opts.map(([v, lab]) => `<button class="${Number(v) === Number(cur) ? 'on' : ''}" onclick="setRatio('${k}','${v}')">${lab || Math.round(Number(v) * 100) + '%'}</button>`).join('')}</div></div>`;
-  }).join('') + `<div id="rmsg"></div><div class="sub" style="margin-top:4px">5:5 계좌 비율은 계좌 이체로 맞춥니다 · 돌파(계좌2) 비중은 공격 50%·수비 100% 고정</div>`;
+  }).join('') + `<div class="sub" style="margin-top:6px">📈 MNQ 모드 ${esc(String(RV.MODE || '–').toUpperCase())} · 웨이브 ${esc(String(RV.INTRA_MODE || '–').toUpperCase())} · 납입 ${RV.TOTAL_PAID ? Number(RV.TOTAL_PAID).toLocaleString() + '만' : '–'}${RV._mnqErr ? ' · ⚠️ ' + esc(RV._mnqErr) : ''}</div><div id="rmsg"></div><div class="sub" style="margin-top:4px">5:5 계좌 비율은 계좌 이체로 맞춥니다 · 돌파(계좌2) 비중은 공격 50%·수비 100% 고정</div>`;
 }
 async function loadRatios() {
-  try { const r = await fetch('/api/settings', { headers: { 'x-pin': window.__pin || getPin() }, cache: 'no-store' }); const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status); RV = j.vars || {}; drawRatios(); }
+  try {
+    const h = { headers: { 'x-pin': window.__pin || getPin() }, cache: 'no-store' };
+    const [a, b] = await Promise.all([fetch('/api/settings', h).then(r => r.json()), fetch('/api/mnqset', h).then(r => r.json()).catch(() => ({}))]);
+    if (!a.ok) throw new Error(a.error || '설정 읽기 실패');
+    RV = { ...(a.vars || {}), ...((b && b.vars) || {}) }; RV._mnqErr = b && !b.ok ? (b.error || 'MNQ 설정 읽기 실패') : '';
+    drawRatios();
+  }
   catch (e) { const el = $('#ratioCard'); if (el) el.innerHTML = `<h2>⚖️ 비중 조절</h2><div class="err">${esc(e.message || e)}</div>`; }
 }
 async function setRatio(k, v) {
   const old = RV[k]; RV[k] = v; drawRatios(); rmsg('저장 중…');
   try {
-    const r = await fetch('/api/settings', { method: 'POST', headers: { 'x-pin': window.__pin || getPin(), 'content-type': 'application/json' }, body: JSON.stringify({ set: { [k]: v } }) });
+    const r = await fetch(MKEYS.includes(k) ? '/api/mnqset' : '/api/settings', { method: 'POST', headers: { 'x-pin': window.__pin || getPin(), 'content-type': 'application/json' }, body: JSON.stringify({ set: { [k]: v } }) });
     const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status);
     rmsg('저장됨 · 봇 다음 실행부터 적용');
   } catch (e) { RV[k] = old; drawRatios(); rmsg('저장 실패: ' + (e.message || e), 1); }
