@@ -58,7 +58,7 @@ const $ = s => document.querySelector(s);
 const Q = new URLSearchParams(location.search);
 const K = Q.get('k') || 'wave';
 const pin = (() => { try { return localStorage.getItem('dashPin') || sessionStorage.getItem('dashPin') || ''; } catch { return ''; } })();
-const TABS = [['wave', '🌊 웨이브'], ['bo', '🚀 계좌2 돌파'], ['night', '🌙 밤 돌파'], ['pit', '🌀 웅덩이'], ['sniper', '🎯 스나이퍼'], ['race', '🏁 레이스'], ['feed', '📜 활동']];
+const TABS = [['wave', '🌊 웨이브'], ['bo', '🚀 계좌2 돌파'], ['night', '🌙 밤 돌파'], ['sniper', '🎯 스나이퍼'], ['race', '🏁 레이스'], ['feed', '📜 활동']];
 $('#tabs').innerHTML = TABS.map(([k, t]) => `<a href="?k=${k}" class="${k === K ? 'on' : ''}">${t}</a>`).join('') + '<a href="mnq.html">📈 MNQ</a>';
 
 const fmt = x => x == null || !isFinite(x) ? '–' : Number(x).toFixed(2);
