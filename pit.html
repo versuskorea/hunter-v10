@@ -139,11 +139,14 @@ function agg(raw) {
   }
   return out;
 }
+// RSI = 메리츠 앱·봇(MANUAL_RSI=SMA)과 같은 공식: 최근 14봉 상승폭 합 ÷ 전체 변동폭 합
 function rsiCalc(c, n = 14) {
   const r = new Array(c.length).fill(null); if (c.length <= n) return r;
-  let g = 0, l = 0; for (let i = 1; i <= n; i++) { const d = c[i] - c[i - 1]; if (d > 0) g += d; else l -= d; }
-  g /= n; l /= n; r[n] = l === 0 ? 100 : 100 - 100 / (1 + g / l);
-  for (let i = n + 1; i < c.length; i++) { const d = c[i] - c[i - 1]; g = (g * (n - 1) + Math.max(d, 0)) / n; l = (l * (n - 1) + Math.max(-d, 0)) / n; r[i] = l === 0 ? 100 : 100 - 100 / (1 + g / l); }
+  for (let i = n; i < c.length; i++) {
+    let g = 0, l = 0;
+    for (let k = i - n + 1; k <= i; k++) { const d = c[k] - c[k - 1]; if (d > 0) g += d; else l -= d; }
+    r[i] = g + l === 0 ? 50 : 100 * g / (g + l);
+  }
   return r;
 }
 async function getJ(u, h) { const r = await fetch(u, { headers: h || {}, cache: 'no-store' }); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; }
