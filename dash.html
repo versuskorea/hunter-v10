@@ -97,7 +97,6 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
     <div id="totRows"></div>
   </div>
   <div class="card" id="feedCard" style="margin-bottom:12px"></div>
-  <div class="card" id="ratioCard" style="margin-bottom:12px"><h2>⚖️ 비중 조절</h2><div class="k" style="font-size:13px">불러오는 중…</div></div>
   <div class="grid" id="grid"></div>
   <div id="pitTools" style="display:none">
     <div class="nb">
@@ -388,7 +387,6 @@ async function setRatio(k, v) {
 }
 
 load();
-loadRatios();
 setInterval(load, 60000);
 // 카드 아무 데나 누르면 그 카드의 차트(보드)로 이동 — 링크·버튼·펼치기는 원래대로
 document.addEventListener('click', e => {
