@@ -97,7 +97,10 @@
     S['🌀 MNQ 웨이브'] = { c: '#fbbf24', pts: cum((j.mnqIntra || {}).trades || [], t => t.d, t => +t.pnl || 0) };
     const dl = j.daily || {}, ks = Object.keys(dl).sort();
     const from = (k, f) => { const b = ks.find(d => dl[d][k] != null); if (!b) return []; return ks.filter(d => dl[d][k] != null && d >= b).map(d => [d, f(dl[d]) - f(dl[b])]); };
-    S['🎯 스나이퍼 장부'] = { c: '#f87171', pts: from('sn', x => x.sn * (x.fx || fx)) };
+    // 스나이퍼 장부: 사이클 시작일(0) → 그날 장부 − 그날 시드. 시드 기록(sd) 없는 옛 기록은 750,450
+    const st0 = (j.sniper && j.sniper.cfg && j.sniper.cfg.start) || null;
+    const snp = ks.filter(d => dl[d].sn != null).map(d => [d, (dl[d].sn - (dl[d].sd || 750450)) * (dl[d].fx || fx)]);
+    S['🎯 스나이퍼 장부'] = { c: '#f87171', pts: st0 && snp.length && st0 < snp[0][0] ? [[st0, 0], ...snp] : snp };
     S['🚀 계좌2'] = { c: '#a78bfa', pts: from('a2', x => x.a2 * (x.fx || fx)) };
     return S;
   }
