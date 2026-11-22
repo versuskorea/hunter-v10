@@ -50,7 +50,8 @@ const $ = s => document.querySelector(s);
 const Q = new URLSearchParams(location.search);
 let SYM = (Q.get('s') || 'SOXL').toUpperCase() === 'SOXS' ? 'SOXS' : 'SOXL';
 let TF = [1, 3, 5].includes(+Q.get('tf')) ? +Q.get('tf') : 3;
-const EXT = false;
+const EXT = true;   // 프리·애프터 봉도 표시 (RSI 는 정규장만)
+const XC = b => { if (b.rth) return {}; const c = b.close >= b.open ? '#1d6b40' : '#7a2c2c'; return { color: c, wickColor: c, borderColor: c }; };
 const KST = 9 * 3600;
 const pin = (() => { try { return localStorage.getItem('dashPin') || sessionStorage.getItem('dashPin') || ''; } catch { return ''; } })();
 const fmt = v => v == null ? '-' : Number(v).toFixed(2);
@@ -130,7 +131,7 @@ function render(fit) {
   const rthBars = EXT ? BARS.filter(b => b.rth) : BARS;
   const rr = rsiCalc(rthBars.map(b => b.close)); const rm = new Map(rthBars.map((b, i) => [b.time, rr[i]]));
   RSI = BARS.map(b => rm.get(b.time) ?? null);
-  cs.setData(BARS.map(({ time, open, high, low, close }) => ({ time, open, high, low, close })));
+  cs.setData(BARS.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close, ...XC(b) })));
   vs.setData(BARS.map(b => ({ time: b.time, value: b.vol, color: b.close >= b.open ? 'rgba(34,197,94,.35)' : 'rgba(239,68,68,.35)' })));
   rs.setData(BARS.map((b, i) => RSI[i] == null ? { time: b.time } : { time: b.time, value: RSI[i] }));
   // 웅덩이 신호: RSI 가 DEPTH 아래로 빠졌다가 30 위로
@@ -168,7 +169,7 @@ function setStat() {
 async function reload() {
   const my = ++gen; clearTimeout(timer);
   try {
-    const H = await getJ(`/api/history?symbol=${SYM}&interval=1m`);
+    const H = await getJ(`/api/history?symbol=${SYM}&interval=1m&ext=1`);
     if (my !== gen) return;
     RAW = (H.bars || []).filter(b => b.close != null);
     const days = [...new Set(RAW.filter(isRth).map(b => etParts(b.ts).d))];
@@ -182,7 +183,7 @@ async function reload() {
 function etDate(off) { const d = new Date(Date.now() + off * 864e5); return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(d); }
 async function tick(my) {
   try {
-    const H = await getJ(`/api/history?symbol=${SYM}&interval=1m&start=${etDate(-1)}&end=${etDate(1)}`);
+    const H = await getJ(`/api/history?symbol=${SYM}&interval=1m&start=${etDate(-1)}&end=${etDate(1)}&ext=1`);
     if (my !== gen) return;
     const nb = (H.bars || []).filter(b => b.close != null); if (!nb.length) return;
     const from = nb[0].ts; RAW = RAW.filter(b => b.ts < from).concat(nb);
@@ -192,7 +193,7 @@ async function tick(my) {
     if (nbars.length === before && prevLast && nbars[nbars.length - 1].time === prevLast.time) {
       // 마지막 봉만 움직임
       BARS = nbars; const b = BARS[BARS.length - 1];
-      cs.update({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close });
+      cs.update({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close, ...XC(b) });
       vs.update({ time: b.time, value: b.vol, color: b.close >= b.open ? 'rgba(34,197,94,.35)' : 'rgba(239,68,68,.35)' });
       const rthBars = EXT ? BARS.filter(x => x.rth) : BARS; const rr = rsiCalc(rthBars.map(x => x.close));
       if (b.rth || !EXT) { RSI[RSI.length - 1] = rr[rr.length - 1]; if (RSI[RSI.length - 1] != null) rs.update({ time: b.time, value: RSI[RSI.length - 1] }); }
@@ -227,7 +228,7 @@ async function loadState() {
       }
     }
     const lines = (M.lines || []).filter(l => !l.startsWith('#') && new RegExp('^\\s*' + SYM + '\\b', 'i').test(l));
-    $('#info').innerHTML = (txt.join('') || `<span>${lines.length ? '대기 · 켜진 줄 ' + lines.length : '켜진 줄 없음'}</span>`) + `<span>○ 웅덩이 신호 · ▲ 진입</span>`;
+    $('#info').innerHTML = (txt.join('') || `<span>${lines.length ? '대기 · 켜진 줄 ' + lines.length : '켜진 줄 없음'}</span>`) + `<span>○ 웅덩이 신호 · ▲ 진입 · 흐린 봉 = 프리·애프터</span>`;
     render(false);
   } catch (e) { $('#info').textContent = '상태 불러오기 실패 ' + (e.message || e); }
 }
