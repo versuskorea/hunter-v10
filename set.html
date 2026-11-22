@@ -31,11 +31,23 @@ input,select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--l
 #msg.err{background:#3a1d22;color:var(--up)}
 a{color:#9fb7ff}
 label{font-size:13px;color:var(--dim)}
+.tabs{display:flex;gap:6px;margin:0 0 12px;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:5}
+.tabs button{flex:1;padding:10px 6px;border-radius:12px;border:1px solid var(--line);background:#1b2133;color:var(--tx);font-size:14px}
+.tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.pane{display:none}.pane.on{display:block}
+.grp{font-size:12px;color:var(--warn);margin:14px 4px 6px;font-weight:600}
+.rt{padding:8px 0;border-bottom:1px dashed #1e2436}.rt:last-child{border-bottom:0}
+.rt .n{font-size:14px}
+
 </style>
 </head>
 <body>
 <h1>HUNTER 설정 <span class="sub" style="font-weight:400"> · <a href="dash.html">대시보드로</a></span></h1>
 
+<div class="tabs"><button data-t="sn">🎯 스나이퍼 · 계좌1·2</button><button data-t="mnq">📈 MNQ</button></div>
+
+<div class="pane" id="p-sn">
+<div class="grp">계좌1 · 스나이퍼 + 웨이브 + 밤 돌파</div>
 <div class="card">
   <h2>스나이퍼 시드</h2>
   <div class="sub">봇이 9/22부터 이 시드로 장부를 다시 계산해서 다음 주문표를 만들어요. 반으로 줄이면 모든 티어 수량이 반이 돼요.</div>
@@ -51,9 +63,8 @@ label{font-size:13px;color:var(--dim)}
 </div>
 
 <div class="card">
-  <h2>SOXL 웨이브</h2>
-  <div class="sub">스나이퍼가 안 쓰는 현금 중 웨이브에 넣는 비율</div>
-  <div class="seg" id="waveCash"></div>
+  <h2>🌊 SOXL 웨이브</h2>
+  <div id="waveRows"></div>
   <div class="sub" style="margin-top:8px">모드</div>
   <div class="seg" id="waveMode"></div>
   <div class="sub" id="waveNow" style="margin-top:8px"></div>
@@ -62,16 +73,9 @@ label{font-size:13px;color:var(--dim)}
 </div>
 
 <div class="card">
-  <h2>계좌2 돌파</h2>
-  <div class="seg" id="boMode"></div>
-  <div class="sub">LIVE 는 계좌2 돈으로 실제 주문. 보유 중일 때 OFF 로 바꾸지 마세요.</div>
-</div>
-
-<div class="card">
-  <h2>밤 돌파</h2>
+  <h2>🌙 밤 돌파</h2>
   <div class="seg" id="nightMode"></div>
-  <div class="sub">비중 (NQ 20일선 위 / 아래)</div>
-  <div class="rowf"><input id="nwUp" type="number" step="0.1" min="0" max="1"><input id="nwDn" type="number" step="0.1" min="0" max="1"><button class="btn" onclick="saveNight()">저장</button></div>
+  <div id="nightRows"></div>
 </div>
 
 <div class="card">
@@ -99,6 +103,26 @@ label{font-size:13px;color:var(--dim)}
   <div style="margin-top:12px"><button class="btn" onclick="saveLines()">조건주문 저장</button> <span class="sub" id="dirty"></span></div>
 </div>
 
+<div class="grp">계좌2 · 돌파</div>
+<div class="card">
+  <h2>⚡ 계좌2 돌파</h2>
+  <div class="seg" id="boMode"></div>
+  <div class="sub">LIVE 는 계좌2 돈으로 실제 주문. 보유 중일 때 OFF 로 바꾸지 마세요. 비중은 공격 50%·수비 100% 고정.</div>
+</div>
+</div>
+
+<div class="pane" id="p-mnq">
+<div class="card">
+  <h2>📈 MNQ 스나이퍼</h2>
+  <div id="mnqRows"></div>
+</div>
+<div class="card">
+  <h2>🌀 MNQ 웨이브</h2>
+  <div id="mnqWRows"></div>
+</div>
+<div class="sub" id="mnqNow" style="padding:0 4px"></div>
+</div>
+
 <div id="msg"></div>
 
 <script>
@@ -124,7 +148,56 @@ async function waveReset() {
   if (!confirm('웨이브 보유 기록을 비울까요? 계좌에 웨이브 물량이 없을 때만 하세요.')) return;
   try { await api({ waveReset: true }); toast('웨이브 기록 비움'); await load(); } catch (e) { toast(e.message, 1); }
 }
-async function saveNight() { try { await api({ set: { NIGHT_W_UP: $('#nwUp').value, NIGHT_W_DN: $('#nwDn').value } }); toast('밤 돌파 비중 저장됨'); } catch (e) { toast(e.message, 1); } }
+// ── 버튼식 설정 (누르면 바로 저장)
+const R_WAVE = [
+  ['WAVE_CASH', '웨이브 비중', '스나이퍼가 안 쓰는 현금 중 웨이브에 쓸 비율', [['0', '끔'], ['0.3', '30%'], ['0.5', '50%'], ['1', '전부']], '0.3'],
+  ['WAVE_KEEP', '수익 재투자', '웨이브로 번 돈을 다음 웨이브 금액에 계속 더함', [['1', '켬'], ['0', '끔']], '1'],
+];
+const R_NIGHT = [
+  ['NIGHT_W_UP', 'NQ 20일선 위', '남는 현금 중 넣을 비율', [['0', '끔'], ['0.5', '50%'], ['1', '전부']], '1'],
+  ['NIGHT_W_DN', 'NQ 20일선 아래', '남는 현금 중 넣을 비율', [['0', '끔'], ['0.25', '25%'], ['0.5', '50%'], ['1', '전부']], '0.5'],
+  ['NIGHT_CAP', '최대 비중', '계좌 자산 대비 최대', [['0.3', '30%'], ['0.5', '50%'], ['0.7', '70%'], ['1', '100%']], '0.7'],
+];
+const R_MNQ = [
+  ['SIZE_LEV', '계약 수 방식', '기존 = 시드 ÷ 계약당 금액 · 숫자 = 자산 × 배수', [['0', '기존'], ['4', '×4'], ['5', '×5'], ['6.5', '×6.5']], '0'],
+  ['PAUSE_BUY', '신규 매수', '쉼 = 새로 안 사고 파는 것만 (비상 브레이크)', [['0', '함'], ['1', '쉼']], '0'],
+  ['MA_PAUSE', '200일선 아래 쉬기', '나스닥이 200일선 아래면 신규 매수 쉼', [['0', '끔'], ['200', '켬']], '0'],
+];
+const R_MNQW = [
+  ['INTRA_MAX', '최대 계약', '웨이브가 한 번에 들어가는 최대 계약 수', [['1', '1'], ['2', '2'], ['3', '3'], ['4', '4']], '2'],
+  ['INTRA_LEV', '배수', '자산 × 배수로 계약 수 (최대 계약 안에서)', [['2', '×2'], ['3.3', '×3.3'], ['5', '×5']], '3.3'],
+];
+let MV = {};
+function rows(el, list, vals, ep) {
+  $(el).innerHTML = list.map(([k, t, hint, opts, def]) => {
+    const cur = vals[k] == null || vals[k] === '' ? def : vals[k];
+    return `<div class="rt"><div class="n">${t}</div><div class="sub" style="margin:0">${hint}</div><div class="seg">${opts.map(([v, lab]) => `<button class="${Number(v) === Number(cur) ? 'on' : ''}" onclick="setR('${ep}','${k}','${v}',this)">${lab}</button>`).join('')}</div></div>`;
+  }).join('');
+}
+async function setR(ep, k, v, btn) {
+  const seg = btn.parentNode; const prev = seg.querySelector('.on');
+  seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+  try {
+    const r = await fetch(ep, { method: 'POST', headers: { 'x-pin': pin, 'content-type': 'application/json' }, body: JSON.stringify({ set: { [k]: v } }) });
+    const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status);
+    (ep === '/api/mnqset' ? MV : V)[k] = v; toast('저장됨 · 봇 다음 실행부터 적용');
+  } catch (e) { seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === prev)); toast('저장 실패: ' + (e.message || e), 1); }
+}
+async function loadMnq() {
+  try {
+    const r = await fetch('/api/mnqset', { headers: { 'x-pin': pin }, cache: 'no-store' }); const j = await r.json(); if (!r.ok || !j.ok) throw new Error(j.error || r.status);
+    MV = j.vars || {};
+    rows('#mnqRows', R_MNQ, MV, '/api/mnqset'); rows('#mnqWRows', R_MNQW, MV, '/api/mnqset');
+    $('#mnqNow').textContent = `모드 ${String(MV.MODE || '-').toUpperCase()} · 웨이브 ${String(MV.INTRA_MODE || '-').toUpperCase()} · 납입 ${Number(MV.TOTAL_PAID || 0).toLocaleString()}만`;
+  } catch (e) { $('#mnqRows').innerHTML = `<div class="sub" style="color:var(--up)">${e.message || e}</div>`; }
+}
+function tab(t) {
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === 'p-' + t));
+  try { history.replaceState(null, '', '#' + t); } catch {}
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => tab(b.dataset.t));
+tab(location.hash === '#mnq' ? 'mnq' : 'sn');
 
 function lineHtml() {
   $('#lines').innerHTML = LINES.length ? LINES.map((l, i) => {
@@ -160,17 +233,16 @@ async function load() {
   $('#seed').value = j.cfg && j.cfg.seed || '';
   $('#seedNow').textContent = j.cfg && !j.cfg.err ? `지금 시드 ${Number(j.cfg.seed).toLocaleString()} · 시작 ${j.cfg.start}` : (j.cfg && j.cfg.err || '');
   $('#extra').value = V.EXTRA_SHARES ?? 0;
-  seg('#waveCash', [[0, '0'], [0.3, '0.3'], [0.5, '0.5'], [1, '1']], Number(V.WAVE_CASH ?? 0.3), v => saveVar('WAVE_CASH', v));
+  rows('#waveRows', R_WAVE, V, '/api/settings'); rows('#nightRows', R_NIGHT, V, '/api/settings');
   seg('#waveMode', [['OFF', 'OFF'], ['PAPER', 'PAPER'], ['LIVE', 'LIVE']], (V.WAVE_MODE || '').toUpperCase(), v => confirm(`웨이브 모드를 ${v} 로 바꿀까요?`) && saveVar('WAVE_MODE', v));
   seg('#boMode', [['OFF', 'OFF'], ['PAPER', 'PAPER'], ['LIVE', 'LIVE']], (V.BO_MODE || 'PAPER').toUpperCase(), v => confirm(`계좌2 돌파를 ${v} 로 바꿀까요?`) && saveVar('BO_MODE', v));
   seg('#nightMode', [['OFF', 'OFF'], ['PAPER', 'PAPER'], ['LIVE', 'LIVE']], (V.NIGHT_MODE || 'OFF').toUpperCase(), v => confirm(`밤 돌파를 ${v} 로 바꿀까요?`) && saveVar('NIGHT_MODE', v));
-  $('#nwUp').value = V.NIGHT_W_UP ?? 1; $('#nwDn').value = V.NIGHT_W_DN ?? 0.5;
   const w = j.wave || {};
   $('#waveNow').textContent = w.err ? w.err : `웨이브 기록: ${w.pos ? (w.pos > 0 ? '롱 ' : '숏 ') + (w.sym || '') + ' ' + w.qty + '주 @' + w.entry + ' (' + w.day + ')' : '보유 없음'}`;
   if (!$('#dirty').textContent) { LINES = String(V.MANUAL || '').split('\n').map(s => s.trim()).filter(Boolean); lineHtml(); }
   opts();
 }
-load();
+load().then(loadMnq);
 </script>
 </body>
 </html>
