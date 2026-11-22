@@ -125,6 +125,7 @@ export default async function handler(req, res) {
         const unr = ((mnq && mnq.positions) || []).reduce((t, p) => t + (mp - p.entry) * 2 * (+p.qty || 1) * (+cf.fx || 1360), 0);
         daily[key] = {
           sn: plan && plan.ledger_E ? Math.round(plan.ledger_E) : null,
+          sd: cfg && cfg.seed ? Math.round(+cfg.seed) : null,   // 그날 스나이퍼 시드 (레이스: 장부 − 시드)
           a1: Math.round(val(acct1) || 0), a2: Math.round(val(acct2) || 0),
           mnq: mnq ? Math.round((+cf.paid || 0) * 1e4 + (+mnq.realized || 0) + (+(mnqi && mnqi.realized) || 0) + unr) : null,
           fx: Math.round(q[3].last),
