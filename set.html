@@ -32,7 +32,7 @@ input,select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--l
 a{color:#9fb7ff}
 label{font-size:13px;color:var(--dim)}
 .tabs{display:flex;gap:6px;margin:0 0 12px;position:sticky;top:0;background:var(--bg);padding:6px 0;z-index:5}
-.tabs button{flex:1;padding:10px 6px;border-radius:12px;border:1px solid var(--line);background:#1b2133;color:var(--tx);font-size:14px}
+.tabs button{flex:1;padding:10px 4px;white-space:nowrap;border-radius:12px;border:1px solid var(--line);background:#1b2133;color:var(--tx);font-size:13px}
 .tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
 .pane{display:none}.pane.on{display:block}
 .grp{font-size:12px;color:var(--warn);margin:14px 4px 6px;font-weight:600}
@@ -44,10 +44,9 @@ label{font-size:13px;color:var(--dim)}
 <body>
 <h1>HUNTER 설정 <span class="sub" style="font-weight:400"> · <a href="dash.html">대시보드로</a></span></h1>
 
-<div class="tabs"><button data-t="sn">🎯 스나이퍼 · 계좌1·2</button><button data-t="mnq">📈 MNQ</button></div>
+<div class="tabs"><button data-t="sn">🎯 스나이퍼</button><button data-t="wn">🌊 웨이브·밤</button><button data-t="bo">⚡ 계좌2</button><button data-t="mnq">📈 MNQ</button></div>
 
 <div class="pane" id="p-sn">
-<div class="grp">계좌1 · 스나이퍼 + 웨이브 + 밤 돌파</div>
 <div class="card">
   <h2>스나이퍼 시드</h2>
   <div class="sub">봇이 9/22부터 이 시드로 장부를 다시 계산해서 다음 주문표를 만들어요. 반으로 줄이면 모든 티어 수량이 반이 돼요.</div>
@@ -62,6 +61,8 @@ label{font-size:13px;color:var(--dim)}
   <div class="rowf"><input id="extra" type="number" step="1"><button class="btn" onclick="saveVar('EXTRA_SHARES',$('#extra').value)">저장</button></div>
 </div>
 
+</div>
+<div class="pane" id="p-wn">
 <div class="card">
   <h2>🌊 SOXL 웨이브</h2>
   <div id="waveRows"></div>
@@ -78,7 +79,7 @@ label{font-size:13px;color:var(--dim)}
   <div id="nightRows"></div>
 </div>
 
-<div class="card">
+<div class="card" style="display:none">
   <h2>웅덩이 · 조건주문</h2>
   <div class="sub">스위치로 켜고 끄기 (끄면 줄 앞에 # 이 붙어요). 보유 중인 줄을 끄면 그 물량의 손절 관리도 멈춰요.</div>
   <div id="lines"></div>
@@ -103,7 +104,8 @@ label{font-size:13px;color:var(--dim)}
   <div style="margin-top:12px"><button class="btn" onclick="saveLines()">조건주문 저장</button> <span class="sub" id="dirty"></span></div>
 </div>
 
-<div class="grp">계좌2 · 돌파</div>
+</div>
+<div class="pane" id="p-bo">
 <div class="card">
   <h2>⚡ 계좌2 돌파</h2>
   <div class="seg" id="boMode"></div>
@@ -197,7 +199,7 @@ function tab(t) {
   try { history.replaceState(null, '', '#' + t); } catch {}
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => tab(b.dataset.t));
-tab(location.hash === '#mnq' ? 'mnq' : 'sn');
+tab(['sn', 'wn', 'bo', 'mnq'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'sn');
 
 function lineHtml() {
   $('#lines').innerHTML = LINES.length ? LINES.map((l, i) => {
