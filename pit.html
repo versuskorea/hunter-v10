@@ -97,11 +97,12 @@ function drawRsi() {
   rs.setData(pts); rLo.setData(pts); rHi.setData(pts);
   const SG = RSI.map((_, i) => { if (i < 8) return null; let s = 0; for (let k = i - 8; k <= i; k++) { if (RSI[k] == null) return null; s += RSI[k]; } return s / 9; });
   rSig.setData(BARS.map((b, i) => SG[i] == null ? { time: b.time } : { time: b.time, value: SG[i] }));
+  // 웅덩이에서 올라온 자리만: RSI 가 DEPTH 아래까지 빠졌다가 30 위로
   const rk = [];
   for (let i = 1; i < BARS.length; i++) {
-    if ([RSI[i], RSI[i - 1], SG[i], SG[i - 1]].some(v => v == null)) continue;
-    if (RSI[i - 1] <= SG[i - 1] && RSI[i] > SG[i]) rk.push({ time: BARS[i].time, position: 'belowBar', color: '#ef4444', shape: 'arrowUp', text: '' });
-    else if (RSI[i - 1] >= SG[i - 1] && RSI[i] < SG[i]) rk.push({ time: BARS[i].time, position: 'aboveBar', color: '#3b82f6', shape: 'arrowDown', text: '' });
+    if (!(RSI[i] >= 30 && RSI[i - 1] != null && RSI[i - 1] < 30)) continue;
+    let j = i - 1, mn = 100; while (j >= 0 && RSI[j] != null && RSI[j] < 30) { mn = Math.min(mn, RSI[j]); j--; }
+    if (mn < DEPTH) rk.push({ time: BARS[i].time, position: 'belowBar', color: '#ef4444', shape: 'arrowUp', text: '' });
   }
   rs.setMarkers(rk);
 }
@@ -179,7 +180,21 @@ function head() {
   $('#rsiLab').innerHTML = `RSI(14) ${ri == null ? '-' : ri.toFixed(1)} <span style="color:#a16207">· Signal(9)</span> <span style="color:#8a93a8">· 웅덩이 ${PTF}분봉 ${DEPTH}↓→30↑</span>`;
   if (!$('#ohlc').dataset.hover) $('#ohlc').innerHTML = `${kt(b.time)} 시 ${fmt(b.open)} 고 ${fmt(b.high)} 저 ${fmt(b.low)} 종 ${fmt(b.close)}`;
 }
-function marketLive() { const m = etParts(Date.now() / 1000).m, wd = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })).getDay(); return wd >= 1 && wd <= 5 && m >= 240 && m < 1200; }
+const etNow = () => { const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })); return { wd: d.getDay(), m: d.getHours() * 60 + d.getMinutes() }; };
+// 주간거래(한국 낮)까지 포함: 미국 일요일 저녁 ~ 금요일 20시
+function marketLive() { const { wd, m } = etNow(); if (wd === 6) return false; if (wd === 0) return m >= 19 * 60; if (wd === 5) return m < 20 * 60; return true; }
+function usSession() { const { wd, m } = etNow(); return wd >= 1 && wd <= 5 && m >= 240 && m < 1200; }
+// 메리츠 1분봉(주간거래 포함) — 야후에 없는 시간을 채운다
+let MZALL = new Map(), MZERR = '', TK = 0;
+async function loadMz() {
+  if (!pin) return;
+  try { const J = await getJ(`/api/mzbars?s=${SYM}`, { 'x-pin': pin }); for (const b of J.bars || []) if (b.close > 0) MZALL.set(b.ts, b); MZERR = J.err || ''; }
+  catch (e) { MZERR = String(e.message || e); }
+}
+function mergeMz() {
+  const base = RAW.filter(b => !b.src); const have = new Set(base.map(b => b.ts));
+  RAW = base.concat([...MZALL.values()].filter(b => !have.has(b.ts))).sort((a, b) => a.ts - b.ts);
+}
 function setStat() {
   const live = marketLive() && Date.now() - lastTick < 20000;
   $('#dot').className = 'dot' + (live ? ' live' : '');
@@ -190,9 +205,10 @@ function setStat() {
 async function reload() {
   const my = ++gen; clearTimeout(timer);
   try {
-    const H = await getJ(`/api/history?symbol=${SYM}&interval=1m&ext=1`);
+    MZALL = new Map();
+    const [H] = await Promise.all([getJ(`/api/history?symbol=${SYM}&interval=1m&ext=1`), loadMz()]);
     if (my !== gen) return;
-    RAW = (H.bars || []).filter(b => b.close != null);
+    RAW = (H.bars || []).filter(b => b.close != null); mergeMz();
     const days = [...new Set(RAW.filter(isRth).map(b => etParts(b.ts).d))];
     const lastDay = days[days.length - 1], prevDay = days[days.length - 2];
     const pb = RAW.filter(b => isRth(b) && etParts(b.ts).d === prevDay);
@@ -204,10 +220,13 @@ async function reload() {
 function etDate(off) { const d = new Date(Date.now() + off * 864e5); return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(d); }
 async function tick(my) {
   try {
-    const H = await getJ(`/api/history?symbol=${SYM}&interval=1m&start=${etDate(-1)}&end=${etDate(1)}&ext=1`);
+    TK++;
+    const us = usSession(), useY = us || TK % 10 === 0, useM = !us || TK % 2 === 0;   // 미국장엔 야후 3초·메리츠 6초, 주간거래엔 메리츠 3초
+    const [H] = await Promise.all([useY ? getJ(`/api/history?symbol=${SYM}&interval=1m&start=${etDate(-1)}&end=${etDate(1)}&ext=1`).catch(() => ({ bars: [] })) : { bars: [] }, useM ? loadMz() : null]);
     if (my !== gen) return;
-    const nb = (H.bars || []).filter(b => b.close != null); if (!nb.length) return;
-    const from = nb[0].ts; RAW = RAW.filter(b => b.ts < from).concat(nb);
+    const nb = (H.bars || []).filter(b => b.close != null);
+    if (nb.length) { const from = nb[0].ts; RAW = RAW.filter(b => !b.src && b.ts < from).concat(nb); }
+    mergeMz();
     lastTick = Date.now();
     const before = BARS.length; const prevLast = BARS[BARS.length - 1];
     const raw = EXT ? RAW : RAW.filter(isRth); const nbars = agg(raw);
@@ -250,7 +269,7 @@ async function loadState() {
       }
     }
     const lines = (M.lines || []).filter(l => !l.startsWith('#') && new RegExp('^\\s*' + SYM + '\\b', 'i').test(l));
-    $('#info').innerHTML = (txt.join('') || `<span>${lines.length ? '대기 · 켜진 줄 ' + lines.length : '켜진 줄 없음'}</span>`) + `<span>위 차트 <b style="color:#ef4444">▲</b> 봇 웅덩이 신호 · <b style="color:#facc15">▲</b> 진입 · RSI ▲▼ = Signal 교차 · 흐린 봉 = 프리·애프터</span>`;
+    $('#info').innerHTML = (txt.join('') || `<span>${lines.length ? '대기 · 켜진 줄 ' + lines.length : '켜진 줄 없음'}</span>`) + `<span><b style="color:#ef4444">▲</b> 웅덩이에서 올라온 자리 · <b style="color:#facc15">▲</b> 진입 · 흐린 봉 = 주간·프리·애프터</span>${MZERR ? `<span style="color:#f97316">주간 시세 못 받음: ${MZERR}</span>` : ''}`;
     render(false);
   } catch (e) { $('#info').textContent = '상태 불러오기 실패 ' + (e.message || e); }
 }
