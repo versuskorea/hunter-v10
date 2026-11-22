@@ -47,6 +47,9 @@ export default async function handler(req, res) {
           + `?range=${range}&interval=${interval}`;
     }
 
+    // ext=1 이면 프리·애프터장 봉도 받음 (분봉만)
+    if (intraday && String(req.query.ext || '') === '1') url += '&includePrePost=true';
+
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
