@@ -84,7 +84,27 @@ const vs = ch.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId
 ch.priceScale('v').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
 cs.priceScale().applyOptions({ scaleMargins: { top: 0.06, bottom: 0.2 } });
 const rc = LC.createChart($('#rsi'), { ...base, autoSize: true, timeScale: { ...base.timeScale, visible: false } });
-const rs = rc.addLineSeries({ color: '#facc15', lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true });
+// 메리츠처럼: 30 아래 파랑 채움 · 70 위 빨강 채움 · RSI(14) 주황 · Signal(9) 갈색 · 교차 화살표
+const T0 = 'rgba(0,0,0,0)';
+const rLo = rc.addBaselineSeries({ baseValue: { type: 'price', price: 30 }, topLineColor: T0, topFillColor1: T0, topFillColor2: T0, bottomLineColor: T0, bottomFillColor1: 'rgba(59,130,246,.55)', bottomFillColor2: 'rgba(59,130,246,.55)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+const rHi = rc.addBaselineSeries({ baseValue: { type: 'price', price: 70 }, topLineColor: T0, topFillColor1: 'rgba(239,68,68,.5)', topFillColor2: 'rgba(239,68,68,.5)', bottomLineColor: T0, bottomFillColor1: T0, bottomFillColor2: T0, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+const rSig = rc.addLineSeries({ color: '#a16207', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+const rs = rc.addLineSeries({ color: '#f97316', lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true });
+const R100 = () => ({ priceRange: { minValue: 0, maxValue: 100 } });
+[rLo, rHi, rSig].forEach(x => x.applyOptions({ autoscaleInfoProvider: R100 }));
+function drawRsi() {
+  const pts = BARS.map((b, i) => RSI[i] == null ? { time: b.time } : { time: b.time, value: RSI[i] });
+  rs.setData(pts); rLo.setData(pts); rHi.setData(pts);
+  const SG = RSI.map((_, i) => { if (i < 8) return null; let s = 0; for (let k = i - 8; k <= i; k++) { if (RSI[k] == null) return null; s += RSI[k]; } return s / 9; });
+  rSig.setData(BARS.map((b, i) => SG[i] == null ? { time: b.time } : { time: b.time, value: SG[i] }));
+  const rk = [];
+  for (let i = 1; i < BARS.length; i++) {
+    if ([RSI[i], RSI[i - 1], SG[i], SG[i - 1]].some(v => v == null)) continue;
+    if (RSI[i - 1] <= SG[i - 1] && RSI[i] > SG[i]) rk.push({ time: BARS[i].time, position: 'belowBar', color: '#ef4444', shape: 'arrowUp', text: '' });
+    else if (RSI[i - 1] >= SG[i - 1] && RSI[i] < SG[i]) rk.push({ time: BARS[i].time, position: 'aboveBar', color: '#3b82f6', shape: 'arrowDown', text: '' });
+  }
+  rs.setMarkers(rk);
+}
 rs.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } });
 rs.applyOptions({ autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) });
 let rsiLines = [];
@@ -134,18 +154,18 @@ function render(fit) {
   RSI = BARS.map(b => rm.get(b.time) ?? null);
   cs.setData(BARS.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close, ...XC(b) })));
   vs.setData(BARS.map(b => ({ time: b.time, value: b.vol, color: b.close >= b.open ? 'rgba(34,197,94,.35)' : 'rgba(239,68,68,.35)' })));
-  rs.setData(BARS.map((b, i) => RSI[i] == null ? { time: b.time } : { time: b.time, value: RSI[i], ...rcol(RSI[i]) }));
+  drawRsi();
   // 웅덩이 신호: RSI 가 DEPTH 아래로 빠졌다가 30 위로
-  const mk = [], rk = [];
+  const mk = [];
   for (let i = 1; i < BARS.length; i++) {
     if (!(RSI[i] >= 30 && RSI[i - 1] != null && RSI[i - 1] < 30)) continue;
     let j = i - 1, mn = 100; while (j >= 0 && RSI[j] != null && RSI[j] < 30) { mn = Math.min(mn, RSI[j]); j--; }
-    if (mn < DEPTH) { mk.push({ time: BARS[i].time, position: 'belowBar', color: '#ef4444', shape: 'arrowUp', text: '' }); rk.push({ time: BARS[i].time, position: 'belowBar', color: '#ef4444', shape: 'arrowUp', text: '' }); }
+    if (mn < DEPTH && TF === PTF) mk.push({ time: BARS[i].time, position: 'belowBar', color: '#ef4444', shape: 'arrowUp', text: '' });
   }
   for (const e of ENTRY) { const t = Math.floor((e.ts) / (TF * 60)) * TF * 60 + KST; if (BARS.some(b => b.time === t)) mk.push({ time: t, position: 'belowBar', color: '#facc15', shape: 'arrowUp', text: '진입' }); }
-  mk.sort((a, b) => a.time - b.time); cs.setMarkers(mk); rs.setMarkers(rk);
+  mk.sort((a, b) => a.time - b.time); cs.setMarkers(mk);
   rsiLines.forEach(l => rs.removePriceLine(l));
-  rsiLines = [[70, '#666'], [30, '#a78bfa'], [DEPTH, '#f97316']].map(([p, c]) => rs.createPriceLine({ price: p, color: c, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '' }));
+  rsiLines = [[70, '#6b7280'], [30, '#6b7280'], [DEPTH, '#3b82f6']].map(([p, c]) => rs.createPriceLine({ price: p, color: c, lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: '' }));
   if (fit) { const n = BARS.length; ch.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - Math.round(390 / TF * 0.6)), to: n + 4 }); }
   head();
 }
@@ -156,7 +176,7 @@ function head() {
   $('#chg').textContent = c == null ? '' : (c >= 0 ? '+' : '') + c.toFixed(2) + '%'; $('#chg').className = 'c ' + (c >= 0 ? 'up' : 'dn');
   $('#last').className = c >= 0 ? 'up' : 'dn';
   const ri = RSI[RSI.length - 1];
-  $('#rsiLab').textContent = `RSI 14 · ${ri == null ? '-' : ri.toFixed(1)} · 웅덩이 ${DEPTH}↓ → 30↑`;
+  $('#rsiLab').innerHTML = `RSI(14) ${ri == null ? '-' : ri.toFixed(1)} <span style="color:#a16207">· Signal(9)</span> <span style="color:#8a93a8">· 웅덩이 ${PTF}분봉 ${DEPTH}↓→30↑</span>`;
   if (!$('#ohlc').dataset.hover) $('#ohlc').innerHTML = `${kt(b.time)} 시 ${fmt(b.open)} 고 ${fmt(b.high)} 저 ${fmt(b.low)} 종 ${fmt(b.close)}`;
 }
 function marketLive() { const m = etParts(Date.now() / 1000).m, wd = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })).getDay(); return wd >= 1 && wd <= 5 && m >= 240 && m < 1200; }
@@ -197,7 +217,7 @@ async function tick(my) {
       cs.update({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close, ...XC(b) });
       vs.update({ time: b.time, value: b.vol, color: b.close >= b.open ? 'rgba(34,197,94,.35)' : 'rgba(239,68,68,.35)' });
       const rthBars = BARS; const rr = rsiCalc(rthBars.map(x => x.close));
-      { RSI[RSI.length - 1] = rr[rr.length - 1]; if (RSI[RSI.length - 1] != null) rs.update({ time: b.time, value: RSI[RSI.length - 1], ...rcol(RSI[RSI.length - 1]) }); }
+      RSI[RSI.length - 1] = rr[rr.length - 1]; drawRsi();
       head();
     } else render(false);
   } catch (e) { /* 다음 틱에 다시 */ }
@@ -210,7 +230,7 @@ function loop(my) {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { setStat(); loop(gen); } });
 
 // ── 웅덩이 상태 (진입·손절·익절 선) — 20초마다
-let ENTRY = [], plines = [];
+let ENTRY = [], plines = [], PTF = 3;
 async function loadState() {
   if (!pin) { $('#info').innerHTML = 'PIN 이 없어서 진입선은 못 불러와요 · 대시보드에서 한 번 열어주세요'; return; }
   try {
@@ -218,6 +238,7 @@ async function loadState() {
     const M = D.manual || {}, R = (M.raw && M.raw.rules) || {};
     const rules = Object.entries(R).filter(([k]) => new RegExp('^\\s*' + SYM + '\\b', 'i').test(k));
     const dm = rules.map(([k]) => k.match(/PIT\d*M?\s*<\s*(\d+)/i)).find(Boolean); DEPTH = dm ? +dm[1] : 25;
+    const tm = rules.map(([k]) => k.match(/PIT(\d+)M/i)).find(Boolean); PTF = tm ? +tm[1] : 3;
     plines.forEach(l => cs.removePriceLine(l)); plines = []; ENTRY = []; const txt = [];
     for (const [k, st] of rules) {
       const on = st.st === 'hold' || st.st === 'exiting';
@@ -229,7 +250,7 @@ async function loadState() {
       }
     }
     const lines = (M.lines || []).filter(l => !l.startsWith('#') && new RegExp('^\\s*' + SYM + '\\b', 'i').test(l));
-    $('#info').innerHTML = (txt.join('') || `<span>${lines.length ? '대기 · 켜진 줄 ' + lines.length : '켜진 줄 없음'}</span>`) + `<span>RSI <b style="color:#3b82f6">파랑</b> = 웅덩이 안 · <b style="color:#ef4444">▲</b> 웅덩이에서 올라온 신호 · <b style="color:#facc15">▲</b> 진입 · 흐린 봉 = 프리·애프터</span>`;
+    $('#info').innerHTML = (txt.join('') || `<span>${lines.length ? '대기 · 켜진 줄 ' + lines.length : '켜진 줄 없음'}</span>`) + `<span>위 차트 <b style="color:#ef4444">▲</b> 봇 웅덩이 신호 · <b style="color:#facc15">▲</b> 진입 · RSI ▲▼ = Signal 교차 · 흐린 봉 = 프리·애프터</span>`;
     render(false);
   } catch (e) { $('#info').textContent = '상태 불러오기 실패 ' + (e.message || e); }
 }
