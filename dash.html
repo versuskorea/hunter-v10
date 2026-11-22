@@ -114,6 +114,20 @@ pre{white-space:pre-wrap;word-break:break-all;font-size:11px;color:var(--dim)}
       <div id="nPrev"></div>
       <button class="btn" style="width:100%" onclick="addLine()">＋ 이 줄 추가 (바로 저장)</button>
     </div>
+    <div class="nb" id="pxBox" style="margin-top:12px">
+      <div class="sub">새 가격 주문 (RSI 없이 · 체결되면 손절·익절 자동)</div>
+      <div class="g">
+        <div><label>종목</label><select id="xSym"><option>SOXL</option><option>SOXS</option></select></div>
+        <div><label>진입</label><select id="xWhen"><option value="NOW">지금 바로</option><option value="IF<=">이 가격 이하면</option><option value="IF>=">이 가격 이상이면</option></select></div>
+        <div><label>진입가 ($)</label><input id="xPx" type="number" inputmode="decimal" step="0.01" placeholder="지금 바로면 비움"></div>
+        <div><label>수량</label><input id="xQty" type="number" inputmode="numeric" value="500"></div>
+        <div><label>손절 (가격 또는 −%)</label><input id="xSl" type="text" value="-3%"></div>
+        <div><label>익절 (가격 또는 +%)</label><input id="xTp" type="text" value="+5%"></div>
+      </div>
+      <div class="ob" id="xOpts"></div>
+      <div id="xPrev"></div>
+      <button class="btn" style="width:100%" onclick="addPx()">＋ 가격 주문 추가 (바로 저장)</button>
+    </div>
     <div id="pmsg"></div>
   </div>
   <div class="foot">
@@ -184,7 +198,7 @@ function render(j) {
 
   const cards = [];
   // 계좌1 · 계좌2
-  const a1 = acctCard('계좌1 · 스나이퍼·웨이브·밤돌파', j.acct1, px);
+  const a1 = acctCard('계좌1 · 스나이퍼·웨이브·밤돌파·웅덩이', j.acct1, px);
   const a2 = acctCard('계좌2 · 돌파', j.acct2, px, modeTag(j.bo && j.bo.mode));
   cards.push(a1.html, a2.html);
 
@@ -294,7 +308,7 @@ function render(j) {
   // 웅덩이 (조건주문) — 여기서 바로 켜기/끄기·지우기·추가 (카드 통째 이동 없음, 차트는 오른쪽 위 버튼)
   const mn = j.manual || {}; PIT_R = (mn.raw && mn.raw.rules) || {};
   if (!PIT_BUSY) LINES = (mn.lines || []).slice();
-  cards.push(`<div class="card nolink" style="display:none"><h2>웅덩이 · 조건주문 <a href="chart.html?k=pit" class="tag">차트 →</a></h2><div id="pitLines"></div><div id="pitSlot"></div></div>`);
+  cards.push(`<div class="card nolink"><h2>웅덩이 · 조건주문 <a href="chart.html?k=pit" class="tag">차트 →</a></h2><div id="pitLines"></div><div id="pitSlot"></div></div>`);
   // 새로 그리기 전에 '새 줄 추가' 칸을 카드 밖으로 빼 둔다 (안 그러면 1분 새로고침 때 같이 지워짐)
   const keep = $('#pitTools'); if (keep) $('#app').appendChild(keep);
   $('#grid').innerHTML = cards.join('');
@@ -343,6 +357,36 @@ function opts() {
 ['#nSym', '#nTf', '#nQty', '#nRisk', '#nHalf', '#nPit', '#nPeak'].forEach(s => $(s).addEventListener('input', () => $('#nPrev').textContent = build()));
 opts();
 function addLine() { const l = build(); if (LINES.includes(l)) { pmsg('같은 줄이 이미 있어요', 1); return; } LINES.push(l); pitSave('추가함'); }
+
+// ── 가격 주문 (RSI 없이): NOW / IF<= / IF>= + SL·TP (봇 MANUAL 문법 그대로)
+let XOPT = { EOD: true, RTH: true, REPEAT: false };
+function xLv(v, sign) {
+  v = String(v || '').trim().replace(/\s/g, '').replace('−', '-'); if (!v) return '';
+  if (v.endsWith('%')) { const n = Math.abs(parseFloat(v)); if (!(n > 0)) return ''; return (sign < 0 ? '-' : '+') + n + '%'; }
+  const n = parseFloat(v); return n > 0 ? String(n) : '';
+}
+function xBuild() {
+  const s = $('#xSym').value, w = $('#xWhen').value, p = +$('#xPx').value, q = Math.max(1, Math.trunc(+$('#xQty').value || 1));
+  let l = `${s} BUY ${q} `;
+  if (w === 'NOW') l += 'NOW'; else { if (!(p > 0)) return ''; l += w + p; }
+  const sl = xLv($('#xSl').value, -1), tp = xLv($('#xTp').value, 1);
+  if (sl) l += ' SL=' + sl; if (tp) l += ' TP=' + tp;
+  if (XOPT.EOD) l += ' EOD'; if (XOPT.RTH) l += ' RTH'; if (XOPT.REPEAT) l += ' REPEAT';
+  return l;
+}
+function xOpts() {
+  $('#xOpts').innerHTML = [['RTH', '정규장만'], ['EOD', '장 마감 정리'], ['REPEAT', '매일 반복']].map(([k, t]) => `<button class="${XOPT[k] ? 'on' : ''}" data-k="${k}">${t}</button>`).join('');
+  $('#xOpts').querySelectorAll('button').forEach(b => b.onclick = () => { XOPT[b.dataset.k] = !XOPT[b.dataset.k]; xOpts(); });
+  const l = xBuild(); $('#xPrev').textContent = l || '진입가를 넣어주세요';
+}
+['#xSym', '#xWhen', '#xPx', '#xQty', '#xSl', '#xTp'].forEach(s => $(s).addEventListener('input', xOpts));
+xOpts();
+function addPx() {
+  const l = xBuild(); if (!l) { pmsg('진입가를 넣어주세요', 1); return; }
+  if (!/ SL=/.test(l)) { pmsg('손절을 넣어주세요', 1); return; }
+  if (LINES.includes(l)) { pmsg('같은 줄이 이미 있어요', 1); return; }
+  LINES.push(l); pitSave('가격 주문 추가함');
+}
 
 // ── ⚖️ 비중 조절 (누르면 바로 저장, 봇은 다음 실행부터 적용) ──
 const RAT = [
