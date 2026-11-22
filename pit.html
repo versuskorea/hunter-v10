@@ -89,7 +89,8 @@ const T0 = 'rgba(0,0,0,0)';
 // 검은 배경에서 잘 보이게 밝은 하늘색·빨강으로 채움
 const rLo = rc.addBaselineSeries({ baseValue: { type: 'price', price: 30 }, topLineColor: T0, topFillColor1: T0, topFillColor2: T0, bottomLineColor: '#38bdf8', bottomFillColor1: 'rgba(56,189,248,.85)', bottomFillColor2: 'rgba(56,189,248,.85)', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
 const rHi = rc.addBaselineSeries({ baseValue: { type: 'price', price: 70 }, topLineColor: '#f87171', topFillColor1: 'rgba(248,113,113,.8)', topFillColor2: 'rgba(248,113,113,.8)', bottomLineColor: T0, bottomFillColor1: T0, bottomFillColor2: T0, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-const rSig = rc.addLineSeries({ color: '#a16207', lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+const rSig = rc.addLineSeries({ visible: false, color: '#a16207',   // 봇은 Signal 안 씀 → 숨김
+  lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
 const rs = rc.addLineSeries({ color: '#f97316', lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true });
 const R100 = () => ({ priceRange: { minValue: 0, maxValue: 100 } });
 [rLo, rHi, rSig].forEach(x => x.applyOptions({ autoscaleInfoProvider: R100 }));
@@ -178,7 +179,7 @@ function head() {
   $('#chg').textContent = c == null ? '' : (c >= 0 ? '+' : '') + c.toFixed(2) + '%'; $('#chg').className = 'c ' + (c >= 0 ? 'up' : 'dn');
   $('#last').className = c >= 0 ? 'up' : 'dn';
   const ri = RSI[RSI.length - 1];
-  $('#rsiLab').innerHTML = `RSI(14) ${ri == null ? '-' : ri.toFixed(1)} <span style="color:#a16207">· Signal(9)</span> <span style="color:#8a93a8">· 웅덩이 ${PTF}분봉 ${DEPTH}↓→30↑</span>`;
+  $('#rsiLab').innerHTML = `RSI(14) ${ri == null ? '-' : ri.toFixed(1)} <span style="color:#8a93a8">· 웅덩이 ${PTF}분봉 ${DEPTH}↓→30↑</span>`;
   if (!$('#ohlc').dataset.hover) $('#ohlc').innerHTML = `${kt(b.time)} 시 ${fmt(b.open)} 고 ${fmt(b.high)} 저 ${fmt(b.low)} 종 ${fmt(b.close)}`;
 }
 const etNow = () => { const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })); return { wd: d.getDay(), m: d.getHours() * 60 + d.getMinutes() }; };
