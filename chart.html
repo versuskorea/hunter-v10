@@ -320,7 +320,7 @@ async function main() {
     const last3 = b3[b3.length - 1];
     const cur3 = last3 ? { x: last3.x + 3, y: last3.c, live } : null;
     const seg = ['SOXL', 'SOXS'].map(s => `<a href="?k=pit&s=${s}${Q.get('d') ? '&d=' + day : ''}" class="${s === sym ? 'on' : ''}">${s}</a>`).join('');
-    html += `<div class="chartbox">${head('🌀', '웅덩이 · 3분봉', holdTxt.length ? '보유 ' + holdTxt.join(', ') : '대기')}<div class="seg">${seg}</div>${pxHead}`
+    html += `<div class="chartbox">${head('🌀', '웅덩이 · 3분봉', holdTxt.length ? '보유 ' + holdTxt.join(', ') : '대기')}<div class="seg">${seg}</div><a href="pit.html?s=${sym}" style="display:block;margin:8px 14px 4px;padding:11px;border-radius:12px;background:#3b82f6;color:#fff;text-align:center;font-weight:700;text-decoration:none">📈 실시간 캔들 차트 · 3초 갱신</a>${pxHead}`
       + (b3.length ? chart({ path: p3, x0: 570, x1: 960, xt: XT, lines, marks, cur: cur3, area: true, col: tone, sub: { pts: idx.map(i => [all3[i].x + 3, rs[i]]), levels: [[70, '#666', '70'], [30, '#a78bfa', '30'], [depth, '#f97316', String(depth)]] } }) : '')
       + `<div class="note">가격선 3분봉 종가 · ○ 웅덩이 신호(RSI ${depth} 아래로 빠졌다 30 위로) · ▲ 진입 · 노랑 진입가 · 빨강 손절 · 초록 절반 익절 · 파랑 익절 · 아래 노란 선 RSI · 시각은 한국 시각</div></div>`;
     html += `<div class="chartbox">${head('📝', '조건주문 줄', (M.lines || []).length + '줄')}`
