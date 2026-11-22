@@ -50,7 +50,7 @@ const $ = s => document.querySelector(s);
 const Q = new URLSearchParams(location.search);
 let SYM = (Q.get('s') || 'SOXL').toUpperCase() === 'SOXS' ? 'SOXS' : 'SOXL';
 let TF = [1, 3, 5].includes(+Q.get('tf')) ? +Q.get('tf') : 3;
-const EXT = true;   // 프리·애프터 봉도 표시 (RSI 는 정규장만)
+const EXT = true;   // 프리·애프터 봉도 표시, RSI 도 이어서 계산 (봇과 같음)
 const XC = b => { if (b.rth) return {}; const c = b.close >= b.open ? '#1d6b40' : '#7a2c2c'; return { color: c, wickColor: c, borderColor: c }; };
 const KST = 9 * 3600;
 const pin = (() => { try { return localStorage.getItem('dashPin') || sessionStorage.getItem('dashPin') || ''; } catch { return ''; } })();
@@ -127,8 +127,8 @@ async function getJ(u, h) { const r = await fetch(u, { headers: h || {}, cache: 
 function render(fit) {
   const raw = EXT ? RAW : RAW.filter(isRth);
   BARS = agg(raw);
-  // RSI 는 봇과 같게 정규장 봉으로만 계산
-  const rthBars = EXT ? BARS.filter(b => b.rth) : BARS;
+  // RSI 는 봇·메리츠처럼 프리·정규·애프터 봉을 이어서 계산
+  const rthBars = BARS;
   const rr = rsiCalc(rthBars.map(b => b.close)); const rm = new Map(rthBars.map((b, i) => [b.time, rr[i]]));
   RSI = BARS.map(b => rm.get(b.time) ?? null);
   cs.setData(BARS.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close, ...XC(b) })));
@@ -195,8 +195,8 @@ async function tick(my) {
       BARS = nbars; const b = BARS[BARS.length - 1];
       cs.update({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close, ...XC(b) });
       vs.update({ time: b.time, value: b.vol, color: b.close >= b.open ? 'rgba(34,197,94,.35)' : 'rgba(239,68,68,.35)' });
-      const rthBars = EXT ? BARS.filter(x => x.rth) : BARS; const rr = rsiCalc(rthBars.map(x => x.close));
-      if (b.rth || !EXT) { RSI[RSI.length - 1] = rr[rr.length - 1]; if (RSI[RSI.length - 1] != null) rs.update({ time: b.time, value: RSI[RSI.length - 1] }); }
+      const rthBars = BARS; const rr = rsiCalc(rthBars.map(x => x.close));
+      { RSI[RSI.length - 1] = rr[rr.length - 1]; if (RSI[RSI.length - 1] != null) rs.update({ time: b.time, value: RSI[RSI.length - 1] }); }
       head();
     } else render(false);
   } catch (e) { /* 다음 틱에 다시 */ }
