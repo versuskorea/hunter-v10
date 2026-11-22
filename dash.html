@@ -184,7 +184,7 @@ function render(j) {
 
   const cards = [];
   // 계좌1 · 계좌2
-  const a1 = acctCard('계좌1 · 스나이퍼·웨이브·밤돌파·웅덩이', j.acct1, px);
+  const a1 = acctCard('계좌1 · 스나이퍼·웨이브·밤돌파', j.acct1, px);
   const a2 = acctCard('계좌2 · 돌파', j.acct2, px, modeTag(j.bo && j.bo.mode));
   cards.push(a1.html, a2.html);
 
@@ -294,7 +294,7 @@ function render(j) {
   // 웅덩이 (조건주문) — 여기서 바로 켜기/끄기·지우기·추가 (카드 통째 이동 없음, 차트는 오른쪽 위 버튼)
   const mn = j.manual || {}; PIT_R = (mn.raw && mn.raw.rules) || {};
   if (!PIT_BUSY) LINES = (mn.lines || []).slice();
-  cards.push(`<div class="card nolink"><h2>웅덩이 · 조건주문 <a href="chart.html?k=pit" class="tag">차트 →</a></h2><div id="pitLines"></div><div id="pitSlot"></div></div>`);
+  cards.push(`<div class="card nolink" style="display:none"><h2>웅덩이 · 조건주문 <a href="chart.html?k=pit" class="tag">차트 →</a></h2><div id="pitLines"></div><div id="pitSlot"></div></div>`);
   // 새로 그리기 전에 '새 줄 추가' 칸을 카드 밖으로 빼 둔다 (안 그러면 1분 새로고침 때 같이 지워짐)
   const keep = $('#pitTools'); if (keep) $('#app').appendChild(keep);
   $('#grid').innerHTML = cards.join('');
