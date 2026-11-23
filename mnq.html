@@ -312,7 +312,7 @@ function drawChart(o){
     tags.sort(function(a,b){ return a.y - b.y; });
     for(var q=1;q<tags.length;q++) if(tags[q].y - tags[q-1].y < 18) tags[q].y = tags[q-1].y + 18;   // 겹침 방지
     return tags.map(function(g){
-      var w = g.lab.replace(/[가-힣]/g,'').length * 7.3 + (g.lab.match(/[가-힣]/g)||[]).length * 12 + 12, x = W - R - w, y = Math.min(Math.max(g.y, T+9), H-B-9);
+      var w = g.lab.replace(/[가-힣]/g,'').length * 7.3 + (g.lab.match(/[가-힣]/g)||[]).length * 12 + 12, x = L + 4, y = Math.min(Math.max(g.y, T+9), H-B-9);
       return '<rect x="'+x+'" y="'+(y-9)+'" width="'+w+'" height="18" rx="5" fill="#0b0b12" stroke="'+g.c+'" stroke-width="1"/>'
            + '<text x="'+(x+w/2)+'" y="'+(y+4)+'" fill="'+g.c+'" font-size="12" font-weight="700" text-anchor="middle" font-family="JetBrains Mono,monospace">'+g.lab+'</text>';
     }).join('');
