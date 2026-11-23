@@ -285,7 +285,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
           const one = await broker.candles(sym, 60);
           const map = new Map(arr.map(x => [x[0], x]));
           for (const b of one) {
-            const m = Math.floor(barTime(b.id).getTime() / 60000);
+            const m = Math.floor(barTime(b.id).getTime() / 60000) - 1;   // 메리츠 1분봉 id 는 끝난 시각 → 시작 분으로 (야후·차트와 같은 봉, 11/24 확인)
             if (!(m >= nowMin - TICK_KEEP_MIN && m < nowMin) || !(b.c > 0)) continue;
             const row = [m, b.o, b.h, b.l, b.c], old = map.get(m);
             if (!old || old.length < 5 || old[4] !== b.c || old[2] !== b.h || old[3] !== b.l) { map.set(m, row); ticksDirty = true; }
