@@ -48,7 +48,7 @@ async function getToken(dead) {
   try { await V.write('MANUAL_TOKEN', seal(TOK, SALT), s !== undefined); } catch { /* 무시 */ }
   return TOK;
 }
-const idTs = id => Date.UTC(+id.slice(0, 4), +id.slice(4, 6) - 1, +id.slice(6, 8), +id.slice(8, 10), +id.slice(10, 12)) / 1000 - 9 * 3600;
+const idTs = id => Date.UTC(+id.slice(0, 4), +id.slice(4, 6) - 1, +id.slice(6, 8), +id.slice(8, 10), +id.slice(10, 12)) / 1000 - 9 * 3600 - 60;   // 메리츠 id 는 봉이 끝난 시각 → 시작 시각으로
 
 async function meritzBars(sym) {
   const c = CACHE[sym];
