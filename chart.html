@@ -53,6 +53,7 @@ pre{white-space:pre-wrap;font-size:10px;color:var(--dim);padding:6px 0 0}
 <div id="main"><div class="chartbox"><div class="empty">불러오는 중…</div></div></div>
 
 <script src="hfeed.js"></script>
+<script src="pittools.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 const Q = new URLSearchParams(location.search);
@@ -338,8 +339,7 @@ async function main() {
     const seg = ['SOXL', 'SOXS'].map(s => `<a href="?k=pit&s=${s}" class="${s === sym ? 'on' : ''}">${s}</a>`).join('');
     const ph = last3 ? `<div class="sub2">${xk(last3.x + 3)} · ${sym} <b style="color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px">${fmt(last3.c)}</b> <span style="color:${live3 ? '#22c55e' : '#8a93a8'}">${live3 ? '● 실시간 · 15초마다' : '장 쉬는 중'}</span></div>` : '';
     html += `<div class="chartbox">${head('🌀', '웅덩이 · 3분봉', holdTxt.length ? '보유 ' + holdTxt.join(', ') : '대기')}<iframe src="pit.html?s=${sym}&embed=1" style="display:block;width:100%;height:calc(100dvh - 190px);min-height:460px;border:0;background:#0b0d14"></iframe></div>`;
-    html += `<div class="chartbox">${head('📝', '조건주문 줄', (M.lines || []).length + '줄')}`
-      + ((M.lines || []).map(l => { const st = R[l] || {}; const s = l.startsWith('#') ? '꺼짐' : st.st === 'hold' ? `보유 ${((st.bought || 0) - (st.sold || 0)).toLocaleString()}주` : (st.st || '대기'); return `<div class="row"><span class="k" style="font-family:'JetBrains Mono',monospace;font-size:10.5px">${esc(l)}</span><span class="v ${st.st === 'hold' ? 'gold' : ''}" style="white-space:nowrap">${esc(s)}</span></div>`; }).join('') || '<div class="empty">등록된 줄 없음</div>') + '</div>';
+    html += `<div class="chartbox">${head('📝', '조건주문 줄', `<span id="ptCount">${(M.lines || []).length}줄</span>`)}<div id="ptBox"></div></div>`;   // 메인과 같은 줄 목록·추가 (pittools.js)
   }
 
   // ── 🎯 스나이퍼 ──
@@ -371,6 +371,7 @@ async function main() {
       + (p.rows || []).map(r => `<tr><td style="color:${r.side === 'BUY' ? '#22c55e' : '#a78bfa'}">${r.side === 'BUY' ? '매수' : '매도'} ${esc(r.tier || '')}</td><td>${r.price ? fmt(r.price) : 'MOC'}</td><td>${(r.qty || 0).toLocaleString()}</td></tr>`).join('') + '</table></div>';
   }
   $('#main').innerHTML = html;
+  if (K === 'pit' && window.PT && $('#ptBox')) PT.mount($('#ptBox'), D.manual);
   if (live && K !== 'pit') { clearTimeout(window.__rt); window.__rt = setTimeout(() => main().catch(() => {}), 60000); }
   // 웅덩이는 차트 안에서 3초마다 갱신   // 장중 1분마다 다시 그림
 }
