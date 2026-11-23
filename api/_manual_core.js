@@ -13,6 +13,7 @@
 //   RTH                  정규장에서만 진입
 //   REPEAT               끝나면 다음 거래일에 다시 대기 (하루 한 번)
 //   RISK=700             손절 시 잃을 달러. 수량 = min(적은 수량, RISK ÷ 손절폭)
+//   NARROW               웅덩이 손절폭이 좁아도(MANUAL_MIN_STOPW 미만) 건너뛰지 않고 진입
 // 청산 (체결가 기준 자동 계산)
 //   TP=72 | TP=+3% | TP=R1.5      익절가 / 체결가 +3% / 손절폭의 1.5배
 //   SL=60 | SL=-2.5% | SL=LOW     손절가 / 체결가 -2.5% / 웅덩이 저점 -0.1% (PIT 일 때)
@@ -62,6 +63,7 @@ export function parseRules(text, year) {
       else if ((m = w.match(/^TREND=(UP|DN)$/))) r.trend = m[1];
       else if (w === 'RTH') r.rth = true;
       else if (w === 'REPEAT') r.repeat = true;
+      else if (w === 'NARROW') r.narrow = true;
       else if (w === 'EOD') r.eod = true;
       else if ((m = w.match(new RegExp(`^RISK=\\$?${N}$`)))) r.risk = Number(m[1]);
       else if ((m = w.match(new RegExp(`^TP=${N}$`)))) r.tp = { k: 'abs', v: Number(m[1]) };
@@ -251,7 +253,7 @@ export function decide(r, st, ctx) {
     if (!ok) return { act: 'NONE' };
     const lim = op === '<=' ? Math.min(tick(px * (1 + slip)), tick(r.cond.px * (1 + slip))) : tick(px * (1 + slip));
     // 웅덩이 저점 손절이 너무 가까우면(기본 1% 미만) 건너뜀 — 백테스트에서 가장 나쁜 그룹
-    if (op === 'PIT' && r.sl && r.sl.k === 'low' && ctx.minStopW) {
+    if (op === 'PIT' && r.sl && r.sl.k === 'low' && ctx.minStopW && !r.narrow) {
       const lv2 = levels(r, px, ctx.sig && ctx.sig.low);
       if (lv2.sl !== null && (px - lv2.sl) / px < ctx.minStopW) return { act: 'NONE', why: `손절폭 ${(((px - lv2.sl) / px) * 100).toFixed(2)}% < ${(ctx.minStopW * 100).toFixed(1)}% → 건너뜀 (웅덩이 저점 ${lv2.sl})`, skipSig: ctx.sig.id };
     }
