@@ -252,6 +252,12 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
           } else say.push(`↗ ${r.sym} 절반 매도 → 나머지 손절은 그대로 ${st.slPx ? fmt(st.slPx) : ''}`);
         }
         say.push(`${tag}✅ ${r.sym} 매도 ${add}주 @${fmt(avg)}  (${o.why})`);
+        // 앱(활동·오늘 날씨·웅덩이 카드)에 익절/손절 결과를 보여주려고 매도 체결을 기록 (최근 80건)
+        try {
+          const ref = st.avg || (st.cost && st.bought ? st.cost / st.bought : null);
+          (S.trades = S.trades || []).push({ t: now.getTime(), d: clk.tradeDate, sym: r.sym, qty: add, px: avg, ref, pnl: ref ? add * (avg - ref) : null, why: String(o.why || '').slice(0, 60) });
+          if (S.trades.length > 80) S.trades.splice(0, S.trades.length - 80);
+        } catch { /* 기록 실패는 무시 */ }
       }
       st.ord = null;
       if (st.sold >= st.bought) {
