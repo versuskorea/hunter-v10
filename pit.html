@@ -35,7 +35,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.
 <body>
 <div class="wrap">
   <div class="top">
-    <a class="back" href="chart.html?k=pit">‹</a>
+    <a class="back" href="dash.html">‹</a>
     <div class="seg" id="symSeg"></div>
     <div class="seg" id="tfSeg"></div>
   </div>
@@ -91,7 +91,7 @@ const rLo = rc.addBaselineSeries({ baseValue: { type: 'price', price: 30 }, topL
 const rHi = rc.addBaselineSeries({ baseValue: { type: 'price', price: 70 }, topLineColor: '#f87171', topFillColor1: 'rgba(248,113,113,.8)', topFillColor2: 'rgba(248,113,113,.8)', bottomLineColor: T0, bottomFillColor1: T0, bottomFillColor2: T0, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
 const rSig = rc.addLineSeries({ visible: false, color: '#a16207',   // 봇은 Signal 안 씀 → 숨김
   lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-const rs = rc.addLineSeries({ color: '#f97316', lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true });
+const rs = rc.addLineSeries({ color: '#facc15', lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true });
 const R100 = () => ({ priceRange: { minValue: 0, maxValue: 100 } });
 [rLo, rHi, rSig].forEach(x => x.applyOptions({ autoscaleInfoProvider: R100 }));
 function drawRsi() {
@@ -172,7 +172,12 @@ function render(fit) {
   mk.sort((a, b) => a.time - b.time); cs.setMarkers(mk);
   rsiLines.forEach(l => rs.removePriceLine(l));
   rsiLines = [[70, '#6b7280'], [30, '#6b7280'], [DEPTH, '#3b82f6']].map(([p, c]) => rs.createPriceLine({ price: p, color: c, lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: '' }));
-  if (fit) { const n = BARS.length; ch.timeScale().setVisibleLogicalRange({ from: Math.max(0, n - Math.round(390 / TF * 0.6)), to: n + 4 }); }
+  if (fit) {   // 처음엔 오늘(한국 날짜) 봉부터 보여줌 — MNQ 보드처럼 하루 화면
+    const n = BARS.length, today0 = Math.floor((Date.now() / 1000 + KST) / 86400) * 86400;
+    let i0 = BARS.findIndex(b => b.time >= today0);
+    if (i0 < 0 || n - i0 < 20) i0 = Math.max(0, n - Math.round(390 / TF * 0.6));
+    ch.timeScale().setVisibleLogicalRange({ from: i0, to: n + 4 });
+  }
   head();
 }
 function head() {
