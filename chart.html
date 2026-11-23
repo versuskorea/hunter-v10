@@ -57,10 +57,9 @@ pre{white-space:pre-wrap;font-size:10px;color:var(--dim);padding:6px 0 0}
 const $ = s => document.querySelector(s);
 const Q = new URLSearchParams(location.search);
 const K = Q.get('k') || 'wave';
-if (K === 'pit') location.replace('pit.html');   // 웅덩이는 실시간 캔들 차트로
 const pin = (() => { try { return localStorage.getItem('dashPin') || sessionStorage.getItem('dashPin') || ''; } catch { return ''; } })();
 const TABS = [['wave', '🌊 웨이브'], ['bo', '🚀 계좌2 돌파'], ['night', '🌙 밤 돌파'], ['pit', '🌀 웅덩이'], ['sniper', '🎯 스나이퍼'], ['race', '🏁 레이스'], ['feed', '📜 활동']];
-$('#tabs').innerHTML = TABS.map(([k, t]) => `<a href="${k === 'pit' ? 'pit.html' : '?k=' + k}" class="${k === K ? 'on' : ''}">${t}</a>`).join('') + '<a href="mnq.html">📈 MNQ</a>';
+$('#tabs').innerHTML = TABS.map(([k, t]) => `<a href="?k=${k}" class="${k === K ? 'on' : ''}">${t}</a>`).join('') + '<a href="mnq.html">📈 MNQ</a>';
 
 const fmt = x => x == null || !isFinite(x) ? '–' : Number(x).toFixed(2);
 const usd = x => x == null || !isFinite(x) ? '–' : (x < 0 ? '−$' : '+$') + Math.round(Math.abs(x)).toLocaleString('en-US');
@@ -288,13 +287,27 @@ async function main() {
 
   // ── 🕳 웅덩이 ──
   if (K === 'pit') {
+    $('#day').style.display = 'none';
     const M = D.manual || {}, R = (M.raw && M.raw.rules) || {};
     const rules = Object.entries(R).filter(([k]) => new RegExp('^\\s*' + sym + '\\b', 'i').test(k));
-    const all3 = agg(H.bars.filter(rth), 3);
-    const rs = rsi(all3.map(b => b.c));
-    const idx = all3.map((b, i) => i).filter(i => all3[i].date === day);
+    // 실시간: 야후 1분봉(프리·정규·애프터) + 메리츠 1분봉(주간거래) → 3분봉. RSI 는 봇과 같은 방식(SMA, 봉을 이어서)
+    const [He, Mz] = await Promise.all([
+      getJ(`/api/history?symbol=${sym}&interval=1m&ext=1`).catch(() => ({ bars: [] })),
+      getJ(`/api/mzbars?s=${sym}`, { 'x-pin': pin }).catch(() => ({ bars: [] })),
+    ]);
+    const mp = new Map();
+    for (const b of He.bars || []) if (b.close > 0) mp.set(b.ts, { ts: b.ts, o: b.open ?? b.close, h: b.high ?? b.close, l: b.low ?? b.close, c: b.close });
+    for (const b of Mz.bars || []) if (b.close > 0 && !mp.has(b.ts)) mp.set(b.ts, { ts: b.ts, o: b.open, h: b.high, l: b.low, c: b.close });
+    const one = [...mp.values()].sort((p, q) => p.ts - q.ts);
+    const all3 = [];   // x = 유닉스 분 (3분 단위)
+    for (const b of one) { const x = Math.floor(b.ts / 180) * 3, c = all3[all3.length - 1]; if (c && c.x === x) { c.h = Math.max(c.h, b.h); c.l = Math.min(c.l, b.l); c.c = b.c; } else all3.push({ x, o: b.o, h: b.h, l: b.l, c: b.c }); }
+    const rs = all3.map((_, i) => { if (i < 14) return null; let g = 0, l = 0; for (let k = i - 13; k <= i; k++) { const d = all3[k].c - all3[k - 1].c; if (d > 0) g += d; else l -= d; } return g + l === 0 ? 50 : 100 * g / (g + l); });
+    const lastX = all3.length ? all3[all3.length - 1].x : 0, x0 = lastX - 12 * 60;   // 최근 12시간
+    const idx = all3.map((b, i) => i).filter(i => all3[i].x >= x0);
     const b3 = idx.map(i => all3[i]);
     const p3 = b3.map(b => [b.x + 3, b.c]);
+    const xk = m => { const d = new Date((m + 540) * 60000); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
+    const xt = []; for (let m = Math.ceil(x0 / 120) * 120; m <= lastX + 3; m += 120) xt.push([m, xk(m)]);   // 2시간마다 (한국 시각)
     const dm = rules.map(([k]) => k.match(/PIT\d*M?\s*<\s*(\d+)/i)).find(Boolean);
     const depth = dm ? +dm[1] : 25;
     const marks = [], lines = [];
@@ -306,9 +319,9 @@ async function main() {
     const holdTxt = [];
     for (const [, st] of rules) {
       const on = st.st === 'hold' || st.st === 'exiting';
-      if (st.lastSig && st.day === day && st.avg) {
-        const id = String(st.lastSig), km = +id.slice(8, 10) * 60 + +id.slice(10, 12);
-        marks.push({ kind: 'in', side: 1, x: (km - OFF * 60 + 1440) % 1440 + 3, y: st.avg, lab: '진입' });
+      if (st.lastSig && st.avg) {
+        const id = String(st.lastSig), em = Date.UTC(+id.slice(0, 4), +id.slice(4, 6) - 1, +id.slice(6, 8), +id.slice(8, 10), +id.slice(10, 12)) / 60000 - 540;
+        if (em >= x0) marks.push({ kind: 'in', side: 1, x: em + 3, y: st.avg, lab: '진입' });
       }
       if (on) {
         if (st.avg) lines.push({ y: st.avg, c: '#facc15', lab: '진입 ' + fmt(st.avg), left: 1, w: 1.4 });
@@ -319,11 +332,14 @@ async function main() {
       }
     }
     const last3 = b3[b3.length - 1];
-    const cur3 = last3 ? { x: last3.x + 3, y: last3.c, live } : null;
-    const seg = ['SOXL', 'SOXS'].map(s => `<a href="?k=pit&s=${s}${Q.get('d') ? '&d=' + day : ''}" class="${s === sym ? 'on' : ''}">${s}</a>`).join('');
-    html += `<div class="chartbox">${head('🌀', '웅덩이 · 3분봉', holdTxt.length ? '보유 ' + holdTxt.join(', ') : '대기')}<div class="seg">${seg}</div><a href="pit.html?s=${sym}" style="display:block;margin:8px 14px 4px;padding:11px;border-radius:12px;background:#3b82f6;color:#fff;text-align:center;font-weight:700;text-decoration:none">📈 실시간 캔들 차트 · 3초 갱신</a>${pxHead}`
-      + (b3.length ? chart({ path: p3, x0: 570, x1: 960, xt: XT, lines, marks, cur: cur3, area: true, col: tone, sub: { pts: idx.map(i => [all3[i].x + 3, rs[i]]), levels: [[70, '#666', '70'], [30, '#a78bfa', '30'], [depth, '#f97316', String(depth)]] } }) : '')
-      + `<div class="note">가격선 3분봉 종가 · ○ 웅덩이 신호(RSI ${depth} 아래로 빠졌다 30 위로) · ▲ 진입 · 노랑 진입가 · 빨강 손절 · 초록 절반 익절 · 파랑 익절 · 아래 노란 선 RSI · 시각은 한국 시각</div></div>`;
+    const live3 = last3 && Date.now() / 60000 - last3.x < 10;
+    const cur3 = last3 ? { x: last3.x + 3, y: last3.c, live: live3 } : null;
+    const tone3 = last3 && b3[0] && last3.c >= b3[0].o ? '#22c55e' : '#ef4444';
+    const seg = ['SOXL', 'SOXS'].map(s => `<a href="?k=pit&s=${s}" class="${s === sym ? 'on' : ''}">${s}</a>`).join('');
+    const ph = last3 ? `<div class="sub2">${xk(last3.x + 3)} · ${sym} <b style="color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px">${fmt(last3.c)}</b> <span style="color:${live3 ? '#22c55e' : '#8a93a8'}">${live3 ? '● 실시간 · 15초마다' : '장 쉬는 중'}</span></div>` : '';
+    html += `<div class="chartbox">${head('🌀', '웅덩이 · 3분봉', holdTxt.length ? '보유 ' + holdTxt.join(', ') : '대기')}<div class="seg">${seg}</div><a href="pit.html?s=${sym}" style="display:block;margin:8px 14px 4px;padding:11px;border-radius:12px;background:#3b82f6;color:#fff;text-align:center;font-weight:700;text-decoration:none">📈 실시간 캔들 차트 · 3초 갱신</a>${ph}`
+      + (b3.length ? chart({ path: p3, x0, x1: lastX + 6, xt, lines, marks, cur: cur3, area: true, col: tone3, sub: { pts: idx.map(i => [all3[i].x + 3, rs[i]]), levels: [[70, '#666', '70'], [30, '#a78bfa', '30'], [depth, '#f97316', String(depth)]] } }) : '<div class="empty">시세 없음</div>')
+      + `<div class="note">최근 12시간 3분봉 · 주간·프리·정규·애프터 이어서 · ○ 웅덩이 신호(RSI ${depth} 아래로 빠졌다 30 위로, 봇과 같은 계산) · ▲ 진입 · 노랑 진입가 · 빨강 손절 · 초록 절반 익절 · 파랑 익절 · 시각은 한국 시각</div></div>`;
     html += `<div class="chartbox">${head('📝', '조건주문 줄', (M.lines || []).length + '줄')}`
       + ((M.lines || []).map(l => { const st = R[l] || {}; const s = l.startsWith('#') ? '꺼짐' : st.st === 'hold' ? `보유 ${((st.bought || 0) - (st.sold || 0)).toLocaleString()}주` : (st.st || '대기'); return `<div class="row"><span class="k" style="font-family:'JetBrains Mono',monospace;font-size:10.5px">${esc(l)}</span><span class="v ${st.st === 'hold' ? 'gold' : ''}" style="white-space:nowrap">${esc(s)}</span></div>`; }).join('') || '<div class="empty">등록된 줄 없음</div>') + '</div>';
   }
@@ -357,7 +373,8 @@ async function main() {
       + (p.rows || []).map(r => `<tr><td style="color:${r.side === 'BUY' ? '#22c55e' : '#a78bfa'}">${r.side === 'BUY' ? '매수' : '매도'} ${esc(r.tier || '')}</td><td>${r.price ? fmt(r.price) : 'MOC'}</td><td>${(r.qty || 0).toLocaleString()}</td></tr>`).join('') + '</table></div>';
   }
   $('#main').innerHTML = html;
-  if (live) { clearTimeout(window.__rt); window.__rt = setTimeout(() => main().catch(() => {}), 60000); }   // 장중 1분마다 다시 그림
+  if (live) { clearTimeout(window.__rt); window.__rt = setTimeout(() => main().catch(() => {}), 60000); }
+  if (K === 'pit') { clearTimeout(window.__rt); window.__rt = setTimeout(() => main().catch(() => {}), 15000); }   // 웅덩이는 15초마다   // 장중 1분마다 다시 그림
 }
 // ── 🏁 레이스 · 📜 활동 ──
 function extra(D) {
