@@ -50,6 +50,7 @@ const $ = s => document.querySelector(s);
 const Q = new URLSearchParams(location.search);
 let SYM = (Q.get('s') || 'SOXL').toUpperCase() === 'SOXS' ? 'SOXS' : 'SOXL';
 let TF = [1, 3, 5].includes(+Q.get('tf')) ? +Q.get('tf') : 3;
+if (new URLSearchParams(location.search).get('embed')) { const bk = document.querySelector('.top a.back'); if (bk) bk.remove(); }   // 헌터 차트 탭 안에 넣을 때 뒤로가기 숨김
 const EXT = true;   // 프리·애프터 봉도 표시, RSI 도 이어서 계산 (봇과 같음)
 const rcol = r => r != null && r < DEPTH ? { color: '#3b82f6' } : {};   // 웅덩이 안 = 파랑
 const XC = b => { if (b.rth) return {}; const c = b.close >= b.open ? '#1d6b40' : '#7a2c2c'; return { color: c, wickColor: c, borderColor: c }; };
