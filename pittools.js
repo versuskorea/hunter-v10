@@ -28,7 +28,7 @@
   const f2 = x => x == null || isNaN(x) ? '–' : Number(x).toFixed(2);
   const getPin = () => { try { return localStorage.getItem('dashPin') || sessionStorage.getItem('dashPin') || ''; } catch { return ''; } };
   let LINES = [], R = {}, BUSY = false, root = null;
-  const OPT = { RTH: false, EOD: false, REPEAT: true }, SOPT = { EOD: false };
+  const OPT = { RTH: false, EOD: false, REPEAT: true, SKIP: true }, SOPT = { EOD: false };
   const q = s => root.querySelector(s);
 
   function list() {
@@ -59,11 +59,11 @@
     let l = `${s} BUY ${n} PIT${tf}<${pt} PEAK${tf}>${pk} SL=LOW`;
     if (h > 0) l += ` HALF=R${h}`;
     if (OPT.EOD) l += ' EOD'; if (OPT.RTH) l += ' RTH';
-    if (r > 0) l += ` RISK=${r}`; if (OPT.REPEAT) l += ' REPEAT';
+    if (r > 0) l += ` RISK=${r}`; if (OPT.REPEAT) l += ' REPEAT'; if (!OPT.SKIP) l += ' NARROW';
     return l;
   }
   function opts() {
-    q('#nOpts').innerHTML = [['RTH', '정규장만'], ['EOD', '장 마감 정리'], ['REPEAT', '매일 반복']].map(([k, t]) => `<button class="${OPT[k] ? 'on' : ''}" data-k="${k}">${t}</button>`).join('');
+    q('#nOpts').innerHTML = [['RTH', '정규장만'], ['EOD', '장 마감 정리'], ['REPEAT', '매일 반복'], ['SKIP', '좁은 손절(1%↓) 건너뛰기']].map(([k, t]) => `<button class="${OPT[k] ? 'on' : ''}" data-k="${k}">${t}</button>`).join('');
     q('#nOpts').querySelectorAll('button').forEach(b => b.onclick = () => { OPT[b.dataset.k] = !OPT[b.dataset.k]; opts(); });
     q('#nPrev').textContent = build();
   }
