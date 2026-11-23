@@ -327,7 +327,7 @@ function pitHist(mn, j) {
 }
 // ── 웅덩이 조작 ──
 let LINES = [], PIT_R = {}, PIT_BUSY = false;
-const OPT = { RTH: false, EOD: false, REPEAT: true };
+const OPT = { RTH: false, EOD: false, REPEAT: true, SKIP: true };
 function pitLines() {
   const el = $('#pitLines'); if (!el) return;
   el.innerHTML = LINES.length ? LINES.map((l, i) => {
@@ -355,11 +355,11 @@ function build() {
   let l = `${s} BUY ${q} PIT${tf}<${pt} PEAK${tf}>${pk} SL=LOW`;
   if (h > 0) l += ` HALF=R${h}`;
   if (OPT.EOD) l += ' EOD'; if (OPT.RTH) l += ' RTH';
-  if (r > 0) l += ` RISK=${r}`; if (OPT.REPEAT) l += ' REPEAT';
+  if (r > 0) l += ` RISK=${r}`; if (OPT.REPEAT) l += ' REPEAT'; if (!OPT.SKIP) l += ' NARROW';
   return l;
 }
 function opts() {
-  $('#nOpts').innerHTML = [['RTH', '정규장만'], ['EOD', '장 마감 정리'], ['REPEAT', '매일 반복']].map(([k, t]) => `<button class="${OPT[k] ? 'on' : ''}" data-k="${k}">${t}</button>`).join('');
+  $('#nOpts').innerHTML = [['RTH', '정규장만'], ['EOD', '장 마감 정리'], ['REPEAT', '매일 반복'], ['SKIP', '좁은 손절(1%↓) 건너뛰기']].map(([k, t]) => `<button class="${OPT[k] ? 'on' : ''}" data-k="${k}">${t}</button>`).join('');
   $('#nOpts').querySelectorAll('button').forEach(b => b.onclick = () => { OPT[b.dataset.k] = !OPT[b.dataset.k]; opts(); });
   $('#nPrev').textContent = build();
 }
