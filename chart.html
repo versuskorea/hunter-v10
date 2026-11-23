@@ -337,7 +337,7 @@ async function main() {
     const tone3 = last3 && b3[0] && last3.c >= b3[0].o ? '#22c55e' : '#ef4444';
     const seg = ['SOXL', 'SOXS'].map(s => `<a href="?k=pit&s=${s}" class="${s === sym ? 'on' : ''}">${s}</a>`).join('');
     const ph = last3 ? `<div class="sub2">${xk(last3.x + 3)} · ${sym} <b style="color:var(--text);font-family:'JetBrains Mono',monospace;font-size:15px">${fmt(last3.c)}</b> <span style="color:${live3 ? '#22c55e' : '#8a93a8'}">${live3 ? '● 실시간 · 15초마다' : '장 쉬는 중'}</span></div>` : '';
-    html += `<div class="chartbox">${head('🌀', '웅덩이 · 3분봉', holdTxt.length ? '보유 ' + holdTxt.join(', ') : '대기')}<div class="seg">${seg}</div><iframe src="pit.html?s=${sym}&embed=1" style="display:block;width:100%;height:calc(100dvh - 190px);min-height:460px;border:0;background:#0b0d14"></iframe></div>`;
+    html += `<div class="chartbox">${head('🌀', '웅덩이 · 3분봉', holdTxt.length ? '보유 ' + holdTxt.join(', ') : '대기')}<iframe src="pit.html?s=${sym}&embed=1" style="display:block;width:100%;height:calc(100dvh - 190px);min-height:460px;border:0;background:#0b0d14"></iframe></div>`;
     html += `<div class="chartbox">${head('📝', '조건주문 줄', (M.lines || []).length + '줄')}`
       + ((M.lines || []).map(l => { const st = R[l] || {}; const s = l.startsWith('#') ? '꺼짐' : st.st === 'hold' ? `보유 ${((st.bought || 0) - (st.sold || 0)).toLocaleString()}주` : (st.st || '대기'); return `<div class="row"><span class="k" style="font-family:'JetBrains Mono',monospace;font-size:10.5px">${esc(l)}</span><span class="v ${st.st === 'hold' ? 'gold' : ''}" style="white-space:nowrap">${esc(s)}</span></div>`; }).join('') || '<div class="empty">등록된 줄 없음</div>') + '</div>';
   }
