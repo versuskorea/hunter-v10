@@ -1,18 +1,5 @@
 {
-  "positions": [
-    {
-      "entry": 26589.25,
-      "date": "2026-11-19",
-      "qty": 1,
-      "m": "def"
-    },
-    {
-      "entry": 25147.5,
-      "date": "2026-11-20",
-      "qty": 1,
-      "m": "def"
-    }
-  ],
+  "positions": [],
   "history": [
     {
       "entry": 30565.5,
@@ -143,13 +130,33 @@
       "exit_date": "2026-11-19",
       "pnl_krw": -1908760.0,
       "reason": "MOC·상쇄"
+    },
+    {
+      "entry": 26589.25,
+      "date": "2026-11-19",
+      "qty": 1,
+      "m": "def",
+      "exit": 26815.5,
+      "exit_date": "2026-11-23",
+      "pnl_krw": 615400.0,
+      "reason": "SELL"
+    },
+    {
+      "entry": 25147.5,
+      "date": "2026-11-20",
+      "qty": 1,
+      "m": "def",
+      "exit": 26815.5,
+      "exit_date": "2026-11-23",
+      "pnl_krw": 4536960.0,
+      "reason": "SELL"
     }
   ],
-  "realized": -9345240.0,
-  "step": 2,
-  "equity": 34739860.0,
-  "last_date": "2026-11-20",
-  "contract": "MNQZ26",
+  "realized": -4192880.0,
+  "step": 0,
+  "equity": 39892220.0,
+  "last_date": "2026-11-23",
+  "contract": null,
   "cfg": {
     "buy_pct": 0.5,
     "sell_pct": 0.3,
@@ -173,19 +180,19 @@
     "dd_cut": 0.2,
     "dd_mult": 0.5,
     "dd_lb": 126,
-    "dd_on": false,
-    "dd_pct": -15.54
+    "dd_on": true,
+    "dd_pct": -20.12
   },
   "quote": {
-    "px": 25147.5,
-    "p1": 26589.25,
-    "p2": 27190.25,
-    "date": "2026-11-20",
+    "px": 26815.5,
+    "p1": 25147.5,
+    "p2": 26589.25,
+    "date": "2026-11-23",
     "src": "MNQZ26/한투 16:00ET",
-    "buy_thr": 26456.25,
+    "buy_thr": 25021.75,
     "contract": "MNQZ26",
     "total_q": 2,
     "want": 2,
-    "afford": 3
+    "afford": 5
   }
 }
