@@ -221,7 +221,9 @@ async function reload() {
     if (my !== gen) return;
     RAW = (H.bars || []).filter(b => b.close != null); mergeMz();
     const days = [...new Set(RAW.filter(isRth).map(b => etParts(b.ts).d))];
-    const lastDay = days[days.length - 1], prevDay = days[days.length - 2];
+    // 기준가 = 마지막 봉 직전에 끝난 정규장 종가 (주간·프리장엔 전 거래일, 애프터엔 그날)
+    const lp = RAW.length ? etParts(RAW[RAW.length - 1].ts) : null;
+    const prevDay = !lp ? null : (lp.m >= 960 && days.includes(lp.d)) ? lp.d : days.filter(d => d < lp.d).pop();
     const pb = RAW.filter(b => isRth(b) && etParts(b.ts).d === prevDay);
     PC = pb.length ? pb[pb.length - 1].close : null;
     lastTick = Date.now(); render(true);
