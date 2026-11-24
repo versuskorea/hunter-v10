@@ -17,10 +17,8 @@ const ALLOW = {
   NIGHT_CAP: v => { const x = Number(v); if (!(x > 0 && x <= 1)) throw new Error('NIGHT_CAP 는 0~1'); return String(x); },
   WAVE_RES: v => { const x = Number(v); if (!(x >= 0 && x <= 1)) throw new Error('WAVE_RES 는 0~1'); return String(x); },
   WAVE_KEEP: v => (String(v) === '0' ? '0' : '1'),
-  // GitHub 변수는 빈 값을 못 받는다 → 줄이 하나도 없으면 '#'(주석, 봇은 무시)로 저장
-  MANUAL: v => String(v).replace(/\r/g, '').split('\n').map(s => s.trim()).filter(s => s && s !== '#').join('\n') || '#',
 };
-const SHOW = [...Object.keys(ALLOW), 'MANUAL_RSI', 'MANUAL_STOP_TIGHT', 'MANUAL_MIN_STOPW'];
+const SHOW = [...Object.keys(ALLOW)];
 
 function safeEq(a, b) {
   a = String(a || ''); b = String(b || '');
