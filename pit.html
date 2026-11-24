@@ -256,7 +256,7 @@ async function tick(my) {
 }
 function loop(my) {
   clearTimeout(timer);
-  const run = async () => { if (my !== gen) return; if (!document.hidden && marketLive()) await tick(my); setStat(); timer = setTimeout(run, marketLive() ? 3000 : 60000); };
+  const run = async () => { if (my !== gen) return; const t0 = Date.now(); if (!document.hidden && marketLive()) await tick(my); setStat(); timer = setTimeout(run, marketLive() ? Math.max(300, 3000 - (Date.now() - t0)) : 60000); };   // 받는 시간 포함 3초 간격
   timer = setTimeout(run, 3000);
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { setStat(); loop(gen); } });
