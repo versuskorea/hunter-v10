@@ -52,7 +52,7 @@ const idTs = id => Date.UTC(+id.slice(0, 4), +id.slice(4, 6) - 1, +id.slice(6, 8
 
 async function meritzBars(sym) {
   const c = CACHE[sym];
-  if (c && Date.now() - c.at < 4000) return c.bars;
+  if (c && Date.now() - c.at < 2500) return c.bars;
   let rows;
   try { rows = await M.candles(await getToken(false), sym, 60); }
   catch (e) { if (e.code !== 'TOKEN_DEAD') throw e; rows = await M.candles(await getToken(true), sym, 60); }
