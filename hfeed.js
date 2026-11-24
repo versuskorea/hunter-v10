@@ -46,15 +46,6 @@
     if (bs.errMsg) push(at(pl.date || null, '09:31'), '⚠️', `계좌2: ${bs.errMsg}`, null, { warn: 1 });
     const ns = (j.night && j.night.state) || {};
     if (ns.planMsg && ns.day && ns.day.date) push(at(String(ns.day.date).slice(0, 10), '16:01'), '🌙', `밤 돌파 · ${ns.planMsg}`, null);
-    const mr = (j.manual && j.manual.raw) || {};
-    if (mr.errs) out.push({ ts: Infinity, when: '지금', icon: '⚠️', text: `조건주문 ${mr.errs}`, pnl: null, warn: 1 });
-    for (const [k, st] of Object.entries(mr.rules || {})) if (st.st === 'hold' && st.day) push(at(st.day, '12:00'), '✋', `손 주문 진입 · ${k.split(' ')[0]} ${((st.bought || 0) - (st.sold || 0)).toLocaleString()}주 @${f2(st.avg)}`, null, { kind: 'in' });
-    // 손 주문(매도 줄) 매도 체결 — 익절/손절 표시
-    for (const x of ((j.manual || {}).raw || {}).trades || []) {
-      const k2 = Math.floor(x.t / 60000) + 540, dt = new Date(k2 * 60000);
-      const tg = /익절|TP|봉우리|PEAK/i.test(x.why) ? '익절' : /손절|SL|STOP/i.test(x.why) ? '손절' : '매도';
-      push({ ts: k2, txt: `${dt.getUTCMonth() + 1}/${dt.getUTCDate()} ${String(dt.getUTCHours()).padStart(2, '0')}:${String(dt.getUTCMinutes()).padStart(2, '0')}` }, tg === '손절' ? '🛑' : tg === '익절' ? '🎯' : '🕳', `손 주문 ${tg} · ${x.sym} ${(+x.qty).toLocaleString()}주 @${f2(x.px)}${x.ref ? ' (기준 ' + f2(x.ref) + ')' : ''}`, x.pnl == null ? null : x.pnl * fx);
-    }
     const p = j.sniper && j.sniper.plan;
     const kst = s => { const d = new Date(s * 1000 + 9 * 3600e3); return { ts: Math.floor(s / 60) + 540, txt: `${d.getUTCMonth() + 1}/${d.getUTCDate()} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}` }; };
     if (p && p.date) push(+p.created ? kst(+p.created) : at(p.date, '09:00'), '🎯', `스나이퍼 주문표 ${p.date.slice(5)} · ${p.mode === 'def' ? '방어' : '공격'} · ${(p.rows || []).length}건${p.placed ? ' 접수' : ''}`, null);
@@ -79,9 +70,6 @@
     if (L('MNQ') && P('MNQ')) r['📈 MNQ'] = (m.positions || []).reduce((a, q) => a + (+q.qty || 1), 0) * (L('MNQ') - P('MNQ')) * 2 * (+cf.fx || 1360);
     const mi = j.mnqIntra || {};
     r['🌀 MNQ 웨이브'] = (mi.trades || []).filter(t => t.d === day).reduce((a, t) => a + (+t.pnl || 0), 0);
-    let pit = 0; for (const st of Object.values(((j.manual || {}).raw || {}).rules || {})) if (st.st === 'hold' && L('SOXL')) pit += ((st.bought || 0) - (st.sold || 0)) * (L('SOXL') - st.avg) * fx;
-    for (const x of ((j.manual || {}).raw || {}).trades || []) if (x.pnl != null && x.d >= day) pit += x.pnl * fx;   // 손 주문 실현손익
-    if (pit) r['✋ 손 주문'] = pit;
     const tot = Object.values(r).reduce((a, b) => a + b, 0);
     const mvp = Object.entries(r).sort((a, b) => b[1] - a[1])[0];
     return { day, by: r, tot, mvp };
@@ -120,7 +108,6 @@
     const mi = j.mnqIntra || {}; if (+mi.pos) s.push(`🌀 MNQ 웨이브 ${+mi.pos > 0 ? '롱' : '숏'} @${mi.entry}|${mi.day}${mi.entry_t}`);
     const bs = (j.bo && j.bo.state) || {}; if (bs.pos && bs.pos.qty) s.push(`🚀 계좌2 돌파 ${bs.pos.qty}주 @${f2(bs.pos.entry)}|${bs.pos.date}`);
     const ns = (j.night && j.night.state) || {}; if (ns.pos && ns.pos.qty) s.push(`🌙 밤 돌파 ${ns.pos.qty}주|${ns.pos.date || ''}`);
-    for (const [k, st] of Object.entries(((j.manual || {}).raw || {}).rules || {})) if (st.st === 'hold') s.push(`✋ 손 주문 ${k.split(' ')[0]} @${f2(st.avg)}|${st.day}${st.lastSig || ''}`);
     return s;
   }
   function alertNew(j) {
