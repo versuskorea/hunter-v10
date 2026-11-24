@@ -262,7 +262,12 @@ function loop(my) {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { setStat(); loop(gen); } });
 
 // ── 웅덩이 상태 (진입·손절·익절 선) — 20초마다
-let ENTRY = [], plines = [], PTF = 3;
+let ENTRY = [], plines = [], PTF = 3, PLAB = [];
+// 진입·손절·익절 글자는 차트 왼쪽에 (오른쪽은 최근 봉을 가려서)
+const labBox = document.createElement('div'); labBox.style.cssText = 'position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:3';
+$('#main').style.position = 'relative'; $('#main').appendChild(labBox);
+function drawLab() { labBox.innerHTML = PLAB.map(x => { const y = cs.priceToCoordinate(x.p); return y == null ? '' : `<span style="position:absolute;left:6px;top:${Math.round(y) - 10}px;background:#0b0d14;border:1px solid ${x.c};color:${x.c};font:700 11px 'JetBrains Mono',monospace;padding:1px 5px;border-radius:5px;white-space:nowrap">${x.t} ${x.p.toFixed(2)}</span>`; }).join(''); }
+setInterval(drawLab, 400);
 async function loadState() {
   if (!pin) { $('#info').innerHTML = 'PIN 이 없어서 진입선은 못 불러와요 · 대시보드에서 한 번 열어주세요'; return; }
   try {
@@ -271,12 +276,12 @@ async function loadState() {
     const rules = Object.entries(R).filter(([k]) => new RegExp('^\\s*' + SYM + '\\b', 'i').test(k));
     const dm = rules.map(([k]) => k.match(/PIT\d*M?\s*<\s*(\d+)/i)).find(Boolean); DEPTH = dm ? +dm[1] : 25;
     const tm = rules.map(([k]) => k.match(/PIT(\d+)M/i)).find(Boolean); PTF = tm ? +tm[1] : 3;
-    plines.forEach(l => cs.removePriceLine(l)); plines = []; ENTRY = []; const txt = [];
+    plines.forEach(l => cs.removePriceLine(l)); plines = []; ENTRY = []; PLAB = []; const txt = [];
     for (const [k, st] of rules) {
       const on = st.st === 'hold' || st.st === 'exiting';
       if (st.lastSig && st.avg) { const id = String(st.lastSig); const ts = Date.UTC(+id.slice(0, 4), +id.slice(4, 6) - 1, +id.slice(6, 8), +id.slice(8, 10), +id.slice(10, 12)) / 1000 - KST; ENTRY.push({ ts }); }
       if (on) {
-        const L = (p, c, t, s) => p && plines.push(cs.createPriceLine({ price: +p, color: c, lineWidth: 2, lineStyle: s || 0, axisLabelVisible: true, title: t }));
+        const L = (p, c, t, s) => { if (!p) return; plines.push(cs.createPriceLine({ price: +p, color: c, lineWidth: 2, lineStyle: s || 0, axisLabelVisible: true, title: '' })); PLAB.push({ p: +p, c, t }); };
         L(st.avg, '#facc15', '진입'); L(st.slPx, '#ef4444', '손절'); if (!st.halfDone) L(st.halfPx, '#22c55e', '절반', 2); L(st.tpPx, '#3b82f6', '익절');
         txt.push(`<span>보유 <b>${((st.bought || 0) - (st.sold || 0)).toLocaleString()}주</b> @ ${fmt(st.avg)}</span>`);
       }
