@@ -1,6 +1,6 @@
 // api/dash.js — 헌터 대시보드 데이터 (읽기 전용, 주문 안 냄)
 //
-// 한 번 부르면 계좌1·계좌2 잔고, 스나이퍼 장부·주문표, 웨이브·돌파·밤돌파 상태, MNQ 상태를 모아 준다.
+// 한 번 부르면 계좌1·계좌2 잔고, 스나이퍼 장부·주문표, 웨이브·돌파·밤돌파·웅덩이 상태, MNQ 상태를 모아 준다.
 // 인증: 요청 헤더 x-pin 이 Vercel 환경변수 DASH_PIN 과 같아야 한다 (없으면 503 — 저장소가 공개라서 잔고를 막는다).
 // 토큰: 봇이 쓰는 캐시(MANUAL_TOKEN·BO_TOKEN)를 그대로 읽고, 만료됐을 때만 새로 받아 같은 칸에 넣는다 (봇과 공유).
 import crypto from 'node:crypto';
@@ -101,6 +101,14 @@ export default async function handler(req, res) {
   const acct1 = lite ? null : await account(vars, { keyEnv: 'MERITZ_APP_KEY', secEnv: 'MERITZ_APP_SECRET', varName: 'MANUAL_TOKEN', salt: 'manual-token:' });
   const acct2 = lite ? null : await account(vars, { keyEnv: 'MERITZ2_APP_KEY', secEnv: 'MERITZ2_APP_SECRET', varName: 'BO_TOKEN', salt: 'bo-token:' });
 
+  // 웅덩이(조건주문) — 줄과 줄별 상태
+  const mstate = pj(vars.MANUAL_STATE) || {};
+  const manual = {
+    lines: String(vars.MANUAL || '').split('\n').map(s => s.trim()).filter(s => s && s !== '#'),
+    rules: mstate.rules || mstate.R || null,
+    raw: mstate,
+  };
+
   // 웨이브 기록: 대시보드는 최근 30건, 차트(full)는 전부 (레이스·활동 피드용)
   const full = !!(req.query && req.query.full);
   if (wave && Array.isArray(wave.trades) && !full) wave.trades = wave.trades.slice(-30);
@@ -141,6 +149,7 @@ export default async function handler(req, res) {
     wave,
     bo: { mode: vars.BO_MODE || 'PAPER', state: pj(vars.BO_STATE) },
     night: { mode: vars.NIGHT_MODE || 'OFF', state: pj(vars.NIGHT_STATE) },
+    manual,
     mnq: mnq ? { ...mnq, hist: undefined, history: (mnq.history || []).slice(full ? -200 : -10) } : null,
     daily,
     mnqIntra: mnqi ? { ...mnqi, hist: undefined, history: undefined } : null,
