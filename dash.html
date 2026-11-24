@@ -16,6 +16,7 @@ h1{font-size:18px;margin:4px 0 2px}
 .grid{display:grid;gap:12px;grid-template-columns:1fr}
 @media(min-width:760px){.grid{grid-template-columns:1fr 1fr}}
 /* 컴퓨터(넓은 화면): 가운데 1500px · 위 카드 3칸 · 아래 카드 3열 (카드 높이 맞추느라 늘어나지 않게) */
+.gcol{display:flex;flex-direction:column;gap:12px;min-width:0}.gtit{font-size:12px;color:var(--dim);font-weight:700;padding:2px 4px 0}
 @media(min-width:1100px){#app{max-width:1500px;margin:0 auto;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:14px;align-items:start}#app>h1,#app>.sub,#app>.strip,#app>.grid,#app>.foot,#app>#pitTools{grid-column:1/-1}.grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
 .card{transition:transform .12s ease,background-color .12s ease;-webkit-tap-highlight-color:transparent}
@@ -311,7 +312,13 @@ function render(j) {
   cards.push(`<div class="card nolink"><h2>웅덩이 · 조건주문 <a href="chart.html?k=pit" class="tag">차트 →</a></h2><div id="pitLines"></div>${pitHist(mn, j)}<div id="pitSlot"></div></div>`);
   // 새로 그리기 전에 '새 줄 추가' 칸을 카드 밖으로 빼 둔다 (안 그러면 1분 새로고침 때 같이 지워짐)
   const keep = $('#pitTools'); if (keep) $('#app').appendChild(keep);
-  $('#grid').innerHTML = cards.join('');
+  // 컴퓨터(넓은 화면)에서는 같은 성격끼리 세로 3줄로 묶는다 (휴대폰은 원래 순서 그대로)
+  if (matchMedia('(min-width:1100px)').matches) {
+    const G = [[], [], []];
+    for (const h of cards) { const t = h.slice(0, 300); G[/계좌1|스나이퍼|웅덩이/.test(t) ? 0 : /SOXL 웨이브|밤 돌파/.test(t) ? 1 : 2].push(h); }
+    const T = ['🎯 스나이퍼 · 손 주문', '🤖 SOXL 자동 봇', '📊 MNQ · 계좌2'];
+    $('#grid').innerHTML = G.map((g, i) => `<div class="gcol"><div class="gtit">${T[i]}</div>${g.join('')}</div>`).join('');
+  } else $('#grid').innerHTML = cards.join('');
   pitLines();
   const tools = $('#pitTools'); $('#pitSlot').appendChild(tools); tools.style.display = 'block';
 }
