@@ -100,9 +100,10 @@ export default async function handler(req, res) {
     if (p > 0) {
       const ts = Math.floor(Date.now() / 60000) * 60;
       let L = LIVE[sym];
-      if (!L || L.ts !== ts) { const prev = out.get(ts - 60); L = LIVE[sym] = { ts, open: prev ? prev.close : p, high: p, low: p, close: p }; }
+      const cur = out.get(ts);   // 봇이 매분 처음에 찍은 값(tick)이 있으면 그걸 시가로
+      if (!L || L.ts !== ts) { const prev = out.get(ts - 60); const o = cur && cur.src === 'tick' ? cur.open : prev ? prev.close : p; L = LIVE[sym] = { ts, open: o, high: Math.max(o, p), low: Math.min(o, p), close: p }; }
       L.high = Math.max(L.high, p); L.low = Math.min(L.low, p); L.close = p;
-      if (!out.has(ts)) out.set(ts, { ...L, high: Math.max(L.high, L.open), low: Math.min(L.low, L.open), src: 'live' });
+      if (!cur || cur.src === 'tick') out.set(ts, { ...L, src: 'live' });
     }
   } catch (e) { err.push('현재가 ' + String(e.message || e).slice(0, 80)); }
   const bars = [...out.values()].filter(b => b.close > 0).sort((a, b) => a.ts - b.ts);
