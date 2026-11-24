@@ -316,6 +316,7 @@ function render(j) {
   if (matchMedia('(min-width:1100px)').matches) {
     const G = [[], [], []];
     for (const h of cards) { const t = h.slice(0, 300); G[/계좌1|스나이퍼|웅덩이/.test(t) ? 0 : /SOXL 웨이브|밤 돌파/.test(t) ? 1 : 2].push(h); }
+    G[2].sort((x, y) => /MNQ/.test(y.slice(0, 300)) - /MNQ/.test(x.slice(0, 300)));   // MNQ 먼저, 그 아래 계좌2·계좌2 돌파
     const T = ['🎯 스나이퍼 · 손 주문', '🤖 SOXL 자동 봇', '📊 MNQ · 계좌2'];
     $('#grid').innerHTML = G.map((g, i) => `<div class="gcol"><div class="gtit">${T[i]}</div>${g.join('')}</div>`).join('');
   } else $('#grid').innerHTML = cards.join('');
