@@ -15,6 +15,8 @@ h1{font-size:18px;margin:4px 0 2px}
 .chip b{display:block;font-size:16px}
 .grid{display:grid;gap:12px;grid-template-columns:1fr}
 @media(min-width:760px){.grid{grid-template-columns:1fr 1fr}}
+/* 컴퓨터(넓은 화면): 가운데 1500px · 위 카드 3칸 · 아래 카드 3열 (카드 높이 맞추느라 늘어나지 않게) */
+@media(min-width:1100px){#app{max-width:1500px;margin:0 auto;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:14px;align-items:start}#app>h1,#app>.sub,#app>.strip,#app>.grid,#app>.foot,#app>#pitTools{grid-column:1/-1}.grid{grid-template-columns:repeat(3,minmax(0,1fr));align-items:start}}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px}
 .card{transition:transform .12s ease,background-color .12s ease;-webkit-tap-highlight-color:transparent}
 .card.press{transform:scale(.97);background:#1c2236}
