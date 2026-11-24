@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<title>웅덩이 차트</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#0b0d14;--card:#12151f;--line:#232a3d;--tx:#e8ecf5;--dim:#8a93a8;--up:#22c55e;--dn:#ef4444;--acc:#3b82f6}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;overflow:hidden}
+.wrap{display:flex;flex-direction:column;height:100dvh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.top{display:flex;align-items:center;gap:6px;padding:8px 10px 4px;flex-wrap:wrap}
+.top a.back{color:var(--dim);text-decoration:none;font-size:20px;padding:0 6px 0 0}
+.seg{display:flex;background:#161a26;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{background:none;border:0;color:var(--dim);padding:6px 10px;font:600 12.5px 'JetBrains Mono',monospace}
+.seg button.on{background:var(--acc);color:#fff}
+.px{display:flex;align-items:baseline;gap:8px;padding:2px 12px 4px;font-family:'JetBrains Mono',monospace}
+.px b{font-size:22px}
+.px .c{font-weight:700}
+.px .s{color:var(--dim);font-size:11px;margin-left:auto;font-family:inherit}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#555;margin-right:4px;vertical-align:middle}
+.dot.live{background:var(--up);box-shadow:0 0 6px var(--up);animation:bl 1.2s infinite}
+@keyframes bl{50%{opacity:.35}}
+.ohlc{padding:0 12px;font:11px 'JetBrains Mono',monospace;color:var(--dim);min-height:15px}
+#main{flex:1 1 auto;min-height:0;position:relative}
+#rsi{flex:0 0 22%;min-height:90px;border-top:1px solid var(--line);position:relative}
+.lab{position:absolute;left:8px;top:4px;font:600 11px 'JetBrains Mono',monospace;color:#facc15;z-index:3;pointer-events:none}
+.info{padding:5px 12px 6px;font-size:11.5px;color:var(--dim);border-top:1px solid var(--line);display:flex;gap:10px;flex-wrap:wrap}
+.info b{color:var(--tx)}
+.up{color:var(--up)}.dn{color:var(--dn)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a class="back" href="dash.html">‹</a>
+    <div class="seg" id="symSeg"></div>
+    <div class="seg" id="tfSeg"></div>
+  </div>
+  <div class="px"><span id="sym">SOXL</span><b id="last">-</b><span class="c" id="chg"></span><span class="s"><span class="dot" id="dot"></span><span id="stat">불러오는 중</span></span></div>
+  <div class="ohlc" id="ohlc"></div>
+  <div id="main"></div>
+  <div id="rsi"><div class="lab" id="rsiLab">RSI 14</div></div>
+  <div class="info" id="info"></div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const Q = new URLSearchParams(location.search);
+let SYM = (Q.get('s') || 'SOXL').toUpperCase() === 'SOXS' ? 'SOXS' : 'SOXL';
+let TF = [1, 3, 5].includes(+Q.get('tf')) ? +Q.get('tf') : 3;
+if (new URLSearchParams(location.search).get('embed')) { const bk = document.querySelector('.top a.back'); if (bk) bk.remove(); }   // 헌터 차트 탭 안에 넣을 때 뒤로가기 숨김
+const EXT = true;   // 프리·애프터 봉도 표시, RSI 도 이어서 계산 (봇과 같음)
+const rcol = r => r != null && r < DEPTH ? { color: '#3b82f6' } : {};   // 웅덩이 안 = 파랑
+const XC = b => { if (b.rth) return {}; const c = b.close >= b.open ? '#1d6b40' : '#7a2c2c'; return { color: c, wickColor: c, borderColor: c }; };
+const KST = 9 * 3600;
+const pin = (() => { try { return localStorage.getItem('dashPin') || sessionStorage.getItem('dashPin') || ''; } catch { return ''; } })();
+const fmt = v => v == null ? '-' : Number(v).toFixed(2);
+
+function seg(el, opts, cur, pick) {
+  $(el).innerHTML = opts.map(([v, t]) => `<button class="${String(v) === String(cur) ? 'on' : ''}" data-v="${v}">${t}</button>`).join('');
+  $(el).querySelectorAll('button').forEach(b => b.onclick = () => pick(b.dataset.v));
+}
+function go() { const u = new URL(location.href); u.searchParams.set('s', SYM); u.searchParams.set('tf', TF); history.replaceState(null, '', u); reload(); }
+function drawSegs() {
+  seg('#symSeg', [['SOXL', 'SOXL'], ['SOXS', 'SOXS']], SYM, v => { SYM = v; drawSegs(); go(); });
+  seg('#tfSeg', [[1, '1분'], [3, '3분'], [5, '5분']], TF, v => { TF = +v; drawSegs(); go(); });
+}
+drawSegs();
+
+// ── 차트
+const LC = LightweightCharts;
+const base = {
+  layout: { background: { color: '#0b0d14' }, textColor: '#8a93a8', fontFamily: 'JetBrains Mono, monospace', fontSize: 11 },
+  grid: { vertLines: { color: '#161b28' }, horzLines: { color: '#161b28' } },
+  rightPriceScale: { borderColor: '#232a3d', minimumWidth: 62 },
+  timeScale: { borderColor: '#232a3d', timeVisible: true, secondsVisible: false, rightOffset: 4, barSpacing: 7 },
+  crosshair: { mode: LC.CrosshairMode.Normal },
+  handleScroll: true, handleScale: true,
+};
+const ch = LC.createChart($('#main'), { ...base, autoSize: true });
+const cs = ch.addCandlestickSeries({ upColor: '#22c55e', downColor: '#ef4444', borderUpColor: '#22c55e', borderDownColor: '#ef4444', wickUpColor: '#22c55e', wickDownColor: '#ef4444', priceFormat: { type: 'price', precision: 2, minMove: 0.01 } });
+const vs = ch.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: 'v', lastValueVisible: false, priceLineVisible: false });
+ch.priceScale('v').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+cs.priceScale().applyOptions({ scaleMargins: { top: 0.06, bottom: 0.2 } });
+const rc = LC.createChart($('#rsi'), { ...base, autoSize: true, timeScale: { ...base.timeScale, visible: false } });
+// 메리츠처럼: 30 아래 파랑 채움 · 70 위 빨강 채움 · RSI(14) 주황 · Signal(9) 갈색 · 교차 화살표
+const T0 = 'rgba(0,0,0,0)';
+// 검은 배경에서 잘 보이게 밝은 하늘색·빨강으로 채움
+const rLo = rc.addBaselineSeries({ baseValue: { type: 'price', price: 30 }, topLineColor: T0, topFillColor1: T0, topFillColor2: T0, bottomLineColor: '#38bdf8', bottomFillColor1: 'rgba(56,189,248,.85)', bottomFillColor2: 'rgba(56,189,248,.85)', lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+const rHi = rc.addBaselineSeries({ baseValue: { type: 'price', price: 70 }, topLineColor: '#f87171', topFillColor1: 'rgba(248,113,113,.8)', topFillColor2: 'rgba(248,113,113,.8)', bottomLineColor: T0, bottomFillColor1: T0, bottomFillColor2: T0, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+const rSig = rc.addLineSeries({ visible: false, color: '#a16207',   // 봇은 Signal 안 씀 → 숨김
+  lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+const rs = rc.addLineSeries({ color: '#facc15', lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true });
+const R100 = () => ({ priceRange: { minValue: 0, maxValue: 100 } });
+[rLo, rHi, rSig].forEach(x => x.applyOptions({ autoscaleInfoProvider: R100 }));
+function drawRsi() {
+  const pts = BARS.map((b, i) => RSI[i] == null ? { time: b.time } : { time: b.time, value: RSI[i] });
+  rs.setData(pts); rLo.setData(pts); rHi.setData(pts);
+  const SG = RSI.map((_, i) => { if (i < 8) return null; let s = 0; for (let k = i - 8; k <= i; k++) { if (RSI[k] == null) return null; s += RSI[k]; } return s / 9; });
+  rSig.setData(BARS.map((b, i) => SG[i] == null ? { time: b.time } : { time: b.time, value: SG[i] }));
+  // 웅덩이에서 올라온 자리만: RSI 가 DEPTH 아래까지 빠졌다가 30 위로
+  const rk = [];
+  for (let i = 1; i < BARS.length; i++) {
+    if (!(RSI[i] >= 30 && RSI[i - 1] != null && RSI[i - 1] < 30)) continue;
+    let j = i - 1, mn = 100; while (j >= 0 && RSI[j] != null && RSI[j] < 30) { mn = Math.min(mn, RSI[j]); j--; }
+    if (mn < DEPTH) rk.push({ time: BARS[i].time, position: 'belowBar', color: '#ef4444', shape: 'arrowUp', text: '' });
+  }
+  rs.setMarkers(rk);
+}
+rs.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.08 } });
+rs.applyOptions({ autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }) });
+let rsiLines = [];
+// 두 차트 가로 동기화
+let syncing = false;
+ch.timeScale().subscribeVisibleLogicalRangeChange(r => { if (syncing || !r) return; syncing = true; rc.timeScale().setVisibleLogicalRange(r); syncing = false; });
+rc.timeScale().subscribeVisibleLogicalRangeChange(r => { if (syncing || !r) return; syncing = true; ch.timeScale().setVisibleLogicalRange(r); syncing = false; });
+ch.subscribeCrosshairMove(p => {
+  const d = p && p.time ? p.seriesData.get(cs) : null;
+  const b = d || BARS[BARS.length - 1];
+  if (!b) return;
+  const ri = RSI[BARS.findIndex(x => x.time === b.time)];
+  $('#ohlc').innerHTML = `${kt(b.time)} 시 ${fmt(b.open)} 고 ${fmt(b.high)} 저 ${fmt(b.low)} 종 <span class="${b.close >= b.open ? 'up' : 'dn'}">${fmt(b.close)}</span> · RSI ${ri == null ? '-' : ri.toFixed(1)}`;
+});
+const kt = t => { const d = new Date(t * 1000); return `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCDate()).padStart(2, '0')} ${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
+
+// ── 데이터
+const etParts = ts => { const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(ts * 1000)); const g = k => p.find(x => x.type === k).value; return { d: `${g('year')}-${g('month')}-${g('day')}`, m: +g('hour') % 24 * 60 + +g('minute') }; };
+const isRth = b => { const m = etParts(b.ts).m; return m >= 570 && m < 960; };
+let RAW = [], BARS = [], RSI = [], PC = null, DEPTH = 25, timer = null, stTimer = null, lastTick = 0, gen = 0;
+
+function agg(raw) {
+  const out = [], step = TF * 60;
+  for (const b of raw) {
+    const t = Math.floor(b.ts / step) * step + KST;
+    const o = out[out.length - 1];
+    if (o && o.time === t) { o.high = Math.max(o.high, b.high ?? b.close); o.low = Math.min(o.low, b.low ?? b.close); o.close = b.close; o.vol += b.volume || 0; }
+    else out.push({ time: t, open: b.open ?? b.close, high: b.high ?? b.close, low: b.low ?? b.close, close: b.close, vol: b.volume || 0, rth: isRth(b) });
+  }
+  return out;
+}
+// RSI = 메리츠 앱·봇(MANUAL_RSI=SMA)과 같은 공식: 최근 14봉 상승폭 합 ÷ 전체 변동폭 합
+function rsiCalc(c, n = 14) {
+  const r = new Array(c.length).fill(null); if (c.length <= n) return r;
+  for (let i = n; i < c.length; i++) {
+    let g = 0, l = 0;
+    for (let k = i - n + 1; k <= i; k++) { const d = c[k] - c[k - 1]; if (d > 0) g += d; else l -= d; }
+    r[i] = g + l === 0 ? 50 : 100 * g / (g + l);
+  }
+  return r;
+}
+async function getJ(u, h) { const r = await fetch(u, { headers: h || {}, cache: 'no-store' }); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; }
+
+function render(fit) {
+  const raw = EXT ? RAW : RAW.filter(isRth);
+  BARS = agg(raw);
+  // RSI 는 봇·메리츠처럼 프리·정규·애프터 봉을 이어서 계산
+  const rthBars = BARS;
+  const rr = rsiCalc(rthBars.map(b => b.close)); const rm = new Map(rthBars.map((b, i) => [b.time, rr[i]]));
+  RSI = BARS.map(b => rm.get(b.time) ?? null);
+  cs.setData(BARS.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close, ...XC(b) })));
+  vs.setData(BARS.map(b => ({ time: b.time, value: b.vol, color: b.close >= b.open ? 'rgba(34,197,94,.35)' : 'rgba(239,68,68,.35)' })));
+  drawRsi();
+  // 웅덩이 신호: RSI 가 DEPTH 아래로 빠졌다가 30 위로
+  const mk = [];
+  for (let i = 1; i < BARS.length; i++) {
+    if (!(RSI[i] >= 30 && RSI[i - 1] != null && RSI[i - 1] < 30)) continue;
+    let j = i - 1, mn = 100; while (j >= 0 && RSI[j] != null && RSI[j] < 30) { mn = Math.min(mn, RSI[j]); j--; }
+    if (mn < DEPTH && TF === PTF) mk.push({ time: BARS[i].time, position: 'belowBar', color: '#ef4444', shape: 'arrowUp', text: '' });
+  }
+  for (const e of ENTRY) { const t = Math.floor((e.ts) / (TF * 60)) * TF * 60 + KST; if (BARS.some(b => b.time === t)) mk.push({ time: t, position: 'belowBar', color: '#facc15', shape: 'arrowUp', text: '진입' }); }
+  mk.sort((a, b) => a.time - b.time); cs.setMarkers(mk);
+  rsiLines.forEach(l => rs.removePriceLine(l));
+  rsiLines = [[70, '#6b7280'], [30, '#6b7280'], [DEPTH, '#3b82f6']].map(([p, c]) => rs.createPriceLine({ price: p, color: c, lineWidth: 1, lineStyle: 0, axisLabelVisible: true, title: '' }));
+  if (fit) {   // 처음엔 오늘(한국 날짜) 봉부터 보여줌 — MNQ 보드처럼 하루 화면
+    const n = BARS.length, today0 = Math.floor((Date.now() / 1000 + KST) / 86400) * 86400;
+    let i0 = BARS.findIndex(b => b.time >= today0);
+    if (i0 < 0 || n - i0 < 20) i0 = Math.max(0, n - Math.round(390 / TF * 0.6));
+    ch.timeScale().setVisibleLogicalRange({ from: i0, to: n + 4 });
+  }
+  head();
+}
+function head() {
+  const b = BARS[BARS.length - 1]; if (!b) return;
+  $('#sym').textContent = SYM; $('#last').textContent = fmt(b.close);
+  const c = PC ? (b.close / PC - 1) * 100 : null;
+  $('#chg').textContent = c == null ? '' : (c >= 0 ? '+' : '') + c.toFixed(2) + '%'; $('#chg').className = 'c ' + (c >= 0 ? 'up' : 'dn');
+  $('#last').className = c >= 0 ? 'up' : 'dn';
+  const ri = RSI[RSI.length - 1];
+  $('#rsiLab').innerHTML = `RSI(14) ${ri == null ? '-' : ri.toFixed(1)} <span style="color:#8a93a8">· 웅덩이 ${PTF}분봉 ${DEPTH}↓→30↑</span>`;
+  if (!$('#ohlc').dataset.hover) $('#ohlc').innerHTML = `${kt(b.time)} 시 ${fmt(b.open)} 고 ${fmt(b.high)} 저 ${fmt(b.low)} 종 ${fmt(b.close)}`;
+}
+const etNow = () => { const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })); return { wd: d.getDay(), m: d.getHours() * 60 + d.getMinutes() }; };
+// 주간거래(한국 낮)까지 포함: 미국 일요일 저녁 ~ 금요일 20시
+function marketLive() { const { wd, m } = etNow(); if (wd === 6) return false; if (wd === 0) return m >= 19 * 60; if (wd === 5) return m < 20 * 60; return true; }
+function usSession() { const { wd, m } = etNow(); return wd >= 1 && wd <= 5 && m >= 240 && m < 1200; }
+// 메리츠 1분봉(주간거래 포함) — 야후에 없는 시간을 채운다
+let MZALL = new Map(), MZERR = '', TK = 0;
+async function loadMz() {
+  if (!pin) return;
+  try { const J = await getJ(`/api/mzbars?s=${SYM}`, { 'x-pin': pin }); for (const b of J.bars || []) if (b.close > 0) MZALL.set(b.ts, b); MZERR = J.err || ''; }
+  catch (e) { MZERR = String(e.message || e); }
+}
+function mergeMz() {
+  const base = RAW.filter(b => !b.src); const have = new Set(base.map(b => b.ts));
+  RAW = base.concat([...MZALL.values()].filter(b => !have.has(b.ts))).sort((a, b) => a.ts - b.ts);
+}
+function setStat() {
+  const live = marketLive() && Date.now() - lastTick < 20000;
+  $('#dot').className = 'dot' + (live ? ' live' : '');
+  $('#stat').textContent = live ? '실시간 · ' + new Date(lastTick).toLocaleTimeString('ko-KR', { hour12: false }) : marketLive() ? '연결 중' : '장 마감 · ' + (RAW.length ? kt(BARS[BARS.length - 1].time) : '');
+}
+
+// 처음: 5일치 1분봉 → 이후 3초마다 오늘 봉만 다시 받아 마지막 봉 갱신
+async function reload() {
+  const my = ++gen; clearTimeout(timer);
+  try {
+    MZALL = new Map();
+    const [H] = await Promise.all([getJ(`/api/history?symbol=${SYM}&interval=1m&ext=1`), loadMz()]);
+    if (my !== gen) return;
+    RAW = (H.bars || []).filter(b => b.close != null); mergeMz();
+    const days = [...new Set(RAW.filter(isRth).map(b => etParts(b.ts).d))];
+    // 기준가 = 마지막 봉 직전에 끝난 정규장 종가 (주간·프리장엔 전 거래일, 애프터엔 그날)
+    const lp = RAW.length ? etParts(RAW[RAW.length - 1].ts) : null;
+    const prevDay = !lp ? null : (lp.m >= 960 && days.includes(lp.d)) ? lp.d : days.filter(d => d < lp.d).pop();
+    const pb = RAW.filter(b => isRth(b) && etParts(b.ts).d === prevDay);
+    PC = pb.length ? pb[pb.length - 1].close : null;
+    lastTick = Date.now(); render(true);
+  } catch (e) { $('#stat').textContent = '불러오기 실패 ' + (e.message || e); }
+  setStat(); loop(my);
+}
+function etDate(off) { const d = new Date(Date.now() + off * 864e5); return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(d); }
+async function tick(my) {
+  try {
+    TK++;
+    const us = usSession(), useY = us || TK % 10 === 0, useM = !us || TK % 2 === 0;   // 미국장엔 야후 3초·메리츠 6초, 주간거래엔 메리츠 3초
+    const [H] = await Promise.all([useY ? getJ(`/api/history?symbol=${SYM}&interval=1m&start=${etDate(-1)}&end=${etDate(1)}&ext=1`).catch(() => ({ bars: [] })) : { bars: [] }, useM ? loadMz() : null]);
+    if (my !== gen) return;
+    const nb = (H.bars || []).filter(b => b.close != null);
+    if (nb.length) { const from = nb[0].ts; RAW = RAW.filter(b => !b.src && b.ts < from).concat(nb); }
+    mergeMz();
+    lastTick = Date.now();
+    const before = BARS.length; const prevLast = BARS[BARS.length - 1];
+    const raw = EXT ? RAW : RAW.filter(isRth); const nbars = agg(raw);
+    if (nbars.length === before && prevLast && nbars[nbars.length - 1].time === prevLast.time) {
+      // 마지막 봉만 움직임
+      BARS = nbars; const b = BARS[BARS.length - 1];
+      cs.update({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close, ...XC(b) });
+      vs.update({ time: b.time, value: b.vol, color: b.close >= b.open ? 'rgba(34,197,94,.35)' : 'rgba(239,68,68,.35)' });
+      const rthBars = BARS; const rr = rsiCalc(rthBars.map(x => x.close));
+      RSI[RSI.length - 1] = rr[rr.length - 1]; drawRsi();
+      head();
+    } else render(false);
+  } catch (e) { /* 다음 틱에 다시 */ }
+}
+function loop(my) {
+  clearTimeout(timer);
+  const run = async () => { if (my !== gen) return; const t0 = Date.now(); if (!document.hidden && marketLive()) await tick(my); setStat(); timer = setTimeout(run, marketLive() ? Math.max(300, 3000 - (Date.now() - t0)) : 60000); };   // 받는 시간 포함 3초 간격
+  timer = setTimeout(run, 3000);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { setStat(); loop(gen); } });
+
+// ── 웅덩이 상태 (진입·손절·익절 선) — 20초마다
+let ENTRY = [], plines = [], PTF = 3, PLAB = [];
+// 진입·손절·익절 글자는 차트 왼쪽에 (오른쪽은 최근 봉을 가려서)
+const labBox = document.createElement('div'); labBox.style.cssText = 'position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:3';
+$('#main').style.position = 'relative'; $('#main').appendChild(labBox);
+function drawLab() { labBox.innerHTML = PLAB.map(x => { const y = cs.priceToCoordinate(x.p); return y == null ? '' : `<span style="position:absolute;left:6px;top:${Math.round(y) - 10}px;background:#0b0d14;border:1px solid ${x.c};color:${x.c};font:700 11px 'JetBrains Mono',monospace;padding:1px 5px;border-radius:5px;white-space:nowrap">${x.t} ${x.p.toFixed(2)}</span>`; }).join(''); }
+setInterval(drawLab, 400);
+async function loadState() {
+  if (!pin) { $('#info').innerHTML = 'PIN 이 없어서 진입선은 못 불러와요 · 대시보드에서 한 번 열어주세요'; return; }
+  try {
+    const D = await getJ('/api/dash?full=1&chart=1', { 'x-pin': pin });
+    const M = D.manual || {}, R = (M.raw && M.raw.rules) || {};
+    const rules = Object.entries(R).filter(([k]) => new RegExp('^\\s*' + SYM + '\\b', 'i').test(k));
+    const dm = rules.map(([k]) => k.match(/PIT\d*M?\s*<\s*(\d+)/i)).find(Boolean); DEPTH = dm ? +dm[1] : 25;
+    const tm = rules.map(([k]) => k.match(/PIT(\d+)M/i)).find(Boolean); PTF = tm ? +tm[1] : 3;
+    plines.forEach(l => cs.removePriceLine(l)); plines = []; ENTRY = []; PLAB = []; const txt = [];
+    for (const [k, st] of rules) {
+      const on = st.st === 'hold' || st.st === 'exiting';
+      if (st.lastSig && st.avg) { const id = String(st.lastSig); const ts = Date.UTC(+id.slice(0, 4), +id.slice(4, 6) - 1, +id.slice(6, 8), +id.slice(8, 10), +id.slice(10, 12)) / 1000 - KST; ENTRY.push({ ts }); }
+      if (on) {
+        const L = (p, c, t, s) => { if (!p) return; plines.push(cs.createPriceLine({ price: +p, color: c, lineWidth: 2, lineStyle: s || 0, axisLabelVisible: true, title: '' })); PLAB.push({ p: +p, c, t }); };
+        L(st.avg, '#facc15', '진입'); L(st.slPx, '#ef4444', '손절'); if (!st.halfDone) L(st.halfPx, '#22c55e', '절반', 2); L(st.tpPx, '#3b82f6', '익절');
+        txt.push(`<span>보유 <b>${((st.bought || 0) - (st.sold || 0)).toLocaleString()}주</b> @ ${fmt(st.avg)}</span>`);
+      }
+    }
+    const lines = (M.lines || []).filter(l => !l.startsWith('#') && new RegExp('^\\s*' + SYM + '\\b', 'i').test(l));
+    $('#info').innerHTML = (txt.join('') || `<span>${lines.length ? '대기 · 켜진 줄 ' + lines.length : '켜진 줄 없음'}</span>`) + `<span><b style="color:#ef4444">▲</b> 웅덩이에서 올라온 자리 · <b style="color:#facc15">▲</b> 진입 · 흐린 봉 = 주간·프리·애프터</span>${MZERR ? `<span style="color:#f97316">주간 시세 못 받음: ${MZERR}</span>` : ''}`;
+    render(false);
+  } catch (e) { $('#info').textContent = '상태 불러오기 실패 ' + (e.message || e); }
+}
+reload().then(loadState);
+setInterval(() => { if (!document.hidden) loadState(); }, 20000);
+</script>
+</body>
+</html>
