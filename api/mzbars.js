@@ -5,6 +5,7 @@
 import crypto from 'node:crypto';
 import * as M from './_meritz.js';
 import * as V from './_ghvars.js';
+import { clock } from './_manual_core.js';
 
 const SALT = 'manual-token:';
 const keyOf = salt => crypto.createHash('sha256').update(salt + (process.env.CRON_SECRET || '')).digest();
@@ -77,6 +78,14 @@ async function tickBars(sym) {
   });
 }
 
+// 지금 진행 중인 1분봉: 메리츠 분봉은 끝난 봉만 줘서 최대 1분 늦다 → 현재가로 지금 봉을 만든다
+const LIVE = {};   // sym → { ts, open, high, low, close }
+async function livePx(sym) {
+  const ses = clock(new Date()).session; if (ses === 'closed') return null;
+  try { return await M.price(await getToken(false), sym, ses); }
+  catch (e) { if (e.code !== 'TOKEN_DEAD') throw e; return await M.price(await getToken(true), sym, ses); }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   const pin = (process.env.DASH_PIN || '').trim();
@@ -86,6 +95,16 @@ export default async function handler(req, res) {
   const out = new Map(), err = [];
   try { for (const b of await tickBars(sym)) out.set(b.ts, b); } catch (e) { err.push('기록 ' + (e.message || e)); }
   try { for (const b of await meritzBars(sym)) out.set(b.ts, b); } catch (e) { err.push('메리츠 ' + String(e.message || e).slice(0, 120)); }
+  try {
+    const p = await livePx(sym);
+    if (p > 0) {
+      const ts = Math.floor(Date.now() / 60000) * 60;
+      let L = LIVE[sym];
+      if (!L || L.ts !== ts) { const prev = out.get(ts - 60); L = LIVE[sym] = { ts, open: prev ? prev.close : p, high: p, low: p, close: p }; }
+      L.high = Math.max(L.high, p); L.low = Math.min(L.low, p); L.close = p;
+      if (!out.has(ts)) out.set(ts, { ...L, high: Math.max(L.high, L.open), low: Math.min(L.low, L.open), src: 'live' });
+    }
+  } catch (e) { err.push('현재가 ' + String(e.message || e).slice(0, 80)); }
   const bars = [...out.values()].filter(b => b.close > 0).sort((a, b) => a.ts - b.ts);
   return res.status(200).json({ sym, count: bars.length, bars, err: err.join(' · ') || undefined });
 }
