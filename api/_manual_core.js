@@ -7,27 +7,24 @@
 //   IF<=65 / IF>=58      가격이 그 이하/이상이면 매수
 //   NOW                  바로 매수
 //   AT=11-04 23:30       한국시간 그 시각 이후 매수
-//   PIT15M<20            15분봉 RSI14 가 20 아래까지 빠졌다가 30 을 다시 넘은 봉에서 매수 (1M, 3M, 5M, 30M, 60M 도 가능)
 // 필터
 //   TREND=UP / TREND=DN  전일 종가가 20일선 위 / 아래일 때만 진입
 //   RTH                  정규장에서만 진입
 //   REPEAT               끝나면 다음 거래일에 다시 대기 (하루 한 번)
 //   RISK=700             손절 시 잃을 달러. 수량 = min(적은 수량, RISK ÷ 손절폭)
-//   NARROW               웅덩이 손절폭이 좁아도(MANUAL_MIN_STOPW 미만) 건너뛰지 않고 진입
 // 청산 (체결가 기준 자동 계산)
 //   TP=72 | TP=+3% | TP=R1.5      익절가 / 체결가 +3% / 손절폭의 1.5배
-//   SL=60 | SL=-2.5% | SL=LOW     손절가 / 체결가 -2.5% / 웅덩이 저점 -0.1% (PIT 일 때)
+//   SL=60 | SL=-2.5%              손절가 / 체결가 -2.5%
 //   EXP=11-10                     그 미국 거래일 15:45 ET MOC 정리
 //   EOD                           진입한 거래일 15:45 ET MOC 정리
-//   PEAK5M>80                     5분봉 RSI14 가 80 위로 올랐다가 70 아래로 다시 꺾인 봉에서 매도 (1M·15M·30M·60M 도, 숫자 생략 시 80)
 //   TRAIL=2% | TRAIL=1.5          트레일링 스탑: 감시·매수 뒤 최고가에서 2% / $1.5 내려오면 매도 (SL 과 같이 쓰면 더 높은 쪽)
 //   HALF=R0.5                     손절폭의 0.5배 오르면 절반 매도, 나머지는 손절 그대로 두고 계속 (SL 필요)
 //   HALF=R0.5BE                   위와 같지만 절반 매도 뒤 나머지 손절을 본전으로 올림
-// 예) SOXL BUY 500 PIT15M<20 TREND=UP RTH SL=LOW TP=R1 EOD RISK=1500 REPEAT
+// 예) SOXL BUY 500 IF<=40 TREND=UP RTH SL=-3% TP=R1 EOD RISK=1500 REPEAT
 //     SOXS BUY 300 NOW TP=+3% SL=-2.5%
 //     SOXS SELL 1000 TP=60 SL=48      ← 이미 가진 주식 (퍼센트는 평균단가 기준)
 //     SOXS SELL 3000 SL=56.8 TRAIL=3%  ← 56.8 아래로 가거나, 오른 뒤 고점에서 3% 빠지면 매도
-//     SOXL BUY 1000 PIT5M<20 PEAK5M>80 SL=LOW EOD  ← 과매도 웅덩이에서 사서 과매수 봉우리에서 판다
+// (RSI 웅덩이 PIT·봉우리 PEAK·SL=LOW 는 11/24 없앰 — 백테스트·실전 모두 마이너스)
 
 const N = '(\\d+(?:\\.\\d+)?)';
 export function parseRules(text, year) {
@@ -43,27 +40,17 @@ export function parseRules(text, year) {
     if (!/^[A-Z]{1,6}$/.test(sym) || !['BUY', 'SELL'].includes(side) || !(qty > 0)) {
       errors.push(`형식 오류: ${line}`); continue;
     }
-    const r = { key: line, sym, side, qty, cond: null, tp: null, sl: null, exp: null, at: null, pit: null, trend: null, rth: false, repeat: false, eod: false, risk: null, trail: null, peak: null, half: null };
+    const r = { key: line, sym, side, qty, cond: null, tp: null, sl: null, exp: null, at: null, trend: null, rth: false, repeat: false, eod: false, risk: null, trail: null, half: null };
     let bad = false;
     for (let i = 3; i < t.length; i++) {
       const w = t[i].toUpperCase();
       let m;
       if ((m = w.match(new RegExp(`^IF(<=|>=)${N}$`)))) r.cond = { op: m[1], px: Number(m[2]) };
       else if (w === 'NOW') r.cond = { op: 'NOW' };
-      else if ((m = w.match(/^PIT(\d{1,2})M(?:<(\d{1,2}))?$/))) {
-        const mins = Number(m[1]);
-        if (![1, 3, 5, 15, 30, 60].includes(mins)) { errors.push(`PIT 분봉은 1·3·5·15·30·60: ${line}`); bad = true; }
-        r.pit = { sec: mins * 60, depth: m[2] ? Number(m[2]) : 20 }; r.cond = { op: 'PIT' };
-      }
-      else if ((m = w.match(/^PEAK(\d{1,2})M(?:>(\d{2}))?$/))) {
-        const mins = Number(m[1]);
-        if (![1, 3, 5, 15, 30, 60].includes(mins)) { errors.push(`PEAK 분봉은 1·3·5·15·30·60: ${line}`); bad = true; }
-        r.peak = { sec: mins * 60, height: m[2] ? Number(m[2]) : 80 };
-      }
+      else if (/^(PIT|PEAK)\d/.test(w) || w === 'NARROW' || w === 'SL=LOW') { errors.push(`웅덩이(PIT·PEAK·SL=LOW·NARROW)는 없앴어요: ${line}`); bad = true; break; }
       else if ((m = w.match(/^TREND=(UP|DN)$/))) r.trend = m[1];
       else if (w === 'RTH') r.rth = true;
       else if (w === 'REPEAT') r.repeat = true;
-      else if (w === 'NARROW') r.narrow = true;
       else if (w === 'EOD') r.eod = true;
       else if ((m = w.match(new RegExp(`^RISK=\\$?${N}$`)))) r.risk = Number(m[1]);
       else if ((m = w.match(new RegExp(`^TP=${N}$`)))) r.tp = { k: 'abs', v: Number(m[1]) };
@@ -72,7 +59,6 @@ export function parseRules(text, year) {
       else if ((m = w.match(new RegExp(`^HALF=R${N}(BE)?$`)))) { r.half = Number(m[1]); r.halfBE = !!m[2]; }
       else if ((m = w.match(new RegExp(`^SL=${N}$`)))) r.sl = { k: 'abs', v: Number(m[1]) };
       else if ((m = w.match(new RegExp(`^SL=-${N}%$`)))) r.sl = { k: 'pct', v: -Number(m[1]) };
-      else if (w === 'SL=LOW') r.sl = { k: 'low' };
       else if ((m = w.match(new RegExp(`^TRAIL=${N}%$`)))) r.trail = { k: 'pct', v: Number(m[1]) };
       else if ((m = w.match(new RegExp(`^TRAIL=\\$?${N}$`)))) r.trail = { k: 'abs', v: Number(m[1]) };
       else if ((m = w.match(/^EXP=(\d{1,2})-(\d{1,2})$/))) r.exp = `${year}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
@@ -84,16 +70,14 @@ export function parseRules(text, year) {
     }
     if (bad) continue;
     const err = m => { errors.push(`${m}: ${line}`); bad = true; };
-    if (side === 'BUY' && !r.cond) err('매수 조건(IF/AT/NOW/PIT) 없음');
-    if (side === 'SELL' && !(r.tp || r.sl || r.exp || r.eod || r.trail || r.peak)) err('매도 조건(TP/SL/TRAIL/PEAK/EXP) 없음');
-    if (r.peak && !(r.peak.height > 70 && r.peak.height < 100)) err('PEAK 높이는 71~99');
+    if (side === 'BUY' && !r.cond) err('매수 조건(IF/AT/NOW) 없음');
+    if (side === 'SELL' && !(r.tp || r.sl || r.exp || r.eod || r.trail)) err('매도 조건(TP/SL/TRAIL/EXP) 없음');
     if (r.trail && !(r.trail.v > 0 && (r.trail.k === 'abs' || r.trail.v < 50))) err('TRAIL 값이 이상함');
-    if (r.sl && r.sl.k === 'low' && !r.pit) err('SL=LOW 는 PIT 와 함께');
     if (r.tp && r.tp.k === 'R' && !r.sl) err('TP=R 은 SL 이 있어야');
     if (r.risk && !r.sl) err('RISK 는 SL 이 있어야');
     if (r.half && !r.sl) err('HALF 는 SL 이 있어야');
     if (r.half && !(r.half > 0 && r.half <= 5)) err('HALF 값이 이상함');
-    if (side === 'SELL' && (r.pit || r.risk || r.repeat)) err('SELL 에는 PIT/RISK/REPEAT 못 씀');
+    if (side === 'SELL' && (r.risk || r.repeat)) err('SELL 에는 RISK/REPEAT 못 씀');
     if (bad) continue;
     rules.push(r);
   }
@@ -131,61 +115,8 @@ export { nextWeekday };
 
 export const tick = p => Math.round(p * 100) / 100;
 
-// ── 지표 ───────────────────────────────────────────────
-// RSI 공식: WILDER (기본, 백테스트와 같음) | SMA (메리츠 앱 차트와 같음 — 최근 14봉 상승폭 합 ÷ 전체 변동폭 합)
-export const RSI_MODE = { kind: 'WILDER' };
-export function rsi(closes, n = 14) {
-  const out = new Array(closes.length).fill(null);
-  if (closes.length <= n) return out;
-  if (RSI_MODE.kind === 'SMA') {
-    for (let i = n; i < closes.length; i++) {
-      let g = 0, l = 0;
-      for (let k = i - n + 1; k <= i; k++) { const d = closes[k] - closes[k - 1]; if (d > 0) g += d; else l -= d; }
-      out[i] = g + l === 0 ? 50 : 100 * g / (g + l);
-    }
-    return out;
-  }
-  let g = 0, l = 0;
-  for (let i = 1; i <= n; i++) { const d = closes[i] - closes[i - 1]; if (d > 0) g += d; else l -= d; }
-  g /= n; l /= n;
-  out[n] = l === 0 ? 100 : 100 - 100 / (1 + g / l);
-  for (let i = n + 1; i < closes.length; i++) {
-    const d = closes[i] - closes[i - 1];
-    g = (g * (n - 1) + Math.max(d, 0)) / n; l = (l * (n - 1) + Math.max(-d, 0)) / n;
-    out[i] = l === 0 ? 100 : 100 - 100 / (1 + g / l);
-  }
-  return out;
-}
-// bars: 완성된 봉, 오래된 것 → 최신 {id, l, c}
-// 마지막 봉에서 RSI 가 30 을 위로 넘었고, 그 직전 30 아래 구간(웅덩이)의 최저 RSI 가 depth 미만이면 신호
-// RSI 가 백테스트와 같아지려면 100봉 이상 필요 (60봉이면 신호 35개 중 8개 어긋남)
-export const MIN_BARS = 100;
+// 메리츠 봉 id (YYYYMMDDHHMM, 한국 시각) → Date
 export const barTime = id => new Date(`${id.slice(0, 4)}-${id.slice(4, 6)}-${id.slice(6, 8)}T${id.slice(8, 10)}:${id.slice(10, 12)}:00+09:00`);
-export function pitSignal(bars, depth = 20) {
-  if (!bars || bars.length < MIN_BARS) return { fire: false, short: true, n: bars ? bars.length : 0 };
-  const R = rsi(bars.map(b => b.c));
-  const last = bars.length - 1;
-  const rsiNow = R[last];
-  // 30 을 넘은 봉이 마지막 봉이거나 바로 앞 봉이면 신호 (봇이 한 번 못 돌아도 3분 더 잡는다). 앞 봉이면 지금도 30 위여야 함
-  for (let i = last; i >= Math.max(1, last - 1); i--) {
-    if (!(R[i] >= 30 && R[i - 1] !== null && R[i - 1] < 30)) continue;
-    if (i < last && !(rsiNow >= 30)) break;
-    let j = i - 1, mn = 100, low = Infinity;
-    while (j >= 0 && R[j] !== null && R[j] < 30) { mn = Math.min(mn, R[j]); low = Math.min(low, bars[j].l); j--; }
-    return { fire: mn < depth, id: bars[i].id, min: mn, low, rsi: rsiNow };
-  }
-  return { fire: false, rsi: rsiNow };
-}
-// 과매수 봉우리: 마지막 봉에서 RSI 가 70 아래로 꺾였고, 그 직전 70 위 구간의 최고 RSI 가 height 초과면 신호
-export function peakSignal(bars, height = 80) {
-  if (!bars || bars.length < MIN_BARS) return { fire: false, short: true, n: bars ? bars.length : 0 };
-  const R = rsi(bars.map(b => b.c));
-  const i = bars.length - 1;
-  if (!(R[i] !== null && R[i] < 70 && R[i - 1] !== null && R[i - 1] >= 70)) return { fire: false, rsi: R[i] };
-  let j = i - 1, mx = 0;
-  while (j >= 0 && R[j] !== null && R[j] >= 70) { mx = Math.max(mx, R[j]); j--; }
-  return { fire: mx > height, id: bars[i].id, max: mx, rsi: R[i] };
-}
 // days: 일봉, 최신 → 오래된 {date:'YYYY-MM-DD', c}. tradeDate 이전 봉만 사용
 export function trendOf(days, tradeDate) {
   const done = (days || []).filter(d => d.date < tradeDate).slice(0, 20);
@@ -195,14 +126,13 @@ export function trendOf(days, tradeDate) {
 }
 
 // ── 청산가 계산 ─────────────────────────────────────────
-export function levels(r, entry, pitLow) {
+export function levels(r, entry) {
   let sl = null, tp = null;
   if (r.sl) {
     if (r.sl.k === 'abs') sl = r.sl.v;
     else if (r.sl.k === 'pct') sl = entry * (1 + r.sl.v / 100);
-    else if (r.sl.k === 'low' && pitLow > 0) sl = pitLow * 0.999;
     // 매수 규칙에서 손절이 체결가 위면 -1% 로 (사자마자 손절 방지). 보유분 SELL 의 직접 지정 손절은 평단 위(본전·이익 보호)라도 그대로
-    if (sl !== null && sl >= entry && (r.sl.k === 'low' || r.side === 'BUY')) sl = entry * 0.99;
+    if (sl !== null && sl >= entry && r.side === 'BUY') sl = entry * 0.99;
     if (sl !== null) sl = tick(sl);
   }
   if (r.tp) {
@@ -221,7 +151,7 @@ export function trailStop(r, peak) {
 
 // ── 한 단계 판단 (실제 주문은 핸들러) ───────────────────
 // st: { st:'wait'|'buying'|'hold'|'selling'|'done', bought, sold, cost, tpPx, slPx, expDate, exiting, lastSig }
-// ctx: { px, clk, slip, sig, trend, peakSig }
+// ctx: { px, clk, slip, trend }
 export function decide(r, st, ctx) {
   const { px, clk, slip } = ctx;
   const stopSlip = ctx.stopSlip ?? 2 * slip; // 손절·트레일·만기·이어서 매도 지정가 여유폭 (바로 체결되게)
@@ -245,26 +175,16 @@ export function decide(r, st, ctx) {
     else if (op === '<=') { ok = px <= r.cond.px; why = `가격 ${px} <= ${r.cond.px}`; }
     else if (op === '>=') { ok = px >= r.cond.px; why = `가격 ${px} >= ${r.cond.px}`; }
     else if (op === 'AT') { ok = `${clk.kst.date}T${clk.kst.hhmm}` >= r.at; why = `시각 ${r.at}`; }
-    else if (op === 'PIT') {
-      const s = ctx.sig;
-      ok = !!(s && s.fire && s.id !== st.lastSig);
-      if (ok) why = `${r.pit.sec / 60}분 RSI 웅덩이 ${s.min.toFixed(1)} → ${s.rsi.toFixed(1)}`;
-    }
     if (!ok) return { act: 'NONE' };
     const lim = op === '<=' ? Math.min(tick(px * (1 + slip)), tick(r.cond.px * (1 + slip))) : tick(px * (1 + slip));
-    // 웅덩이 저점 손절이 너무 가까우면(기본 1% 미만) 건너뜀 — 백테스트에서 가장 나쁜 그룹
-    if (op === 'PIT' && r.sl && r.sl.k === 'low' && ctx.minStopW && !r.narrow) {
-      const lv2 = levels(r, px, ctx.sig && ctx.sig.low);
-      if (lv2.sl !== null && (px - lv2.sl) / px < ctx.minStopW) return { act: 'NONE', why: `손절폭 ${(((px - lv2.sl) / px) * 100).toFixed(2)}% < ${(ctx.minStopW * 100).toFixed(1)}% → 건너뜀 (웅덩이 저점 ${lv2.sl})`, skipSig: ctx.sig.id };
-    }
     let qty = r.qty - (st.bought || 0);
     if (r.risk) {
-      const lv = levels(r, px, ctx.sig && ctx.sig.low);
+      const lv = levels(r, px);
       const per = lv.sl !== null ? px - lv.sl : 0;
       if (per > 0) qty = Math.min(qty, Math.floor(r.risk / per));
     }
     if (qty <= 0) return { act: 'NONE', why: 'RISK 로 계산한 수량 0' };
-    return { act: 'BUY', qty, kind: 'LIMIT', px: lim, why, pitLow: ctx.sig && ctx.sig.low, sigId: ctx.sig && ctx.sig.id };
+    return { act: 'BUY', qty, kind: 'LIMIT', px: lim, why };
   }
   if (st.st === 'hold') {
     if (held <= 0) return { act: 'DONE' };
@@ -282,8 +202,6 @@ export function decide(r, st, ctx) {
     const pk = Math.max(st.peak || px, px);
     const tr = trailStop(r, pk);
     if (tr && px <= tr) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(Math.min(px, tr) * (1 - tight)), why: `트레일링 ${px} ≤ ${tr} (고점 ${pk})` };
-    const ps = ctx.peakSig;
-    if (r.peak && ps && ps.fire && ps.id !== st.lastPeak) return { act: 'SELL', qty: held, kind: 'LIMIT', px: tick(px * (1 - slip)), why: `익절 ${r.peak.sec / 60}분 RSI 봉우리 ${ps.max.toFixed(1)} → ${ps.rsi.toFixed(1)}`, peakId: ps.id };
     return { act: 'NONE' };
   }
   return { act: 'NONE' };
