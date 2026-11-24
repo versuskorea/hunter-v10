@@ -1,4 +1,4 @@
-// api/mtrade.js — 손 주문(웅덩이·매도 줄) 체결 기록을 직접 보충한다 (PIN 필요, 주문 안 냄)
+// api/mtrade.js — 손 주문(매도 줄) 체결 기록을 직접 보충한다 (PIN 필요, 주문 안 냄)
 //   POST { t, d, sym, qty, px, ref, why }   → MANUAL_STATE.trades 에 한 건 추가 (봇 기록 기능 전 체결 보충용)
 //   t: 체결 시각(ms) · d: 미국 거래일 YYYY-MM-DD · ref: 기준가(손익 계산용)
 import * as V from './_ghvars.js';
