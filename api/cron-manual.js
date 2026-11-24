@@ -277,7 +277,7 @@ export async function runOnce({ vars, broker, now = new Date(), notify = tg, sav
   if (sessionOn) {
     // 3-0) RSI 웅덩이 규칙 종목의 현재가를 1분마다 기록 (주간거래 포함, 끊김 없는 분봉용)
     const nowMin = Math.floor(now.getTime() / 60000);
-    for (const sym of new Set(rules.filter(r => r.pit && !r.rth).map(r => r.sym))) {
+    for (const sym of new Set(['SOXL', ...rules.filter(r => r.pit && !r.rth).map(r => r.sym)])) {   // SOXL 은 웅덩이 줄이 없어도 늘 기록 → 차트 RSI 가 끊김 없이 앱과 같게 (11/24)
       try {
         const arr = (T[sym] ||= []);
         // ① 메리츠 실제 1분봉(완성된 봉)으로 시·고·저·종을 채운다 → 앱 차트와 같은 봉
