@@ -20,6 +20,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;pad
 .tabs a{padding:6px 11px;border-radius:20px;background:var(--card);border:1px solid var(--border);color:var(--dim);text-decoration:none;font-size:12px;font-weight:700}
 .tabs a.on{color:var(--text);border-color:var(--accent);background:#141b2e}
 .chartbox{background:var(--card);border:1px solid var(--border);border-radius:14px;margin:10px 0;overflow:hidden}
+/* 웅덩이: 컴퓨터(넓은 화면)에서는 차트 왼쪽 · 주문 오른쪽 */
+@media (min-width:1000px){body.pitwide{max-width:1500px}body.pitwide #main{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:14px;align-items:start}body.pitwide #main>.chartbox:nth-child(2){position:sticky;top:10px;max-height:calc(100dvh - 20px);overflow:auto}}
 .bhead{padding:11px 14px;font-size:13px;font-weight:700;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
 .bhead .r{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--dim);font-weight:600}
 .sub2{padding:8px 14px 2px;font-size:11px;color:var(--dim)}
@@ -372,6 +374,7 @@ async function main() {
   }
   $('#main').innerHTML = html;
   if (K === 'pit' && window.PT && $('#ptBox')) PT.mount($('#ptBox'), D.manual);
+  document.body.classList.toggle('pitwide', K === 'pit');
   if (live && K !== 'pit') { clearTimeout(window.__rt); window.__rt = setTimeout(() => main().catch(() => {}), 60000); }
   // 웅덩이는 차트 안에서 3초마다 갱신   // 장중 1분마다 다시 그림
 }
