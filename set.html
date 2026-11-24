@@ -79,30 +79,6 @@ label{font-size:13px;color:var(--dim)}
   <div id="nightRows"></div>
 </div>
 
-<div class="card" style="display:none">
-  <h2>웅덩이 · 조건주문</h2>
-  <div class="sub">스위치로 켜고 끄기 (끄면 줄 앞에 # 이 붙어요). 보유 중인 줄을 끄면 그 물량의 손절 관리도 멈춰요.</div>
-  <div id="lines"></div>
-  <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
-    <div class="sub">새 웅덩이 줄 만들기</div>
-    <div class="rowf">
-      <select id="nSym"><option>SOXL</option><option>SOXS</option></select>
-      <select id="nTf"><option value="3M">3분봉</option><option value="1M">1분봉</option><option value="5M">5분봉</option></select>
-    </div>
-    <div class="rowf">
-      <div><label>최대 수량</label><input id="nQty" type="number" value="1000"></div>
-      <div><label>RISK ($)</label><input id="nRisk" type="number" value="700"></div>
-    </div>
-    <div class="rowf">
-      <div><label>절반 익절 (R)</label><input id="nHalf" type="number" step="0.1" value="0.5"></div>
-      <div><label>봉우리 RSI</label><input id="nPeak" type="number" value="71"></div>
-    </div>
-    <div class="seg" id="nOpts"></div>
-    <div class="sub" id="nPrev" style="word-break:break-all"></div>
-    <button class="btn gray" onclick="addLine()">줄 추가</button>
-  </div>
-  <div style="margin-top:12px"><button class="btn" onclick="saveLines()">조건주문 저장</button> <span class="sub" id="dirty"></span></div>
-</div>
 
 </div>
 <div class="pane" id="p-bo">
@@ -130,7 +106,7 @@ label{font-size:13px;color:var(--dim)}
 <script>
 const $ = s => document.querySelector(s);
 let pin = (() => { try { return localStorage.getItem('dashPin') || sessionStorage.getItem('dashPin') || ''; } catch { return ''; } })();
-let V = {}, LINES = [], OPT = { RTH: true, EOD: false, REPEAT: true };
+let V = {};
 function toast(t, err) { const m = $('#msg'); m.textContent = t; m.className = err ? 'err' : ''; m.style.display = 'block'; clearTimeout(window.__t); window.__t = setTimeout(() => m.style.display = 'none', 3500); }
 async function api(body) {
   const r = await fetch('/api/settings', { method: body ? 'POST' : 'GET', headers: { 'x-pin': pin, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
@@ -201,31 +177,6 @@ function tab(t) {
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => tab(b.dataset.t));
 tab(['sn', 'wn', 'bo', 'mnq'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'sn');
 
-function lineHtml() {
-  $('#lines').innerHTML = LINES.length ? LINES.map((l, i) => {
-    const off = l.startsWith('#'); const t = off ? l.replace(/^#\s*/, '') : l;
-    return `<div class="line ${off ? 'off' : ''}"><button class="sw ${off ? '' : 'on'}" onclick="tog(${i})"></button><span class="t">${t.replace(/</g, '&lt;')}</span><button class="x" onclick="del(${i})">✕</button></div>`;
-  }).join('') : '<div class="sub">줄 없음</div>';
-}
-function mark() { $('#dirty').textContent = '저장 안 됨'; }
-function tog(i) { const l = LINES[i]; LINES[i] = l.startsWith('#') ? l.replace(/^#\s*/, '') : '# ' + l; lineHtml(); mark(); }
-function del(i) { if (!confirm('이 줄을 지울까요?')) return; LINES.splice(i, 1); lineHtml(); mark(); }
-function build() {
-  const s = $('#nSym').value, tf = $('#nTf').value, q = Math.max(1, +$('#nQty').value || 1000), r = +$('#nRisk').value || 0, h = +$('#nHalf').value, pk = +$('#nPeak').value || 71;
-  let l = `${s} BUY ${q} PIT${tf}<25 PEAK${tf}>${pk} SL=LOW`;
-  if (h > 0) l += ` HALF=R${h}`;
-  if (OPT.EOD) l += ' EOD'; if (OPT.RTH) l += ' RTH';
-  if (r > 0) l += ` RISK=${r}`; if (OPT.REPEAT) l += ' REPEAT';
-  return l;
-}
-function opts() {
-  $('#nOpts').innerHTML = [['RTH', '정규장만'], ['EOD', '장 마감 정리'], ['REPEAT', '매일 반복']].map(([k, t]) => `<button class="${OPT[k] ? 'on' : ''}" data-k="${k}">${t}</button>`).join('');
-  $('#nOpts').querySelectorAll('button').forEach(b => b.onclick = () => { OPT[b.dataset.k] = !OPT[b.dataset.k]; opts(); });
-  $('#nPrev').textContent = build();
-}
-['#nSym', '#nTf', '#nQty', '#nRisk', '#nHalf', '#nPeak'].forEach(s => $(s).addEventListener('input', () => $('#nPrev').textContent = build()));
-function addLine() { LINES.push(build()); lineHtml(); mark(); }
-async function saveLines() { try { await api({ set: { MANUAL: LINES.join('\n') } }); $('#dirty').textContent = ''; toast('조건주문 저장됨 · 1분 안에 봇이 읽어요'); } catch (e) { toast(e.message, 1); } }
 
 async function load() {
   if (!pin) { pin = (prompt('PIN 을 넣으세요') || '').trim(); try { localStorage.setItem('dashPin', pin); } catch {} try { sessionStorage.setItem('dashPin', pin); } catch {} }
@@ -241,8 +192,6 @@ async function load() {
   seg('#nightMode', [['OFF', 'OFF'], ['PAPER', 'PAPER'], ['LIVE', 'LIVE']], (V.NIGHT_MODE || 'OFF').toUpperCase(), v => confirm(`밤 돌파를 ${v} 로 바꿀까요?`) && saveVar('NIGHT_MODE', v));
   const w = j.wave || {};
   $('#waveNow').textContent = w.err ? w.err : `웨이브 기록: ${w.pos ? (w.pos > 0 ? '롱 ' : '숏 ') + (w.sym || '') + ' ' + w.qty + '주 @' + w.entry + ' (' + w.day + ')' : '보유 없음'}`;
-  if (!$('#dirty').textContent) { LINES = String(V.MANUAL || '').split('\n').map(s => s.trim()).filter(Boolean); lineHtml(); }
-  opts();
 }
 load().then(loadMnq);
 </script>
